@@ -1,0 +1,91 @@
+[project]
+name = "pearlatent"
+version = "0.1.0"
+description = "Master's thesis: latent spaces of self-supervised models for pear internal quality from X-ray CT"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+authors = [{ name = "Ruben" }]
+dependencies = [
+    # notebooks
+    "marimo>=0.25",
+    "altair>=5.4",
+    "anywidget>=0.9",
+    # data
+    "polars>=1.30",
+    "pyarrow>=18",          # parquet interop and polars <-> torch/numpy boundaries
+    "numpy>=2.1",
+    # statistics (the framing the thesis uses: PCA, PLS-DA, penalised regression, ordinal models)
+    "scikit-learn>=1.6",
+    "statsmodels>=0.14.4",
+    "scipy>=1.14",
+    # deep learning
+    "torch>=2.7",
+    # plotting for the thesis document
+    "matplotlib>=3.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.12"]
+build-backend = "uv_build"
+
+# ---------------------------------------------------------------------------
+# PyTorch: CUDA wheels on Linux (lab workstation), CPU wheels on Windows/macOS
+# (laptop, school PC). See docs/workflow.md section 4 before changing cu128.
+# ---------------------------------------------------------------------------
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
+    { index = "pytorch-cu128", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+# ---------------------------------------------------------------------------
+# marimo project configuration (applies to every notebook in this repository)
+# ---------------------------------------------------------------------------
+[tool.marimo.runtime]
+# Reload changed modules from src/ without restarting the kernel; mark
+# dependent cells stale instead of rerunning them (safe for GPU cells).
+auto_reload = "lazy"
+# Do not rerun everything when a heavy notebook is opened.
+auto_instantiate = false
+# Make src/ importable even if the package is not installed in the environment.
+pythonpath = ["src"]
+
+[tool.marimo.formatting]
+line_length = 88
+
+[tool.marimo.save]
+autosave = "after_delay"
+format_on_save = true
+
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+extend-exclude = ["notebooks/**/__marimo__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "NPY"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# marimo cells legitimately have unused returns and late imports
+"notebooks/*.py" = ["F401", "F841", "B018", "E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

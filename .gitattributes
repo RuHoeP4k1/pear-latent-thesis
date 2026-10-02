@@ -1,0 +1,8 @@
+# Normalise line endings so Windows (laptop, school PC) and Linux (workstation)
+# produce identical files. Shell scripts must keep LF or bash refuses them.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.pdf binary

@@ -1,0 +1,22 @@
+# Copy this file to config/local.toml on each machine and fill in the paths.
+# config/local.toml is ignored by git, so every machine keeps its own copy.
+# Use forward slashes, also on Windows.
+
+[paths]
+# Folder with the CT volumes (read-only)
+ct_dir = "data/ct"
+# The label CSV files (read-only)
+labels_2024 = "data/labels_2024.csv"
+labels_2025_2026 = "data/labels_2025_2026.csv"
+# Hugo's released encoder weights
+encoder_weights = "data/weights/encoder.pt"
+# Where intermediate products and results are written
+derived_dir = "derived"
+results_dir = "results"
+
+[compute]
+# "auto" picks CUDA when available, then Apple MPS, then CPU
+device = "auto"
+# Batch size for encoding volumes; lower it if the GPU runs out of memory
+encode_batch_size = 4
+num_workers = 4

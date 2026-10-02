@@ -1,0 +1,85 @@
+# ===========================================================================
+# DATA NEVER ENTERS GIT. CT volumes, label CSV files and anything derived from
+# them stay on university storage or your own disk. See docs/workflow.md.
+# ===========================================================================
+data/*
+!data/README.md
+derived/*
+!derived/README.md
+results/*
+!results/README.md
+*.nii
+*.nii.gz
+*.mha
+*.mhd
+*.raw
+*.tif
+*.tiff
+*.h5
+*.hdf5
+*.npy
+*.npz
+*.zarr/
+*.parquet
+*.csv
+!tests/fixtures/*.csv
+
+# Model weights (Hugo's encoder, checkpoints) — too large and not ours to publish
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+checkpoints/
+weights/
+
+# Machine-specific configuration (paths, host names, tokens)
+config/local.toml
+.env
+.env.*
+!.env.example
+
+# marimo: caches and session snapshots can contain data values
+**/__marimo__/cache/
+**/__marimo__/session/
+**/__marimo__/*.html
+**/__marimo__/*.ipynb
+
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Experiment tracking output
+runs/
+wandb/
+mlruns/
+lightning_logs/
+logs/
+*.log
+nohup.out
+
+# Claude Code: personal settings stay local, shared settings are committed
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Editors and operating systems
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+~$*
+
+# Figures: commit only what goes into the thesis document
+reports/figures/scratch/

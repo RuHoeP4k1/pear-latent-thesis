@@ -1,0 +1,12 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
+  "files.eol": "\n",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff"
+  },
+  "files.watcherExclude": {
+    "**/data/**": true,
+    "**/derived/**": true,
+    "**/results/**": true
+  }
+}
