@@ -3,12 +3,10 @@
 Ruben Hoeven · KU Leuven, Bioscience Engineering · supervisor Hugo (Junyan) Li, MeBioS
 One page. If something here needs more than a line, it belongs in the Notes document, not here.
 
-> **Status, 3 October 2026.** Rule 1 below is updated to the box rule Ruben adopted on
-> 2 October. Two lines are **under review and not yet changed**, because the label files
-> (1 October) contradict them; see `HANDOFF.md`, "Plan items to settle":
-> (a) evaluation rule 2, "fit on 2024, evaluate on 2025–26" — the recommended replacement is
-> grouped cross-validation within the 2526 fruit, with 2024 as a secondary check;
-> (b) "pears from 2025 and 2026" — the 2526 file is probably one harvest (2025) stored into 2026.
+> **Status, 3 October 2026.** Rules 1 and 2 below were changed on 2 and 3 October (box rule;
+> reversed evaluation design, because in the 2024 fruit browning and cavity occur together in
+> 296 of the 300 stored defective fruit). Still under review: "pears from 2025 and 2026" — the
+> 2526 file is probably one harvest (2025) stored into 2026; confirm with Hugo.
 
 ## The question
 
@@ -42,7 +40,11 @@ contrast than browned flesh.
 
 1. Split by box, never by fruit: all fruit of one box stay on the same side of every split, for
    every model fitted on labels (rule adopted 2 October 2026; replaces "split at fruit level").
-2. Fit on 2024, evaluate on the 2025–26 fruit the encoder never saw.
+2. Exploration and plots may use all fruit of both seasons, always labelled by season. Model
+   fitting: the primary analysis is cross-validation within the 2526 fruit (never seen by the
+   encoder), with whole boxes held out. The 2024 fruit are secondary: comparison with Hugo's
+   numbers and a reverse cross-season check (fit on 2526, evaluate on 2024), stating that the
+   encoder saw about 80 % of them. (Changed 3 October 2026; was "fit on 2024, evaluate on 2025–26".)
 3. Confidence intervals by resampling fruit, not the spread across cross-validation folds.
 4. Browning is the primary target. Cavity is reported separately as the easy control.
    Never merged.

@@ -64,12 +64,9 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 
 ## Plan items to settle with Ruben (before the mail to Hugo)
 
-1. Evaluation design (charter rule 2, decision D3). The label files show that in 2024 browning and
-   cavity occur together in 296 of the 300 suboptimally stored fruit, and the healthy class is
-   mostly fresh fruit. Recommended on 1 October: primary analysis is grouped cross-validation
-   within the 2526 fruit (boxes held out); 2024 is secondary (comparison with Hugo, reverse
-   cross-season check). CHARTER.md and the Approved ideas tab still say "fit on 2024". Confirm,
-   then update both.
+1. Done 3 Oct: evaluation design reversed in CHARTER.md (rule 2). Still to do: same change in the
+   Approved ideas tab (ground rule 2) during the plan review. Open: whether to set aside two or
+   three 2526 boxes as a final test before any exploration with labels.
 2. "2025 and 2026 fruit" or one harvest (2025) stored into 2026? Wording in charter and plan.
 3. Block 0 checkpoint of 8 October ("Hugo's code runs, encode and decode one 2526 pear") depends
    on the weights; the gate test of 15 October depends on browning region annotations, which may
