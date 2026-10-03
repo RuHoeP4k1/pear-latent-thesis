@@ -13,6 +13,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   clean, 7 tests pass, ruff clean, both notebooks run as scripts, all three hooks behave.
   `uv.lock` is not yet committed: download.pytorch.org was not reachable from the build
   machine. The first `uv sync` on the laptop creates it; commit it straight away.
+- **3 Oct:** pushed to github.com/RuHoeP4k1/pear-latent-thesis (private). CLAUDE.md merged with the
+  earlier draft from the chat project; CHARTER.md added with review flags.
 - **Next step:** on each machine: `uv sync`, copy `config/local.example.toml` to
   `config/local.toml`, run `notebooks/00_environment_check.py`. Then write
   `01_label_inventory.py`: load both label CSV files, confirm column names, run
@@ -50,16 +52,28 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
    from his script and from ours are therefore not directly comparable.
 3. `README.md` describes `test_clf_3d.py`, but that file was deleted in commit e9982b8 (2026-06-23).
 
+## Plan items to settle with Ruben (before the mail to Hugo)
+
+1. Evaluation design (charter rule 2, decision D3). The label files show that in 2024 browning and
+   cavity occur together in 296 of the 300 suboptimally stored fruit, and the healthy class is
+   mostly fresh fruit. Recommended on 1 October: primary analysis is grouped cross-validation
+   within the 2526 fruit (boxes held out); 2024 is secondary (comparison with Hugo, reverse
+   cross-season check). CHARTER.md and the Approved ideas tab still say "fit on 2024". Confirm,
+   then update both.
+2. "2025 and 2026 fruit" or one harvest (2025) stored into 2026? Wording in charter and plan.
+3. Block 0 checkpoint of 8 October ("Hugo's code runs, encode and decode one 2526 pear") depends
+   on the weights; the gate test of 15 October depends on browning region annotations, which may
+   not exist.
+
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
 1. The trained encoder weights: the run folder (`checkpoint.pth` + `vae_hyperparameter.json`) of
-   the VAE trained on the 660 fruit of the 2024 harvest. Which run, and was it `checkpoint.pth`
+   the VAE trained on the 2024 harvest (about 528 of the 660 fruit). Which run, and was it `checkpoint.pth`
    (last epoch, what `load_vae` loads) or `best.pth`?
 2. File names of the 2025 and 2026 volumes: same `A30.nii` pattern? Are box letters reused across
    years (box A in 2025 is a different box from box A in 2024)?
-3. Column names in the two label CSV files. Hugo's scripts expect `filename,label`; our label set
-   has browning, cavity and rot. Which file holds which, and do `defective`, `binary_123`,
-   `binary_23` exist as columns?
+3. What a box letter means in the 2526 data (orchard, storage condition, scan session?). In 2024,
+   A to J match the ten orchards of the preprint.
 4. Whether the data may be uploaded to cloud services (molab, Claude). Until answered: no.
 5. Lab workstation: GPU model, NVIDIA driver version (`nvidia-smi`), operating system, `uv`, tmux.
 
