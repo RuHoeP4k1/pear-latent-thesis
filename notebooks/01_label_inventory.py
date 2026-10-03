@@ -83,6 +83,9 @@ def _():
     Hypothesis to test: `defective = max(browning, cavity)`, `binary_123 = defective ≥ 1`,
     `binary_23 = defective ≥ 2`. The table lists every fruit where a stored column differs from
     the derived one. Empty tables confirm the hypothesis.
+
+    **Result (3 October 2026).** No disagreements in either season: all three rules hold for every
+    fruit.
     """)
     return
 
@@ -115,6 +118,10 @@ def _():
     `defective` and `rot` may show how it was assigned. Ruben's hypothesis (3 October 2026): a
     fruit is non-consumable when `defective ≥ 2`, possibly also when `rot = 1`. The second table
     counts the fruit that contradict each candidate rule.
+
+    **Result (3 October 2026).** `non-consumable = defective ≥ 2` holds for all 660 fruit. Adding
+    `rot = 1` breaks the rule for one fruit (rot = 1, defective = 0, consumable), so rot plays no
+    role in `non-consumable`.
     """)
     return
 
@@ -224,6 +231,9 @@ def _():
 
     Only file names in the volume folders are read. The list of 17 fruit without a scan in 2526
     comes from the archive listing of 3 October 2026 (HANDOFF.md).
+
+    **Result (3 October 2026).** Exactly those 17 labelled fruit have no volume; every volume has a
+    label.
     """)
     return
 
