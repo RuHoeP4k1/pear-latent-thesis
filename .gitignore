@@ -83,3 +83,9 @@ desktop.ini
 
 # Figures: commit only what goes into the thesis document
 reports/figures/scratch/
+
+# marimo-pair skill: installed per machine with `npx skills add marimo-team/marimo-pair`
+.agents/
+skills-lock.json
+.claude/skills/marimo-pair/
+.claude/skills/retro-marimo-pair/

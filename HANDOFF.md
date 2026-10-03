@@ -12,17 +12,23 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
   both label files). School PC and workstation not yet set up: on each, `uv sync`, copy
   `config/local.example.toml` to `config/local.toml`, run `notebooks/00_environment_check.py`.
+  For pairing with Claude on a live notebook also run `npx skills add marimo-team/marimo-pair`
+  (not in git) and make sure `jq` and `curl` are on the PATH of Git Bash.
 - **Last done (3 Oct):** added `fruit_keys`, `read_label_file`, `load_labels`
   (`src/pearlatent/labels.py`) and `list_volumes` (`src/pearlatent/volumes.py`) with 16 tests
   (24 in total, all pass); wrote `notebooks/01_label_inventory.py` (status draft). On real data:
-  headers, fruit identifiers, file names and grade ranges pass; the stored `binary_123` and
-  `binary_23` in 2526 disagree with `defective ≥ 1` / `≥ 2` for some fruit (Ruben saw the table).
-- **Not yet recorded:** from notebook 01, (a) the counts in the rule table for
-  `non-consumable`, (b) whether the fruit without a volume are exactly the 17 listed below.
-- **Next step:** open `uv run marimo edit notebooks/01_label_inventory.py`, write results (a)
-  and (b) and the number of `binary_123` / `binary_23` disagreements into this file, then draft
-  the mail to Hugo with open questions 1, 2, 3, 5, 6 and 7 and the points under "Points to raise
-  with Hugo".
+  headers, fruit identifiers, file names and grade ranges pass.
+- **Results of notebook 01 (read from the live notebook, 3 Oct):**
+  - 660 fruit in 2425, 450 in 2526.
+  - `defective = max(browning, cavity)`, `binary_123 = defective ≥ 1`, `binary_23 =
+    defective ≥ 2`: 0 disagreements in either season. 2526 defective grades 0/1/2/3:
+    184/82/72/112 fruit.
+  - 2425 `non-consumable = defective ≥ 2`: 0 contradictions. Adding `or rot = 1` gives 1
+    contradiction (one fruit with rot = 1, defective = 0 is consumable), so rot plays no role.
+  - Labelled fruit without a volume: exactly the 17 listed below, all in 2526. Volumes without a
+    label: 0.
+- **Next step:** draft the mail to Hugo with open questions 1, 2, 3 and 5 and the points under
+  "Points to raise with Hugo".
 - **Blocked on:** encoder weights (open question 1) for everything after labels.
 
 ## Verified from Hugo's repository (Tier 1)
@@ -87,18 +93,15 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
    answered by Ruben on 3 Oct, they are unrelated; the season prefix in `box` keeps them apart.)
 3. What a box letter means in the 2526 data (orchard, storage condition, scan session?). In 2024,
    A to J match the ten orchards of the preprint.
-4. Whether the data may be uploaded to cloud services (molab, Claude). Until answered: no.
+4. Whether the data may be uploaded to cloud services (molab, Claude). Partly answered by Ruben
+   on 3 Oct: Claude may read notebook outputs (pairing with `marimo-pair`). molab and other
+   uploads: still no until Hugo confirms in writing.
 5. Lab workstation: GPU model, NVIDIA driver version (`nvidia-smi`), operating system, `uv`, tmux.
-6. In 2526, the stored `binary_123` and `binary_23` differ from `defective ≥ 1` and
-   `defective ≥ 2` for some fruit (notebook 01, section 2). How were these columns assigned?
-7. How `non-consumable` (2425) was assigned: confirm the rule found in notebook 01.
 
 ## Unverified assumptions in code
 
 | Where | Assumption | Verify against |
 |---|---|---|
-| `src/pearlatent/labels.py` | binary_123 = defective ≥ 1, binary_23 = defective ≥ 2. **Contradicted** for some 2526 fruit (notebook 01, 3 Oct); not used until Hugo explains | Hugo (open question 6) |
-| `notebooks/01_label_inventory.py` | 2425 `non-consumable` = defective ≥ 2, possibly also rot = 1 (Ruben's hypothesis) | notebook 01 rule table, then Hugo |
 | `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct) | Hugo |
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels | `nvidia-smi` on the workstation |
@@ -110,11 +113,11 @@ Newest first. One entry per session, three to six lines.
 ### 2026-10-03 — label inventory
 - Decided: G_opt and I_opt fruit join boxes `2425_G` / `2425_I`; storage group in a separate
   `storage` column. Box letters are unrelated across seasons (Ruben).
-- Decided: `binary_123` / `binary_23` not used until Hugo explains them; `defective` stays
-  secondary.
 - Added label loading, volume listing, 16 tests and notebook 01; all checks pass on real data.
-- Ruben's hypothesis: `non-consumable` = defective ≥ 2, possibly also rot = 1; tested in
-  notebook 01.
+- Verified on the label files: `defective`, `binary_123`, `binary_23` follow the assumed rules
+  exactly; 2425 `non-consumable = defective ≥ 2` (rot plays no role). 17 fruit without a volume
+  confirmed. (An earlier note in this session that the binary columns disagreed was wrong.)
+- Ruben allowed Claude to read notebook outputs; jq installed for the `marimo-pair` skill.
 
 ### 2026-10-03 — Hugo's repository read
 - Verified volume format, file-name pattern, encoder construction and receptive field from code.

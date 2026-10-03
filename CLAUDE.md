@@ -82,8 +82,9 @@ full; pool it during encoding.
   2526 have nothing in common. Whatever a letter stands for (orchard, batch, storage regime), it
   is kept in the `box` column (`"<season>_<letter>"`) and the 2425 storage group in `storage`,
   so it can be related to other information later.
-- In 2526 the stored `binary_123` and `binary_23` do not match `defective ≥ 1` and `defective ≥ 2`
-  for every fruit (notebook 01). Do not use them until Hugo explains how they were assigned.
+- Verified on the label files (notebook 01, 3 October 2026): `defective = max(browning, cavity)`,
+  `binary_123 = defective ≥ 1`, `binary_23 = defective ≥ 2` (2526) and `non-consumable =
+  defective ≥ 2` (2425) hold for every fruit; `rot` does not enter `non-consumable`.
 
 ## 5. Pipeline shape
 

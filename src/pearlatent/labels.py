@@ -177,8 +177,8 @@ def derive_labels(df: pl.DataFrame) -> pl.DataFrame:
     """Add `defective_derived`, `binary_123_derived`, `binary_23_derived`.
 
     defective = max(browning, cavity); binary_123 = defective >= 1; binary_23 = defective >= 2.
-    The thresholds are read from the names of the existing columns and must be
-    confirmed with `check_derived_labels` against the CSV before use.
+    Confirmed with `check_derived_labels` on both label files (notebook 01, 3 October 2026):
+    no disagreements.
     """
     defective = pl.max_horizontal("browning", "cavity")
     return df.with_columns(
