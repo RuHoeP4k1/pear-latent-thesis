@@ -78,6 +78,12 @@ full; pool it during encoding.
 - `labels_conference_pear_2526.csv`: 450 fruit, 15 boxes of 30 (A to O), all scanned after storage.
   Columns `filename, browning, cavity, defective, binary_123, binary_23`.
 - Only `browning` and `cavity` are common to both files. Harmonise on those.
+- Box letters are unrelated across seasons (Ruben, 3 October 2026): box A in 2425 and box A in
+  2526 have nothing in common. Whatever a letter stands for (orchard, batch, storage regime), it
+  is kept in the `box` column (`"<season>_<letter>"`) and the 2425 storage group in `storage`,
+  so it can be related to other information later.
+- In 2526 the stored `binary_123` and `binary_23` do not match `defective ≥ 1` and `defective ≥ 2`
+  for every fruit (notebook 01). Do not use them until Hugo explains how they were assigned.
 
 ## 5. Pipeline shape
 

@@ -84,18 +84,24 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 1. The trained encoder weights: the run folder (`checkpoint.pth` + `vae_hyperparameter.json`) of
    the VAE trained on the 2024 harvest (about 528 of the 660 fruit). Which run, and was it `checkpoint.pth`
    (last epoch, what `load_vae` loads) or `best.pth`?
-2. Why 17 of the 450 fruit in 2526 have no volume (list above). Are box letters reused across
-   seasons (box A in 2526 a different group from box A in 2425)?
+2. Why 17 of the 450 fruit in 2526 have no volume (list above). (Box letters across seasons:
+   answered by Ruben on 3 Oct, they are unrelated; the season prefix in `box` keeps them apart.)
 3. What a box letter means in the 2526 data (orchard, storage condition, scan session?). In 2024,
    A to J match the ten orchards of the preprint.
 4. Whether the data may be uploaded to cloud services (molab, Claude). Until answered: no.
 5. Lab workstation: GPU model, NVIDIA driver version (`nvidia-smi`), operating system, `uv`, tmux.
+6. In 2526, the stored `binary_123` and `binary_23` differ from `defective ≥ 1` and
+   `defective ≥ 2` for some fruit (notebook 01, section 2). How were these columns assigned?
+7. How `non-consumable` (2425) was assigned: confirm the rule found in notebook 01.
 
 ## Unverified assumptions in code
 
 | Where | Assumption | Verify against |
 |---|---|---|
-| `src/pearlatent/labels.py` | binary_123 = defective ≥ 1, binary_23 = defective ≥ 2 | label CSV via `check_derived_labels` |
+| `src/pearlatent/labels.py` | binary_123 = defective ≥ 1, binary_23 = defective ≥ 2. **Contradicted** for some 2526 fruit (notebook 01, 3 Oct); not used until Hugo explains | Hugo (open question 6) |
+| `notebooks/01_label_inventory.py` | 2425 `non-consumable` = defective ≥ 2, possibly also rot = 1 (Ruben's hypothesis) | notebook 01 rule table, then Hugo |
+| `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct) | Hugo |
+| `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels | `nvidia-smi` on the workstation |
 
 ## Session log
