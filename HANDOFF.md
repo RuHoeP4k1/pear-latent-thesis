@@ -60,7 +60,9 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 - 433 volumes, not 450. Missing: C27, E24, F13, F22, F28, G08, G15, G16, G19, G23, G25, G28,
   H08, H24, I16, K25, N24 (17; 7 of them in box G). Check against the label file whether these
   fruit have labels, and ask Hugo why they have no scan.
-- The 2425 volumes are not downloaded yet.
+- 2425 (listed the same day): one archive `set-r0948344-2425.tar`, one top folder, 660 volumes,
+  complete. A01–J60 (60 per letter) plus G_opt01–G_opt30 and I_opt01–I_opt30. Same file size.
+  The `_opt` names do not match the box pattern; `box_from_filename` will refuse them on purpose.
 
 ## Plan items to settle with Ruben (before the mail to Hugo)
 

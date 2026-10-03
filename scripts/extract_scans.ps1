@@ -1,4 +1,6 @@
-# Extract the CT archives (set-<id>-<season>_<box>.tar) into one data folder per season.
+# Extract the CT archives into one data folder per season. Handles both layouts seen so far:
+#   2526: one archive per box, set-<id>-2526_<box>.tar
+#   2425: one archive for the whole season, set-<id>-2425.tar
 #
 # Usage, from any folder in PowerShell:
 #   powershell -ExecutionPolicy Bypass -File scripts\extract_scans.ps1                # season 2526
@@ -13,9 +15,9 @@ param(
 )
 $ErrorActionPreference = "Stop"
 
-$archives = Get-ChildItem -Path $Source -Filter "set-*-${Season}_*.tar" | Sort-Object Name
+$archives = Get-ChildItem -Path $Source -Filter "set-*-${Season}*.tar" | Sort-Object Name
 if (-not $archives) {
-    throw "No archives named set-*-${Season}_*.tar found in $Source"
+    throw "No archives named set-*-${Season}*.tar found in $Source"
 }
 
 $dest = Join-Path $Target $Season
@@ -24,10 +26,15 @@ Write-Host "Extracting $($archives.Count) archives to $dest"
 
 $expected = 0
 foreach ($archive in $archives) {
-    # Count the volumes in the archive, then extract without its top folder
+    # Count the volumes; strip the top folder only if every volume sits inside one
     $inArchive = @(tar -tf $archive.FullName | Where-Object { $_ -like "*.nii" -or $_ -like "*.nii.gz" })
     $expected += $inArchive.Count
-    tar -xf $archive.FullName -C $dest --strip-components=1
+    $nested = @($inArchive | Where-Object { $_ -like "*/*" }).Count -eq $inArchive.Count
+    if ($nested) {
+        tar -xf $archive.FullName -C $dest --strip-components=1
+    } else {
+        tar -xf $archive.FullName -C $dest
+    }
     if ($LASTEXITCODE -ne 0) { throw "tar failed on $($archive.Name)" }
     Write-Host ("  {0}: {1} volumes" -f $archive.Name, $inArchive.Count)
 }
