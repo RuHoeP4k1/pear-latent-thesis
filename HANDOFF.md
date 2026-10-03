@@ -5,26 +5,25 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-02
-- **Phase:** setup — repository skeleton created, not yet run against real data.
-- **Last done:** created repository structure, rulebook (CLAUDE.md), hooks, skills, environment
-  check notebook, box-level split and label utilities with tests.
-- **Verified (2026-10-02, Linux test copy, marimo 0.25.1, torch 2.14.1):** `marimo check`
-  clean, 7 tests pass, ruff clean, both notebooks run as scripts, all three hooks behave.
-  `uv.lock` is not yet committed: download.pytorch.org was not reachable from the build
-  machine. The first `uv sync` on the laptop creates it; commit it straight away.
-- **3 Oct:** pushed to github.com/RuHoeP4k1/pear-latent-thesis (private). CLAUDE.md merged with the
-  earlier draft from the chat project; CHARTER.md added with review flags.
-- **3 Oct, laptop set up:** cloned to `C:\Users\hoeve\code\pear-latent-thesis`; `uv sync`
-  (Python 3.12.12, torch 2.14.1+cpu, marimo 0.25.1), `uv.lock` committed; `config/local.toml` points
-  to `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425, both label files);
-  marimo check, 8 tests and the environment notebook pass. Scans extracted with
-  `scripts/extract_scans.ps1`.
-- **Next step (old, kept for the school PC and workstation):** on each machine: `uv sync`, copy `config/local.example.toml` to
-  `config/local.toml`, run `notebooks/00_environment_check.py`. Then write
-  `01_label_inventory.py`: load both label CSV files, confirm column names, run
-  `validate_ranges` and `check_derived_labels`, count fruit per box and per harvest year.
-- **Blocked on:** see "Open questions".
+- **Date:** 2026-10-03
+- **Phase:** labels — label files loaded and checked against real data on the laptop; no
+  encoding yet (no weights).
+- **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
+  marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
+  both label files). School PC and workstation not yet set up: on each, `uv sync`, copy
+  `config/local.example.toml` to `config/local.toml`, run `notebooks/00_environment_check.py`.
+- **Last done (3 Oct):** added `fruit_keys`, `read_label_file`, `load_labels`
+  (`src/pearlatent/labels.py`) and `list_volumes` (`src/pearlatent/volumes.py`) with 16 tests
+  (24 in total, all pass); wrote `notebooks/01_label_inventory.py` (status draft). On real data:
+  headers, fruit identifiers, file names and grade ranges pass; the stored `binary_123` and
+  `binary_23` in 2526 disagree with `defective ≥ 1` / `≥ 2` for some fruit (Ruben saw the table).
+- **Not yet recorded:** from notebook 01, (a) the counts in the rule table for
+  `non-consumable`, (b) whether the fruit without a volume are exactly the 17 listed below.
+- **Next step:** open `uv run marimo edit notebooks/01_label_inventory.py`, write results (a)
+  and (b) and the number of `binary_123` / `binary_23` disagreements into this file, then draft
+  the mail to Hugo with open questions 1, 2, 3, 5, 6 and 7 and the points under "Points to raise
+  with Hugo".
+- **Blocked on:** encoder weights (open question 1) for everything after labels.
 
 ## Verified from Hugo's repository (Tier 1)
 
@@ -107,6 +106,15 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-10-03 — label inventory
+- Decided: G_opt and I_opt fruit join boxes `2425_G` / `2425_I`; storage group in a separate
+  `storage` column. Box letters are unrelated across seasons (Ruben).
+- Decided: `binary_123` / `binary_23` not used until Hugo explains them; `defective` stays
+  secondary.
+- Added label loading, volume listing, 16 tests and notebook 01; all checks pass on real data.
+- Ruben's hypothesis: `non-consumable` = defective ≥ 2, possibly also rot = 1; tested in
+  notebook 01.
 
 ### 2026-10-03 — Hugo's repository read
 - Verified volume format, file-name pattern, encoder construction and receptive field from code.
