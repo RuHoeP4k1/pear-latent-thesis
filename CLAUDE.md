@@ -70,7 +70,7 @@ full; pool it during encoding.
 
 ## 4. Data
 
-- Volumes: `.nii`, loaded with nibabel, path from `cfg.path("ct_dir")`.
+- Volumes: `.nii`, loaded with nibabel, one folder per season, `cfg.path("ct_dir_2526")` and `cfg.path("ct_dir_2425")`.
 - `labels_conference_pear_2425.csv`: 660 fruit, 2024 harvest. Columns `filename, rot, browning,
   cavity, defective, non-consumable`. Groups: A31–J60 scanned at harvest, A01–J30 after suboptimal
   storage, `G_opt` / `I_opt` after optimal storage (these do not match the box pattern; handle them
