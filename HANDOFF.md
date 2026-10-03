@@ -15,7 +15,12 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   machine. The first `uv sync` on the laptop creates it; commit it straight away.
 - **3 Oct:** pushed to github.com/RuHoeP4k1/pear-latent-thesis (private). CLAUDE.md merged with the
   earlier draft from the chat project; CHARTER.md added with review flags.
-- **Next step:** on each machine: `uv sync`, copy `config/local.example.toml` to
+- **3 Oct, laptop set up:** cloned to `C:\Users\hoeve\code\pear-latent-thesis`; `uv sync`
+  (Python 3.12.12, torch 2.14.1+cpu, marimo 0.25.1), `uv.lock` committed; `config/local.toml` points
+  to `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425, both label files);
+  marimo check, 8 tests and the environment notebook pass. Scans extracted with
+  `scripts/extract_scans.ps1`.
+- **Next step (old, kept for the school PC and workstation):** on each machine: `uv sync`, copy `config/local.example.toml` to
   `config/local.toml`, run `notebooks/00_environment_check.py`. Then write
   `01_label_inventory.py`: load both label CSV files, confirm column names, run
   `validate_ranges` and `check_derived_labels`, count fruit per box and per harvest year.
@@ -92,7 +97,6 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 |---|---|---|
 | `src/pearlatent/labels.py` | binary_123 = defective ≥ 1, binary_23 = defective ≥ 2 | label CSV via `check_derived_labels` |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels | `nvidia-smi` on the workstation |
-| `uv.lock` | missing; first `uv sync` on the laptop resolves it | commit `uv.lock` after the first sync |
 
 ## Session log
 

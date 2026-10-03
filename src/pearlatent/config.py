@@ -54,5 +54,7 @@ def load_config(path: str | Path | None = None) -> Config:
             "  cp config/local.example.toml config/local.toml       (Linux)\n"
             "and edit the paths."
         )
-    with candidate.open("rb") as fh:
-        return Config(raw=tomllib.load(fh), root=root)
+    # utf-8-sig drops the byte-order mark that Windows PowerShell 5 and Notepad may write;
+    # tomllib refuses a file that starts with one.
+    text = candidate.read_text(encoding="utf-8-sig")
+    return Config(raw=tomllib.loads(text), root=root)

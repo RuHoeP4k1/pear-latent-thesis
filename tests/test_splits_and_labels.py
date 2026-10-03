@@ -63,3 +63,12 @@ def test_range_check_catches_bad_values():
         validate_ranges(
             pl.DataFrame({"browning": [0, 4], "cavity": [0, 0], "rot": [0, 1]})
         )
+
+
+def test_config_accepts_byte_order_mark(tmp_path):
+    from pearlatent.config import load_config
+
+    cfg_file = tmp_path / "local.toml"
+    cfg_file.write_bytes(b"\xef\xbb\xbf" + b'[paths]\nct_dir_2526 = "C:/data/2526"\n')
+    cfg = load_config(cfg_file)
+    assert cfg.path("ct_dir_2526").as_posix().endswith("data/2526")
