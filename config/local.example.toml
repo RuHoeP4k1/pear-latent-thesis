@@ -6,8 +6,8 @@
 # Folder with the CT volumes (read-only)
 ct_dir = "data/ct"
 # The label CSV files (read-only)
-labels_2024 = "data/labels_2024.csv"
-labels_2025_2026 = "data/labels_2025_2026.csv"
+labels_2425 = "data/labels_conference_pear_2425.csv"
+labels_2526 = "data/labels_conference_pear_2526.csv"
 # Hugo's released encoder weights
 encoder_weights = "data/weights/encoder.pt"
 # Where intermediate products and results are written
