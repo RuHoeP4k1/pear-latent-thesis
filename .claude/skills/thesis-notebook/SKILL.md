@@ -72,7 +72,7 @@ Always start from `notebooks/_template.py`. Never hand-edit `__generated_with`.
 
 ## Data handling with Polars
 
-1. Read files lazily: `pl.scan_csv(cfg.path("labels_2024"))`, then `.collect()` once.
+1. Read files lazily: `pl.scan_csv(cfg.path("labels_2526"))`, then `.collect()` once.
 2. Declare schemas for label files (`schema_overrides={"browning": pl.Int8, ...}`) and run
    `pearlatent.labels.validate_ranges` right after loading.
 3. Join on explicit keys with `validate="1:1"` so duplicated fruit identifiers fail immediately.
