@@ -27,8 +27,11 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     contradiction (one fruit with rot = 1, defective = 0 is consumable), so rot plays no role.
   - Labelled fruit without a volume: exactly the 17 listed below, all in 2526. Volumes without a
     label: 0.
-- **Next step:** draft the mail to Hugo with open questions 1, 2, 3 and 5 and the points under
-  "Points to raise with Hugo".
+- **3 Oct:** Ruben sent the mail to Hugo (open questions and the points under "Points to raise
+  with Hugo").
+- **Next step:** wait for Hugo's answer; record each answer under "Open questions". Until the
+  weights arrive, work that does not need them: settle the plan items below (final test boxes in
+  2526, wording of the seasons).
 - **Blocked on:** encoder weights (open question 1) for everything after labels.
 
 ## Verified from Hugo's repository (Tier 1)
@@ -118,6 +121,7 @@ Newest first. One entry per session, three to six lines.
   exactly; 2425 `non-consumable = defective ≥ 2` (rot plays no role). 17 fruit without a volume
   confirmed. (An earlier note in this session that the binary columns disagreed was wrong.)
 - Ruben allowed Claude to read notebook outputs; jq installed for the `marimo-pair` skill.
+  Mail with the open questions sent to Hugo.
 
 ### 2026-10-03 — Hugo's repository read
 - Verified volume format, file-name pattern, encoder construction and receptive field from code.
