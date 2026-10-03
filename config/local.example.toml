@@ -4,7 +4,8 @@
 
 [paths]
 # Folder with the CT volumes (read-only)
-ct_dir = "data/ct"
+ct_dir_2526 = "data/ct/2526"
+ct_dir_2425 = "data/ct/2425"
 # The label CSV files (read-only)
 labels_2425 = "data/labels_conference_pear_2425.csv"
 labels_2526 = "data/labels_conference_pear_2526.csv"
@@ -16,7 +17,8 @@ results_dir = "results"
 
 [data]
 # Box letter in the volume file name. Pattern verified in Hugo's train_clf_3d.py for
-# names like A30.nii; UNVERIFIED for the 2025 and 2026 files.
+# names like A30.nii; confirmed for the 2526 volumes on 3 October 2026. The 2425 optimal-
+# storage fruit (G_opt, I_opt) do not match it and need separate handling.
 box_pattern = "^([A-Oa-o])\\d+"
 
 [compute]

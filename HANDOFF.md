@@ -52,6 +52,16 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
    from his script and from ours are therefore not directly comparable.
 3. `README.md` describes `test_clf_3d.py`, but that file was deleted in commit e9982b8 (2026-06-23).
 
+## 2526 volumes as downloaded (listed 3 October 2026, names and sizes only)
+
+- 15 archives `set-r0948344-2526_<box>.tar`, one per box A to O, in Ruben's Downloads folder.
+- Inside each: one folder, files `<box><NN>.nii` (for example `A01.nii`), 4,194,656 bytes each:
+  a 352-byte NIfTI-1 header plus 128³ voxels of 2 bytes (16-bit integers). Already 128³.
+- 433 volumes, not 450. Missing: C27, E24, F13, F22, F28, G08, G15, G16, G19, G23, G25, G28,
+  H08, H24, I16, K25, N24 (17; 7 of them in box G). Check against the label file whether these
+  fruit have labels, and ask Hugo why they have no scan.
+- The 2425 volumes are not downloaded yet.
+
 ## Plan items to settle with Ruben (before the mail to Hugo)
 
 1. Evaluation design (charter rule 2, decision D3). The label files show that in 2024 browning and
@@ -70,8 +80,8 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 1. The trained encoder weights: the run folder (`checkpoint.pth` + `vae_hyperparameter.json`) of
    the VAE trained on the 2024 harvest (about 528 of the 660 fruit). Which run, and was it `checkpoint.pth`
    (last epoch, what `load_vae` loads) or `best.pth`?
-2. File names of the 2025 and 2026 volumes: same `A30.nii` pattern? Are box letters reused across
-   years (box A in 2025 is a different box from box A in 2024)?
+2. Why 17 of the 450 fruit in 2526 have no volume (list above). Are box letters reused across
+   seasons (box A in 2526 a different group from box A in 2425)?
 3. What a box letter means in the 2526 data (orchard, storage condition, scan session?). In 2024,
    A to J match the ten orchards of the preprint.
 4. Whether the data may be uploaded to cloud services (molab, Claude). Until answered: no.
@@ -81,7 +91,6 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 
 | Where | Assumption | Verify against |
 |---|---|---|
-| `config/local.example.toml` | box pattern `^([A-O])\d+` also holds for 2025 and 2026 files | listing of the 2025/2026 volume folder |
 | `src/pearlatent/labels.py` | binary_123 = defective ≥ 1, binary_23 = defective ≥ 2 | label CSV via `check_derived_labels` |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels | `nvidia-smi` on the workstation |
 | `uv.lock` | missing; first `uv sync` on the laptop resolves it | commit `uv.lock` after the first sync |
