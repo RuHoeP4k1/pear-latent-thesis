@@ -14,6 +14,11 @@ encoder_weights = "data/weights/encoder.pt"
 derived_dir = "derived"
 results_dir = "results"
 
+[data]
+# Box letter in the volume file name. Pattern verified in Hugo's train_clf_3d.py for
+# names like A30.nii; UNVERIFIED for the 2025 and 2026 files.
+box_pattern = "^([A-Oa-o])\\d+"
+
 [compute]
 # "auto" picks CUDA when available, then Apple MPS, then CPU
 device = "auto"
