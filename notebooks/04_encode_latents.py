@@ -25,7 +25,7 @@ def _():
     # 04 Encode latents
 
     **Question.** None: this notebook produces the latents (step 1 of the pipeline, CLAUDE.md
-    section 5). It runs on the lab workstation as a script; see the `workstation-run` skill.
+    section 5). It runs on the laptop as a script (CPU, about 5 seconds per fruit).
 
     **Inputs.** `ct_dir_2425`, `ct_dir_2526` (all volumes), `hugo_repo` (clone of Hugo's
     repository at commit 183112f), `encoder_dir` (Hugo's run folder with the checkpoint and
@@ -46,7 +46,7 @@ def _():
     **Status.** draft. Tested on the laptop with `--encoder random_init --limit 2`
     (5 October 2026); not yet run with Hugo's weights.
 
-    Run on the workstation:
+    Run on the laptop:
 
     ```bash
     uv run python notebooks/04_encode_latents.py --encoder hugo_vae --limit 4    # first
@@ -123,7 +123,7 @@ def _(
 ):
     mo.stop(
         mo.running_in_notebook() and not run.value,
-        mo.md("_Press the button to start. Encoding all fruit belongs on the workstation._"),
+        mo.md("_Press the button to start. Encoding all fruit takes about 1.5 hours; run it as a script._"),
     )
     _encoder, _info = load_encoder(
         cfg.path("hugo_repo"),

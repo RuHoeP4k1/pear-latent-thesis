@@ -68,10 +68,10 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 - **Next step:** discuss `docs/meeting_2026-10-15.md` with Hugo on 15 October (test boxes,
   fold design, rot, 2024 data, title). After agreement: write the test-box rule into CHARTER.md,
   then implement the draw and the folds (step 4 of the plan, `src/pearlatent/splits.py`). The
-  folds are not made yet on purpose. On 15 October, once the weights are copied: set up the
-  workstation (`git pull`, `uv sync`, clone Hugo's repository at 183112f next to this one, set
-  `hugo_repo` and `encoder_dir` in `config/local.toml`), then run notebook 04 with `--limit 4`,
-  check, then all fruit; also `--encoder random_init` for the lower bound.
+  folds are not made yet on purpose. On 15 October, once the weights are copied: on the
+  laptop (Hugo's repository is already cloned at 183112f), put the run folder at `encoder_dir`
+  in `config/local.toml`, run notebook 04 with `--limit 4`, check, then all fruit (about
+  1.5 hours on CPU); also `--encoder random_init` for the lower bound.
 - **Blocked on:** encoder weights (open question 1) for everything after labels.
 
 ## Verified from Hugo's repository (Tier 1)

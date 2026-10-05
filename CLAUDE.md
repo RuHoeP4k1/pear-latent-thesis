@@ -91,7 +91,7 @@ full; pool it during encoding.
 
 ## 5. Pipeline shape
 
-1. **Encode once** (GPU, lab workstation). Forward pass through the frozen encoder; write
+1. **Encode once** (laptop, CPU, about 1.5 hours for all fruit). Forward pass through the frozen encoder; write
    `derived/latents/<encoder>/<run_id>/latents.npy`, `manifest.parquet` (one row per fruit:
    `fruit_id`, season, box, file, row index) and `run.json`. About 145 MB for all fruit.
 2. **Pool** (any machine). Array arithmetic on the saved latents: mean, 99th percentile, cylindrical
@@ -169,9 +169,10 @@ Load the `thesis-notebook` skill before writing or editing any notebook. In shor
 
 ## 10. Machines
 
-- **Laptop (Windows)** and **school PC (Windows, no admin)**: editing, statistics on saved latents,
-  plots. CPU PyTorch.
-- **Lab workstation (Linux, GPU, via SSH)**: encoding, fine-tuning. Load the `workstation-run` skill.
+- **Laptop (Windows)**: editing, encoding (CPU, about 5 seconds per fruit; decided by Ruben,
+  5 October 2026), statistics on saved latents, plots. CPU PyTorch.
+- **School PC (Windows, no admin)**: editing, statistics on saved latents, plots.
+- **Lab workstation (Linux, GPU, via SSH)**: fine-tuning. Load the `workstation-run` skill.
 - Code syncs only through git (`git pull` at start, `git push` at end). Data is synced separately.
 
 Details: `docs/workflow.md`.
