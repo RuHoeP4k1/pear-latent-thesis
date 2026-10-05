@@ -212,7 +212,8 @@ def _():
     `n_mask_slices` is the number of slices of 4 voxels along the third axis that contain fruit
     body. A fruit whose body fills the full 128 voxels has 32.
 
-    **Result (5 October 2026).** The 2526 volumes include the stalk, and the stalk is counted in
+    **Result (5 October 2026).** Most 2526 volumes include the stalk (8 of 12 in a random sample of
+    projections, seed 1; in 2425 at most a short stub), and the stalk is counted in
     the 128-voxel length: projections of 2526_B11, 2526_K03 and 2526_N10 show a stalk of 20 to 35
     voxels at the high end of the third axis, while 2425_A40 shows none (images looked at on
     5 October, not saved). So in 2526 the fruit with its stalk is rescaled to 128 voxels, not the

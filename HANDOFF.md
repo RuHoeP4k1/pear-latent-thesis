@@ -57,8 +57,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit 183112f; config keys
   `hugo_repo` and `encoder_dir` (replaces `encoder_weights`) added to `config/local.example.toml`.
   Rotational symmetry test dropped (Ruben).
-- **Stalk finding (5 Oct, notebook 03, projections looked at):** the 2526 volumes include the
-  stalk and it counts in the 128-voxel length; fruit body spans median 28 of 32 latent slices in
+- **Stalk finding (5 Oct, notebook 03, projections looked at):** most 2526 volumes include the
+  stalk (8 of 12 in a random sample of projections; 2425: a short stub in a few) and it counts in the 128-voxel length; fruit body spans median 28 of 32 latent slices in
   2526 (21–32, box K median 25), 31 in 2425 (no stalk visible). Notebook 02's "rescaled to 128 in
   length" and its fruit-volume-per-box note are corrected in the notebook. CHARTER.md "The
   constraints" still says every fruit is rescaled to 128 voxels in length: true for fruit plus
@@ -175,7 +175,7 @@ Newest first. One entry per session, three to six lines.
 - Found: 2425 defect = storage group; rot explains 11 of 175 browning 3 and cavity 3 fruit; all
   volumes pass; fruit shape differs by orchard.
 - Added pooling and encoding code, notebooks 03 and 04; encoding tested with a random encoder.
-- Found: 2526 volumes include the stalk within the 128-voxel length (body median 28 of 32 slices).
+- Found: most 2526 volumes include the stalk within the 128-voxel length (body median 28 of 32 slices).
 - Decided with Ruben: hold out test boxes, but agree the rule with Hugo first; folds wait.
   Rotational symmetry test dropped.
   Proposal in `docs/meeting_2026-10-15.md`. Open: within-box split in rule 1 (Ruben doubts it).

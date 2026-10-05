@@ -12,7 +12,7 @@ on stalk length, and both differ between orchards (notebooks 02 and 03, 5 Octobe
 over all 32³ cells would mix these into every feature; a mean over fruit cells does not.
 
 Orientation (notebook 02): the long axis is the third array axis in every volume, and the wide
-(calyx) end is at the low end of that axis in every volume. The 2526 volumes include the stalk
+(calyx) end is at the low end of that axis in every volume. Most 2526 volumes include the stalk
 at the high end; `body_mask` removes it.
 """
 
@@ -66,7 +66,7 @@ def body_mask(
 ) -> np.ndarray:
     """The fruit body: the largest connected part of `mask`, without thin slices along the third axis.
 
-    The 2526 volumes include the stalk, and the stalk is counted in the 128-voxel length
+    Most 2526 volumes include the stalk, and the stalk is counted in the 128-voxel length
     (notebook 03, 5 October 2026). At 32³ the stalk leaves isolated cells or slices of one to
     three cells; this removes them, so height runs over the body only. Enclosed holes are
     filled, so internal cavities (air, below the intensity threshold) count as fruit body and

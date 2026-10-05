@@ -110,8 +110,8 @@ symmetry; decided by Ruben, 5 October 2026). Keep per-fruit analyses at full res
 angle still carries information.
 
 Verified on all volumes (notebooks 02 and 03, 5 October 2026): the stem–calyx axis is the third
-array axis, with the wide calyx end at the low end, in every volume. The 2526 volumes include the
-stalk and the stalk counts in the 128-voxel length, so there the fruit body spans 21 to 32 of the
+array axis, with the wide calyx end at the low end, in every volume. Most 2526 volumes include the
+stalk (8 of 12 in a random sample) and the stalk counts in the 128-voxel length, so there the fruit body spans 21 to 32 of the
 32 latent slices (median 28; 2425: median 31). Measure height over the body:
 `pearlatent.pooling.body_mask` removes the stalk and fills internal cavities.
 
