@@ -45,15 +45,33 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     third array axis, extent 125–128 voxels, none flagged, no duplicates. Every fruit points the
     same way (widest cross-section at index 27–43 of the third axis).
   - Fruit volume in voxels differs strongly per 2526 box (median 120,805 in K to 228,988 in I):
-    slenderness is an orchard property and K is the healthiest box, so shape is a candidate
-    shortcut for the nuisance check.
+    shape and (in 2526) stalk length differ by orchard and K is the healthiest box, so shape and
+    scale are a candidate shortcut for the nuisance check.
   - 2526 grades depend strongly on the box (K: 27 of 30 without browning; O: 15 with browning 3).
+- **Later on 5 Oct:** added `src/pearlatent/pooling.py` (fruit body mask, block mean to 32³,
+  mean, 99th percentile, cylindrical profile 8 heights × 4 radii) and `src/pearlatent/encoding.py`
+  (Hugo's encoder imported from a separate clone, `mu` plus the 512-channel layer pooled in the
+  mask), with tests (38 in total, all pass). Notebook 03 (`03_raw_ct_pooled.py`) wrote raw CT at
+  32³ for all 1093 fruit to `derived/raw_ct_32/<run_id>/`. Notebook 04 (`04_encode_latents.py`)
+  tested on the laptop with `--encoder random_init --limit 2` (a few seconds per fruit on CPU).
+  Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit 183112f; config keys
+  `hugo_repo` and `encoder_dir` (replaces `encoder_weights`) added to `config/local.example.toml`.
+  Rotational symmetry test dropped (Ruben).
+- **Stalk finding (5 Oct, notebook 03, projections looked at):** the 2526 volumes include the
+  stalk and it counts in the 128-voxel length; fruit body spans median 28 of 32 latent slices in
+  2526 (21–32, box K median 25), 31 in 2425 (no stalk visible). Notebook 02's "rescaled to 128 in
+  length" and its fruit-volume-per-box note are corrected in the notebook. CHARTER.md "The
+  constraints" still says every fruit is rescaled to 128 voxels in length: true for fruit plus
+  stalk in 2526; Ruben to decide the wording. Question 6 in `docs/meeting_2026-10-15.md`.
 - **3 Oct:** Ruben sent the mail to Hugo (open questions and the points under "Points to raise
   with Hugo").
 - **Next step:** discuss `docs/meeting_2026-10-15.md` with Hugo on 15 October (test boxes,
   fold design, rot, 2024 data, title). After agreement: write the test-box rule into CHARTER.md,
   then implement the draw and the folds (step 4 of the plan, `src/pearlatent/splits.py`). The
-  folds are not made yet on purpose.
+  folds are not made yet on purpose. On 15 October, once the weights are copied: set up the
+  workstation (`git pull`, `uv sync`, clone Hugo's repository at 183112f next to this one, set
+  `hugo_repo` and `encoder_dir` in `config/local.toml`), then run notebook 04 with `--limit 4`,
+  check, then all fruit; also `--encoder random_init` for the lower bound.
 - **Blocked on:** encoder weights (open question 1) for everything after labels.
 
 ## Verified from Hugo's repository (Tier 1)
@@ -156,7 +174,10 @@ Newest first. One entry per session, three to six lines.
 - Added volume quality check and exclusion table with tests; notebook 01 section 5, notebook 02.
 - Found: 2425 defect = storage group; rot explains 11 of 175 browning 3 and cavity 3 fruit; all
   volumes pass; fruit shape differs by orchard.
+- Added pooling and encoding code, notebooks 03 and 04; encoding tested with a random encoder.
+- Found: 2526 volumes include the stalk within the 128-voxel length (body median 28 of 32 slices).
 - Decided with Ruben: hold out test boxes, but agree the rule with Hugo first; folds wait.
+  Rotational symmetry test dropped.
   Proposal in `docs/meeting_2026-10-15.md`. Open: within-box split in rule 1 (Ruben doubts it).
 
 ### 2026-10-03 — label inventory
