@@ -127,8 +127,10 @@ def _():
     with minimum 0 and maximum 65535; the header voxel size is 1.0 on every axis in every file,
     so the header does not carry the real voxel size. The longest fruit axis is the third array
     axis in every volume, with extent 125 to 128 voxels (2425: median 126, 37 volumes below 126;
-    2526: median 128, minimum 126). No volume is flagged and all 1093 checksums differ. This
-    confirms on every fruit that each is rescaled to about 128 voxels in length.
+    2526: median 128, minimum 126). No volume is flagged and all 1093 checksums differ. Every
+    volume is rescaled to about 128 voxels in length. Correction (5 October 2026, notebook 03):
+    in 2526 the stalk is included in that length, so there it is the fruit with its stalk, not
+    the fruit body, that spans 128 voxels.
     """)
     return
 
@@ -198,10 +200,12 @@ def _():
     fruit points the same way, with the wide end at the low end of the third axis. Median scaled
     intensity in the fruit is 0.80 to 0.84 in every box; the 95th percentile is slightly lower in
     2526 (0.87 to 0.91) than in 2425 (0.90 to 0.92). Fruit volume in voxels differs strongly by
-    box (2526 medians from 120,805 in box K to 228,988 in box I): with every fruit rescaled to
-    the same length, this measures how slender the fruit are, and slenderness is an orchard
-    property. Box K is also the box with the fewest defects, so shape is a candidate shortcut to
-    check with the nuisance test (rule 8 of CHARTER.md).
+    box (2526 medians from 120,805 in box K to 228,988 in box I). Box K is also the box with the
+    fewest defects, so this is a candidate shortcut to check with the nuisance test (rule 8 of
+    CHARTER.md). Correction (5 October 2026, notebook 03): in 2526 the volume in voxels depends
+    on stalk length as well as on fruit shape, because the stalk counts in the 128-voxel length;
+    box K has the shortest bodies (median 25 of 32 slices). The fruit mask here also leaves out
+    internal cavities, which are below the threshold.
     """)
     return
 

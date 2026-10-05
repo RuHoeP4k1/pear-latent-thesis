@@ -54,3 +54,13 @@ def write_run_record(run_dir: Path, params: dict, root: Path | None = None) -> P
     out = Path(run_dir) / "run.json"
     out.write_text(json.dumps(record, indent=2, default=str), encoding="utf-8")
     return out
+
+
+def latest_run_dir(base: Path, name: str) -> Path | None:
+    """The newest `base/<timestamp>_<name>/` that contains a run.json, or None."""
+    candidates = sorted(
+        p
+        for p in Path(base).glob(f"*_{name}")
+        if p.is_dir() and (p / "run.json").exists()
+    )
+    return candidates[-1] if candidates else None

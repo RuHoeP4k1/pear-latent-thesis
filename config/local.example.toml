@@ -9,8 +9,11 @@ ct_dir_2425 = "data/ct/2425"
 # The label CSV files (read-only)
 labels_2425 = "data/labels_conference_pear_2425.csv"
 labels_2526 = "data/labels_conference_pear_2526.csv"
-# Hugo's released encoder weights
-encoder_weights = "data/weights/encoder.pt"
+# Hugo's trained VAE: the run folder with checkpoint.pth and vae_hyperparameter.json
+encoder_dir = "data/weights/hugo_vae"
+# Separate clone of github.com/Hugo-Li-Junyan/Synthetic_CT_pear at commit 183112f
+# (not copied into this repository: no licence file)
+hugo_repo = "../Synthetic_CT_pear"
 # Where intermediate products and results are written
 derived_dir = "derived"
 results_dir = "results"
