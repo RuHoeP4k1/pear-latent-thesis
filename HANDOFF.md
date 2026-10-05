@@ -178,7 +178,8 @@ Newest first. One entry per session, three to six lines.
 - Found: most 2526 volumes include the stalk within the 128-voxel length (body median 28 of 32 slices).
 - Decided with Ruben: hold out test boxes, but agree the rule with Hugo first; folds wait.
   Rotational symmetry test dropped.
-  Proposal in `docs/meeting_2026-10-15.md`. Open: within-box split in rule 1 (Ruben doubts it).
+  Proposal in `docs/meeting_2026-10-15.md`. Within-box comparison removed from rule 1
+  (neither reference paper reports a split by box to compare with).
 
 ### 2026-10-03 — label inventory
 - Decided: G_opt and I_opt fruit join boxes `2425_G` / `2425_I`; storage group in a separate

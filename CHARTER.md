@@ -11,8 +11,8 @@ One page. If something here needs more than a line, it belongs in the Notes docu
 > **Status, 5 October 2026.** Updated after Hugo's answers and the Approved ideas tab: the
 > reconstruction score no longer counts as evidence that browning is kept; the 2526 data
 > described as 450 fruit (433 scanned), box letter = orchard ID; voxel size given as approximate
-> (rescaling per fruit); rule 1 adds stratified group folds and a single box-effect measurement;
-> rule 3 uses a bootstrap over boxes and paired differences; rule 7 adds raw CT pooled to 32³, a
+> (rescaling per fruit); rule 1 adds stratified group folds (a within-box comparison was added and
+> removed the same day: no reference number to compare it with); rule 3 uses a bootstrap over boxes and paired differences; rule 7 adds raw CT pooled to 32³, a
 > fine-tuning arm and, conditionally, Hugo's classifier; new rule 10 on excluded fruit.
 
 ## The question
@@ -47,8 +47,7 @@ contrast than browned flesh.
 
 1. Split by box, never by fruit: all fruit of one box stay on the same side of every split, for
    every model fitted on labels (rule adopted 2 October 2026; replaces "split at fruit level").
-   Folds by stratified group cross-validation. The box effect is measured once: one model with a
-   within-box split and a box-held-out split.
+   Folds by stratified group cross-validation.
 2. Exploration and plots may use all fruit of both seasons, always labelled by season. Model
    fitting: the primary analysis is cross-validation within the 2526 fruit (never seen by the
    encoder), with whole boxes held out. The 2024 fruit are secondary: comparison with Hugo's
