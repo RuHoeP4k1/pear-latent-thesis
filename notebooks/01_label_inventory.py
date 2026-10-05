@@ -286,5 +286,107 @@ def _(labels, volumes):
     return
 
 
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 5. Rot and the highest grades
+
+    Hugo (October 2026): rotten fruit were given the highest browning and cavity grades by hand.
+    The 2526 file has no rot column, so rotten fruit there can only be suspected from
+    browning 3 and cavity 3. In 2425 the `rot` column shows how far that suspicion holds.
+
+    Questions: (a) in 2425, how many fruit with rot = 1 have browning 3 and cavity 3; (b) of the
+    300 stored fruit with any defect, the 296 with browning and cavity together, how many are
+    rot = 1; (c) in 2526, how many fruit per box have browning 3 and cavity 3.
+
+    **Result (5 October 2026).** (a) 16 fruit in 2425 have rot = 1 (15 after suboptimal storage, 1
+    after optimal storage, none at harvest); 11 of them have browning 3 and cavity 3. The other
+    5 do not: one has browning 0 and cavity 0, the others have cavity 1 or 2. So "rotten fruit
+    were given the highest grades" holds for 11 of 16 fruit in 2425, not for all. (b) Of the 296
+    stored fruit with browning and cavity both at least 1, 15 are rot = 1; of the 175 fruit with
+    browning 3 and cavity 3, 11 are rot = 1. Rot therefore explains only a small part of the
+    browning–cavity overlap in 2425. (c) 2526: 24 fruit with browning 3 and cavity 3, at most 6 in
+    one box (H). If 2526 resembles 2425, most of these 24 are not rotten, so flagging all of them
+    removes real severe cases from the sensitivity analysis.
+    """)
+    return
+
+
+@app.cell
+def _(labels_2425):
+    _b3c3 = (pl.col("browning") == 3) & (pl.col("cavity") == 3)
+    _stored_defective = (pl.col("storage") != "harvest") & (
+        pl.max_horizontal("browning", "cavity") >= 1
+    )
+    _both = (pl.col("browning") >= 1) & (pl.col("cavity") >= 1)
+    rot_summary_2425 = pl.DataFrame(
+        {
+            "group": [
+                "all fruit with rot = 1",
+                "rot = 1 with browning 3 and cavity 3",
+                "fruit with browning 3 and cavity 3",
+                "stored fruit with any defect",
+                "stored, browning and cavity both at least 1",
+                "stored, both at least 1, rot = 1",
+            ],
+            "n_fruit": [
+                labels_2425.filter(pl.col("rot") == 1).height,
+                labels_2425.filter((pl.col("rot") == 1) & _b3c3).height,
+                labels_2425.filter(_b3c3).height,
+                labels_2425.filter(_stored_defective).height,
+                labels_2425.filter(_stored_defective & _both).height,
+                labels_2425.filter(
+                    _stored_defective & _both & (pl.col("rot") == 1)
+                ).height,
+            ],
+        }
+    )
+    mo.vstack(
+        [
+            mo.ui.table(rot_summary_2425, selection=None, label="2425: rot and grade 3"),
+            mo.ui.table(
+                labels_2425.group_by("rot", "browning", "cavity")
+                .len("n_fruit")
+                .sort("rot", "browning", "cavity"),
+                selection=None,
+                label="2425: rot by browning by cavity",
+            ),
+            mo.ui.table(
+                labels_2425.group_by("storage", "rot").len("n_fruit").sort("storage", "rot"),
+                selection=None,
+                label="2425: rot per storage group",
+            ),
+        ]
+    )
+    return
+
+
+@app.cell
+def _(labels_2526):
+    b3c3_per_box_2526 = (
+        labels_2526.group_by("box")
+        .agg(
+            pl.len().alias("n_fruit"),
+            (pl.col("browning") == 3).sum().alias("browning_3"),
+            (pl.col("cavity") == 3).sum().alias("cavity_3"),
+            ((pl.col("browning") == 3) & (pl.col("cavity") == 3))
+            .sum()
+            .alias("browning_3_and_cavity_3"),
+        )
+        .sort("box")
+    )
+    mo.vstack(
+        [
+            mo.md(
+                "2526 fruit with browning 3 and cavity 3: "
+                f"**{b3c3_per_box_2526['browning_3_and_cavity_3'].sum()}** "
+                "(all 450 labelled fruit, scanned or not)."
+            ),
+            mo.ui.table(b3c3_per_box_2526, selection=None, label="2526 per box"),
+        ]
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()
