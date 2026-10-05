@@ -5,9 +5,9 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-03
-- **Phase:** labels — label files loaded and checked against real data on the laptop; no
-  encoding yet (no weights).
+- **Date:** 2026-10-05
+- **Phase:** labels and volume checks done on the laptop; no encoding yet (encoder copied at the
+  meeting on 15 October).
 - **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
   marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
   both label files). School PC and workstation not yet set up: on each, `uv sync`, copy
@@ -27,11 +27,33 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     contradiction (one fruit with rot = 1, defective = 0 is consumable), so rot plays no role.
   - Labelled fruit without a volume: exactly the 17 listed below, all in 2526. Volumes without a
     label: 0.
+- **Last done (5 Oct):** plan files updated after Hugo's answers (commit 0fa797d). Added
+  `src/pearlatent/volume_qc.py`, `src/pearlatent/exclusions.py` with tests (29 in total, all
+  pass), notebook 01 section 5 (rot and grade 3), notebook 02 (`02_volume_qc.py`, status draft),
+  which writes `derived/volume_qc/` and `derived/exclusions.csv`. Wrote
+  `docs/meeting_2026-10-15.md`: proposed test-box rule, fold design, questions for Hugo, uses of
+  the 2024 data, the title.
+- **Results of 5 Oct (read from script runs on the laptop):**
+  - 2425 rot: 16 fruit with rot = 1 (15 suboptimal, 1 optimal storage), 11 of them browning 3 and
+    cavity 3. Of the 296 stored fruit with browning and cavity both ≥ 1, 15 are rot = 1; of the
+    175 with browning 3 and cavity 3, 11. Rot explains little of the overlap.
+  - 2526: 24 fruit with browning 3 and cavity 3 (max 6 in box H), flagged in the exclusion
+    table; 23 of them scanned.
+  - 2425: defect = storage group. All 300 suboptimal-storage fruit have browning; none of the 360
+    at harvest or after optimal storage have browning or cavity.
+  - All 1093 volumes 128³ uint16, 0 to 65535, header voxel size 1.0 (meaningless), long axis =
+    third array axis, extent 125–128 voxels, none flagged, no duplicates. Every fruit points the
+    same way (widest cross-section at index 27–43 of the third axis).
+  - Fruit volume in voxels differs strongly per 2526 box (median 120,805 in K to 228,988 in I):
+    slenderness is an orchard property and K is the healthiest box, so shape is a candidate
+    shortcut for the nuisance check.
+  - 2526 grades depend strongly on the box (K: 27 of 30 without browning; O: 15 with browning 3).
 - **3 Oct:** Ruben sent the mail to Hugo (open questions and the points under "Points to raise
   with Hugo").
-- **Next step:** wait for Hugo's answer; record each answer under "Open questions". Until the
-  weights arrive, work that does not need them: settle the plan items below (final test boxes in
-  2526, wording of the seasons).
+- **Next step:** discuss `docs/meeting_2026-10-15.md` with Hugo on 15 October (test boxes,
+  fold design, rot, 2024 data, title). After agreement: write the test-box rule into CHARTER.md,
+  then implement the draw and the folds (step 4 of the plan, `src/pearlatent/splits.py`). The
+  folds are not made yet on purpose.
 - **Blocked on:** encoder weights (open question 1) for everything after labels.
 
 ## Verified from Hugo's repository (Tier 1)
@@ -113,7 +135,7 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 
 ## Task for the next data session
 
-- In 2425: count the fruit with rot = 1, browning 3 and cavity 3, and how much of the 296-of-300
+- Done 5 Oct (notebook 01 section 5): in 2425: count the fruit with rot = 1, browning 3 and cavity 3, and how much of the 296-of-300
   browning–cavity overlap they explain. In 2526: count the fruit with browning 3 and cavity 3.
 
 ## Unverified assumptions in code
@@ -127,6 +149,15 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-10-05 — Hugo's answers, rot check, volume quality check
+- Plan files updated after Hugo's answers (box letter = orchard ID, 17 unscanned fruit excluded,
+  rotten fruit carry the highest grades).
+- Added volume quality check and exclusion table with tests; notebook 01 section 5, notebook 02.
+- Found: 2425 defect = storage group; rot explains 11 of 175 browning 3 and cavity 3 fruit; all
+  volumes pass; fruit shape differs by orchard.
+- Decided with Ruben: hold out test boxes, but agree the rule with Hugo first; folds wait.
+  Proposal in `docs/meeting_2026-10-15.md`. Open: within-box split in rule 1 (Ruben doubts it).
 
 ### 2026-10-03 — label inventory
 - Decided: G_opt and I_opt fruit join boxes `2425_G` / `2425_I`; storage group in a separate
