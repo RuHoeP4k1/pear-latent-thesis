@@ -50,7 +50,7 @@ cite this table or the source.
 
 | Quantity | Value | Source |
 |---|---|---|
-| Voxel size | 0.6267 mm isotropic | preprint |
+| Voxel size | 0.6267 mm before rescaling; after rescaling to 128 voxels in length the size differs per fruit | preprint |
 | Volume | 128 × 128 × 128, NIfTI, min-max scaled to [0, 1] per volume at load | `utils/volumes.py` |
 | Latent | 1 × 32 × 32 × 32, one scalar per cell, use the mean `mu` | `component/vae.py` |
 | Layer before the latent heads | 512 channels × 32³ | `component/vae.py` (base_channel 256) |
@@ -77,11 +77,14 @@ full; pool it during encoding.
   explicitly).
 - `labels_conference_pear_2526.csv`: 450 fruit, 15 boxes of 30 (A to O), all scanned after storage.
   Columns `filename, browning, cavity, defective, binary_123, binary_23`.
+  Box letter = orchard ID (Hugo, October 2026). The 17 unscanned fruit are excluded. No rot
+  column; rotten fruit carry browning 3 and cavity 3 by hand — exclude once identified.
 - Only `browning` and `cavity` are common to both files. Harmonise on those.
 - Box letters are unrelated across seasons (Ruben, 3 October 2026): box A in 2425 and box A in
   2526 have nothing in common. Whatever a letter stands for (orchard, batch, storage regime), it
   is kept in the `box` column (`"<season>_<letter>"`) and the 2425 storage group in `storage`,
   so it can be related to other information later.
+  To confirm with Hugo now that both seasons use orchard IDs.
 - Verified on the label files (notebook 01, 3 October 2026): `defective = max(browning, cavity)`,
   `binary_123 = defective ≥ 1`, `binary_23 = defective ≥ 2` (2526) and `non-consumable =
   defective ≥ 2` (2425) hold for every fruit; `rot` does not enter `non-consumable`.
@@ -116,7 +119,7 @@ first. Keep per-fruit analyses at full resolution, where angle still carries inf
   weighted kappa or Spearman correlation, not plain accuracy.
 - Testing many cells needs false-discovery-rate control; prefer cluster-based permutation tests,
   because neighbouring cells are correlated.
-- Confidence intervals by resampling fruit (respecting boxes), not the spread across folds.
+- Confidence intervals by a bootstrap over whole boxes; method comparisons paired on the same out-of-fold predictions, not the spread across folds.
 - Recall and precision always beside accuracy.
 - Nuisance check on every representation: does it predict box or storage group better than the
   defect?

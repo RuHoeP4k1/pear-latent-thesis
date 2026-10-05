@@ -85,21 +85,36 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 2. "2025 and 2026 fruit" or one harvest (2025) stored into 2026? Wording in charter and plan.
 3. Block 0 checkpoint of 8 October ("Hugo's code runs, encode and decode one 2526 pear") depends
    on the weights; the gate test of 15 October depends on browning region annotations, which may
-   not exist.
+   not exist. The gate test cannot use browning annotations for 2526: cut-open photographs exist
+   only for the 2024–2025 season (in the pear folder).
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
 1. The trained encoder weights: the run folder (`checkpoint.pth` + `vae_hyperparameter.json`) of
    the VAE trained on the 2024 harvest (about 528 of the 660 fruit). Which run, and was it `checkpoint.pth`
-   (last epoch, what `load_vae` loads) or `best.pth`?
-2. Why 17 of the 450 fruit in 2526 have no volume (list above). (Box letters across seasons:
+   (last epoch, what `load_vae` loads) or `best.pth`? Hugo (October 2026): the encoder is ready and
+   is copied at the meeting on 15 October. Still ask for the decoder, the configuration file and
+   which checkpoint and seed.
+2. Answered by Hugo (October 2026): exclude the 17 unscanned 2526 fruit. Why 17 of the 450 fruit
+   in 2526 have no volume (list above). (Box letters across seasons:
    answered by Ruben on 3 Oct, they are unrelated; the season prefix in `box` keeps them apart.)
-3. What a box letter means in the 2526 data (orchard, storage condition, scan session?). In 2024,
+3. Answered by Hugo (October 2026): a box letter in 2526 is an orchard ID. What a box letter means
+   in the 2526 data (orchard, storage condition, scan session?). In 2024,
    A to J match the ten orchards of the preprint.
 4. Whether the data may be uploaded to cloud services (molab, Claude). Partly answered by Ruben
    on 3 Oct: Claude may read notebook outputs (pairing with `marimo-pair`). molab and other
    uploads: still no until Hugo confirms in writing.
 5. Lab workstation: GPU model, NVIDIA driver version (`nvidia-smi`), operating system, `uv`, tmux.
+6. For the meeting of 15 October: which 2526 fruit were rotten (they carry browning 3 and
+   cavity 3 by hand, and the 2526 file has no rot column).
+7. For the meeting: are 2024 and 2526 orchards with the same letter different orchards, now that
+   both seasons use orchard IDs?
+8. For the meeting: Ruben's position on the grade 2 non-consumable threshold (Hugo asked).
+
+## Task for the next data session
+
+- In 2425: count the fruit with rot = 1, browning 3 and cavity 3, and how much of the 296-of-300
+  browning–cavity overlap they explain. In 2526: count the fruit with browning 3 and cavity 3.
 
 ## Unverified assumptions in code
 
