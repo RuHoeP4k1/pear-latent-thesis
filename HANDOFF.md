@@ -6,73 +6,53 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 ## Current state
 
 - **Date:** 2026-10-05
-- **Phase:** labels and volume checks done on the laptop; no encoding yet (encoder copied at the
-  meeting on 15 October).
+- **Phase:** data checks done; pooling and encoding code ready and tested with a randomly
+  initialised encoder. No real latents yet: Hugo's weights are copied at the meeting on
+  15 October. No model fitted on labels yet, on purpose (split rule not agreed).
 - **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
   marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
-  both label files). School PC and workstation not yet set up: on each, `uv sync`, copy
-  `config/local.example.toml` to `config/local.toml`, run `notebooks/00_environment_check.py`.
-  For pairing with Claude on a live notebook also run `npx skills add marimo-team/marimo-pair`
-  (not in git) and make sure `jq` and `curl` are on the PATH of Git Bash.
-- **Last done (3 Oct):** added `fruit_keys`, `read_label_file`, `load_labels`
-  (`src/pearlatent/labels.py`) and `list_volumes` (`src/pearlatent/volumes.py`) with 16 tests
-  (24 in total, all pass); wrote `notebooks/01_label_inventory.py` (status draft). On real data:
-  headers, fruit identifiers, file names and grade ranges pass.
-- **Results of notebook 01 (read from the live notebook, 3 Oct):**
-  - 660 fruit in 2425, 450 in 2526.
-  - `defective = max(browning, cavity)`, `binary_123 = defective ≥ 1`, `binary_23 =
-    defective ≥ 2`: 0 disagreements in either season. 2526 defective grades 0/1/2/3:
-    184/82/72/112 fruit.
-  - 2425 `non-consumable = defective ≥ 2`: 0 contradictions. Adding `or rot = 1` gives 1
-    contradiction (one fruit with rot = 1, defective = 0 is consumable), so rot plays no role.
-  - Labelled fruit without a volume: exactly the 17 listed below, all in 2526. Volumes without a
-    label: 0.
-- **Last done (5 Oct):** plan files updated after Hugo's answers (commit 0fa797d). Added
-  `src/pearlatent/volume_qc.py`, `src/pearlatent/exclusions.py` with tests (29 in total, all
-  pass), notebook 01 section 5 (rot and grade 3), notebook 02 (`02_volume_qc.py`, status draft),
-  which writes `derived/volume_qc/` and `derived/exclusions.csv`. Wrote
-  `docs/meeting_2026-10-15.md`: proposed test-box rule, fold design, questions for Hugo, uses of
-  the 2024 data, the title.
-- **Results of 5 Oct (read from script runs on the laptop):**
-  - 2425 rot: 16 fruit with rot = 1 (15 suboptimal, 1 optimal storage), 11 of them browning 3 and
-    cavity 3. Of the 296 stored fruit with browning and cavity both ≥ 1, 15 are rot = 1; of the
-    175 with browning 3 and cavity 3, 11. Rot explains little of the overlap.
-  - 2526: 24 fruit with browning 3 and cavity 3 (max 6 in box H), flagged in the exclusion
-    table; 23 of them scanned.
-  - 2425: defect = storage group. All 300 suboptimal-storage fruit have browning; none of the 360
-    at harvest or after optimal storage have browning or cavity.
-  - All 1093 volumes 128³ uint16, 0 to 65535, header voxel size 1.0 (meaningless), long axis =
-    third array axis, extent 125–128 voxels, none flagged, no duplicates. Every fruit points the
-    same way (widest cross-section at index 27–43 of the third axis).
-  - Fruit volume in voxels differs strongly per 2526 box (median 120,805 in K to 228,988 in I):
-    shape and (in 2526) stalk length differ by orchard and K is the healthiest box, so shape and
-    scale are a candidate shortcut for the nuisance check.
-  - 2526 grades depend strongly on the box (K: 27 of 30 without browning; O: 15 with browning 3).
-- **Later on 5 Oct:** added `src/pearlatent/pooling.py` (fruit body mask, block mean to 32³,
-  mean, 99th percentile, cylindrical profile 8 heights × 4 radii) and `src/pearlatent/encoding.py`
-  (Hugo's encoder imported from a separate clone, `mu` plus the 512-channel layer pooled in the
-  mask), with tests (38 in total, all pass). Notebook 03 (`03_raw_ct_pooled.py`) wrote raw CT at
-  32³ for all 1093 fruit to `derived/raw_ct_32/<run_id>/`. Notebook 04 (`04_encode_latents.py`)
-  tested on the laptop with `--encoder random_init --limit 2` (a few seconds per fruit on CPU).
-  Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit 183112f; config keys
-  `hugo_repo` and `encoder_dir` (replaces `encoder_weights`) added to `config/local.example.toml`.
-  Rotational symmetry test dropped (Ruben).
-- **Stalk finding (5 Oct, notebook 03, projections looked at):** most 2526 volumes include the
-  stalk (8 of 12 in a random sample of projections; 2425: a short stub in a few) and it counts in the 128-voxel length; fruit body spans median 28 of 32 latent slices in
-  2526 (21–32, box K median 25), 31 in 2425 (no stalk visible). Notebook 02's "rescaled to 128 in
-  length" and its fruit-volume-per-box note are corrected in the notebook. CHARTER.md "The
-  constraints" still says every fruit is rescaled to 128 voxels in length: true for fruit plus
-  stalk in 2526; Ruben to decide the wording. Question 6 in `docs/meeting_2026-10-15.md`.
-- **3 Oct:** Ruben sent the mail to Hugo (open questions and the points under "Points to raise
-  with Hugo").
-- **Next step:** discuss `docs/meeting_2026-10-15.md` with Hugo on 15 October (test boxes,
-  fold design, rot, 2024 data, title). After agreement: write the test-box rule into CHARTER.md,
-  then implement the draw and the folds (step 4 of the plan, `src/pearlatent/splits.py`). The
-  folds are not made yet on purpose. On 15 October, once the weights are copied: on the
-  laptop (Hugo's repository is already cloned at 183112f), put the run folder at `encoder_dir`
-  in `config/local.toml`, run notebook 04 with `--limit 4`, check, then all fruit (about
-  1.5 hours on CPU); also `--encoder random_init` for the lower bound.
-- **Blocked on:** encoder weights (open question 1) for everything after labels.
+  both label files). Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit
+  183112f (`hugo_repo` in `config/local.toml`). Encoding runs on this laptop (CPU, about
+  5 seconds per fruit, decided 5 Oct); the workstation is only for fine-tuning and is not set up.
+  School PC not set up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
+  `notebooks/00_environment_check.py`. For pairing on a live notebook also run
+  `npx skills add marimo-team/marimo-pair` (not in git) and put `jq` and `curl` on the PATH.
+- **Done this session (5 Oct):**
+  - Plan files updated after Hugo's answers (box letter = orchard ID; 17 unscanned fruit
+    excluded; rotten fruit carry the highest grades). Charter rule 1: within-box comparison added
+    and removed the same day. Rotational symmetry test dropped (Ruben).
+  - Code with tests (38 in total, all pass): `volume_qc.py`, `exclusions.py`, `pooling.py`
+    (fruit body mask without stalk and with cavities filled, block mean to 32³, mean, 99th
+    percentile, cylindrical profile 8 heights × 4 radii), `encoding.py` (Hugo's encoder from the
+    separate clone; `mu` plus the 512-channel layer pooled inside the body mask), `latest_run_dir`.
+  - Notebooks: 01 section 5 (rot), `02_volume_qc.py`, `03_raw_ct_pooled.py`,
+    `04_encode_latents.py` (all status draft, all run as scripts). Products in `derived/`:
+    `volume_qc/`, `exclusions.csv`, `raw_ct_32/<run_id>/`, `stalk_check.png`, and a 2-fruit test
+    run in `latents/random_init/`.
+  - `docs/meeting_2026-10-15.md`: data summary, proposed test-box rule and fold design, questions
+    for Hugo, uses of the 2024 data, the title.
+- **Results (5 Oct, read from script runs and images on the laptop):**
+  - 2425: defect = storage group (all 300 suboptimal-storage fruit have browning; none of the
+    360 others have browning or cavity). Rot = 1 in 16 fruit, 11 of them browning 3 and cavity 3;
+    of the 175 fruit with browning 3 and cavity 3, 11 are rotten.
+  - 2526: 24 fruit with browning 3 and cavity 3 (flagged in `exclusions.csv`, 23 scanned). Grades
+    depend strongly on the box (K: 27 of 30 without browning; O: 15 with browning 3).
+  - All 1093 volumes 128³ uint16, none flagged, no duplicates; header voxel size 1.0 is
+    meaningless; long axis = third array axis, calyx end at the low end, in every volume.
+  - Most 2526 volumes include the stalk (8 of 12 in a random sample of projections, seed 1;
+    2425: at most a short stub) and it counts in the 128-voxel length: fruit body spans median 28
+    of 32 latent slices in 2526 (21–32, box K median 25), 31 in 2425. Fruit size in voxels
+    differs strongly per 2526 box; candidate shortcut for the nuisance check.
+  - Earlier (3 Oct, notebook 01): label rules for `defective`, `binary_123`, `binary_23`,
+    `non-consumable` hold for every fruit; 17 labelled 2526 fruit have no volume.
+- **Next step:** Ruben reviews `docs/meeting_2026-10-15.md` in a separate Claude session and meets
+  Hugo on 15 October. Then, on the laptop: put Hugo's run folder at `encoder_dir` in
+  `config/local.toml`; `uv run python notebooks/04_encode_latents.py --encoder hugo_vae --limit 4`,
+  check shapes and that `mu` is finite; run without `--limit` (about 1.5 hours); run
+  `--encoder random_init` for the lower bound. After the split rule is agreed with Hugo: write it
+  into CHARTER.md, then implement the test-box draw and the folds in `src/pearlatent/splits.py`.
+- **Blocked on:** Hugo's weights (15 October) for encoding; the split rule (meeting) for any
+  model fitted on labels.
 
 ## Verified from Hugo's repository (Tier 1)
 
@@ -117,69 +97,65 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
   complete. A01–J60 (60 per letter) plus G_opt01–G_opt30 and I_opt01–I_opt30. Same file size.
   The `_opt` names do not match the box pattern; `box_from_filename` will refuse them on purpose.
 
-## Plan items to settle with Ruben (before the mail to Hugo)
+## Plan items to settle with Ruben
 
-1. Done 3 Oct: evaluation design reversed in CHARTER.md (rule 2). Still to do: same change in the
-   Approved ideas tab (ground rule 2) during the plan review. Open: whether to set aside two or
-   three 2526 boxes as a final test before any exploration with labels.
+1. Test boxes: decided 5 Oct to hold out 2526 test boxes; the rule (restricted randomisation,
+   proposal in `docs/meeting_2026-10-15.md` section 2) is discussed with Hugo first. Also still to
+   do: the reversed evaluation design (charter rule 2) in the Approved ideas tab.
 2. "2025 and 2026 fruit" or one harvest (2025) stored into 2026? Wording in charter and plan.
-3. Block 0 checkpoint of 8 October ("Hugo's code runs, encode and decode one 2526 pear") depends
-   on the weights; the gate test of 15 October depends on browning region annotations, which may
-   not exist. The gate test cannot use browning annotations for 2526: cut-open photographs exist
-   only for the 2024–2025 season (in the pear folder).
+3. CHARTER.md "The constraints" says every fruit is rescaled to 128 voxels in length; in most 2526
+   volumes that length includes the stalk. Wording to decide after the meeting.
+4. Block 0 checkpoint of 8 October ("encode and decode one 2526 pear") cannot be met: the weights
+   arrive on 15 October. The gate test cannot use browning annotations for 2526: cut-open
+   photographs exist only for the 2024–2025 season (in the pear folder).
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
-1. The trained encoder weights: the run folder (`checkpoint.pth` + `vae_hyperparameter.json`) of
-   the VAE trained on the 2024 harvest (about 528 of the 660 fruit). Which run, and was it `checkpoint.pth`
-   (last epoch, what `load_vae` loads) or `best.pth`? Hugo (October 2026): the encoder is ready and
-   is copied at the meeting on 15 October. Still ask for the decoder, the configuration file and
-   which checkpoint and seed.
-2. Answered by Hugo (October 2026): exclude the 17 unscanned 2526 fruit. Why 17 of the 450 fruit
-   in 2526 have no volume (list above). (Box letters across seasons:
-   answered by Ruben on 3 Oct, they are unrelated; the season prefix in `box` keeps them apart.)
-3. Answered by Hugo (October 2026): a box letter in 2526 is an orchard ID. What a box letter means
-   in the 2526 data (orchard, storage condition, scan session?). In 2024,
-   A to J match the ten orchards of the preprint.
-4. Whether the data may be uploaded to cloud services (molab, Claude). Partly answered by Ruben
-   on 3 Oct: Claude may read notebook outputs (pairing with `marimo-pair`). molab and other
-   uploads: still no until Hugo confirms in writing.
-5. Lab workstation: GPU model, NVIDIA driver version (`nvidia-smi`), operating system, `uv`, tmux.
-6. For the meeting of 15 October: which 2526 fruit were rotten (they carry browning 3 and
-   cavity 3 by hand, and the 2526 file has no rot column).
-7. For the meeting: are 2024 and 2526 orchards with the same letter different orchards, now that
-   both seasons use orchard IDs?
-8. For the meeting: Ruben's position on the grade 2 non-consumable threshold (Hugo asked).
+Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
+(poor scan setup); a 2526 box letter is an orchard ID. The full list for the meeting is in
+`docs/meeting_2026-10-15.md` section 3; not all questions below are in that document.
 
-## Task for the next data session
-
-- Done 5 Oct (notebook 01 section 5): in 2425: count the fruit with rot = 1, browning 3 and cavity 3, and how much of the 296-of-300
-  browning–cavity overlap they explain. In 2526: count the fruit with browning 3 and cavity 3.
+1. Weights: Hugo has the encoder ready and copies it on 15 October. Still ask for the decoder,
+   `vae_hyperparameter.json`, which checkpoint (`checkpoint.pth` or `best.pth`) and which seed.
+2. Whether the data may be uploaded to cloud services. Ruben (3 Oct): Claude may read notebook
+   outputs. molab and other uploads: no until Hugo confirms in writing.
+3. Which 2526 fruit were rotten (the 2526 file has no rot column).
+4. Are 2024 and 2526 orchards with the same letter different orchards?
+5. Ruben's position on the grade 2 non-consumable threshold (Hugo asked).
+6. Preprocessing: why most 2526 volumes include the stalk and the 2425 volumes do not, and
+   whether the 2526 volumes can be preprocessed the same way.
+7. The list of 2024 fruit in Hugo's VAE test split (seed 42): the 2024 fruit the encoder has not
+   seen.
+8. The test-box rule and fold design (`docs/meeting_2026-10-15.md` section 2).
+9. Lab workstation (only for fine-tuning now): GPU model, NVIDIA driver version, operating
+   system, `uv`, tmux.
 
 ## Unverified assumptions in code
 
 | Where | Assumption | Verify against |
 |---|---|---|
-| `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct) | Hugo |
+| `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct). Supported by the preprint, section 2.2, as summarised in Ruben's other Claude session on 5 Oct (the two orchards with optimal storage have fruit in three boxes); not yet read in the preprint itself | preprint section 2.2, Hugo |
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
-| `pyproject.toml` | workstation driver supports CUDA 12.8 wheels | `nvidia-smi` on the workstation |
+| `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`) | Hugo (open question 1) |
+| `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for fine-tuning) | `nvidia-smi` on the workstation |
+
+Note on names: in 2425 the `box` column holds the orchard letter (60 to 90 fruit). Per the
+preprint a physical box is 30 fruit of one orchard in one storage group. Grouping by orchard is
+stricter than grouping by box, so the splits stay valid; only the name is loose.
 
 ## Session log
 
 Newest first. One entry per session, three to six lines.
 
-### 2026-10-05 — Hugo's answers, rot check, volume quality check
-- Plan files updated after Hugo's answers (box letter = orchard ID, 17 unscanned fruit excluded,
-  rotten fruit carry the highest grades).
-- Added volume quality check and exclusion table with tests; notebook 01 section 5, notebook 02.
-- Found: 2425 defect = storage group; rot explains 11 of 175 browning 3 and cavity 3 fruit; all
-  volumes pass; fruit shape differs by orchard.
-- Added pooling and encoding code, notebooks 03 and 04; encoding tested with a random encoder.
-- Found: most 2526 volumes include the stalk within the 128-voxel length (body median 28 of 32 slices).
-- Decided with Ruben: hold out test boxes, but agree the rule with Hugo first; folds wait.
-  Rotational symmetry test dropped.
-  Proposal in `docs/meeting_2026-10-15.md`. Within-box comparison removed from rule 1
-  (neither reference paper reports a split by box to compare with).
+### 2026-10-05 — Hugo's answers, data checks, pooling and encoding code
+- Decided (Ruben): hold out 2526 test boxes, rule to agree with Hugo first, folds wait; within-box
+  comparison removed from charter rule 1; rotational symmetry test dropped; encode on the laptop.
+- Plan files updated after Hugo's answers; added volume quality check, exclusion table, pooling
+  and encoding code with tests; notebooks 01 (section 5), 02, 03, 04.
+- Found: 2425 defect = storage group; rot explains 11 of 175 fruit with browning 3 and cavity 3;
+  all volumes pass; most 2526 volumes include the stalk within the 128-voxel length.
+- Corrected the same day: "the 2526 volumes include the stalk" to "most" (8 of 12 random).
+- Meeting notes in `docs/meeting_2026-10-15.md`.
 
 ### 2026-10-03 — label inventory
 - Decided: G_opt and I_opt fruit join boxes `2425_G` / `2425_I`; storage group in a separate

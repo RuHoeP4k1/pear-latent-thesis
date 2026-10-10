@@ -63,6 +63,8 @@ def load_encoder(
     checkpoint: str = "checkpoint.pth",
     random_init_seed: int | None = None,
 ):
+    # UNVERIFIED: whether `checkpoint.pth` (last epoch, what Hugo's `load_vae` loads) or
+    # `best.pth` (lowest validation loss) is the encoder of the preprint; HANDOFF.md question 1.
     """Hugo's encoder in evaluation mode, and a dictionary describing what was loaded.
 
     model_dir: run folder with `vae_hyperparameter.json` and the checkpoint, as Hugo's
