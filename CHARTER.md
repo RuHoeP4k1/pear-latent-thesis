@@ -1,112 +1,115 @@
 # Thesis charter — latent space for pear internal quality
 
 Ruben Hoeven · KU Leuven, Bioscience Engineering · supervisor Hugo (Junyan) Li, MeBioS
-One page. If something here needs more than a line, it belongs in the Notes document, not here.
+One page. If something here needs more than a line, it belongs in the proposal document, not here.
 
-> **Status, 3 October 2026.** Rules 1 and 2 below were changed on 2 and 3 October (box rule;
-> reversed evaluation design, because in the 2024 fruit browning and cavity occur together in
-> 296 of the 300 stored defective fruit). Still under review: "pears from 2025 and 2026" — the
-> 2526 file is probably one harvest (2025) stored into 2026; confirm with Hugo.
->
-> **Status, 5 October 2026.** Updated after Hugo's answers and the Approved ideas tab: the
-> reconstruction score no longer counts as evidence that browning is kept; the 2526 data
-> described as 450 fruit (433 scanned), box letter = orchard ID; voxel size given as approximate
-> (rescaling per fruit); rule 1 adds stratified group folds (a within-box comparison was added and
-> removed the same day: no reference number to compare it with); rule 3 uses a bootstrap over boxes and paired differences; rule 7 adds raw CT pooled to 32³, a
-> fine-tuning arm and, conditionally, Hugo's classifier; new rule 10 on excluded fruit.
+> **Version of 10 October 2026.** Updated from the version of 6 October: N-way partial least squares
+> added as one model row; cylindrical bins dropped. Proposal for the meeting of 15 October; items
+> marked *(to settle with Hugo)* or *(to settle)* are proposals, not decisions.
+
+## Title
+
+Latent space is all you need? Detecting internal browning in pear CT across severity grades
 
 ## The question
 
-How much of the information needed to detect internal browning is already present in the
-latent space of a pretrained model, and under what conditions does it stop being enough?
+Does the latent space of pretrained models retain sufficient information to detect internal
+browning in pear CT, and at which browning grade does that stop?
 
-Not "is the latent space enough" — the decoder reconstructs pears at 0.9915 structural
-similarity, but that score is an average over the whole volume; a 1 cm³ lesion is about 0.2 % of it, so reconstruction quality alone does not show that browning is kept. The real question is whether it is
-present in a form a simple model can use, and at which defect severity that fails.
+1. Is browning kept? Reconstruction residual in the core, by grade (Step 0). Nothing fitted.
+2. Is it usable? Simple statistical models on the latent, compared with CT downsampled to the
+   same size.
+3. Where does it stop, and why? Per-grade detection at four levels — 128³ input, CT averaged to
+   32³, Hugo's latent, random encoder — so a loss can be placed in the resolution or the encoder.
+
+"The information is in the latent" is a hypothesis, not a fact: the 0.9915 reconstruction score is
+averaged over the whole volume, and a grade 2 lesion is about 0.2 % of it.
 
 ## What is fixed
 
-**The object of study.** The latent space of Hugo Li's adversarial 3D variational
-autoencoder (SSRN 6433761), used frozen. We train no encoder.
+**Object of study.** μ, the 32 × 32 × 32 latent of Hugo Li's adversarial 3D variational
+autoencoder (SSRN 6433761), used frozen. One value per cell.
 
-**The data.** 660 'Conference' pears from the 2024 harvest, which that encoder was trained
-on. 450 further pears in the 2526 file (433 scanned; probably one harvest, 2025, stored into 2026 — to confirm), which it has never seen. Browning and
-cavity graded 0–3, rot 0–1, by a written rubric. A box letter is an orchard ID (Hugo, October 2026).
+**Data.** 2526: 433 scanned fruit of 450 labelled, 15 boxes = orchards, never seen by the encoder:
+primary. 2425: 660 fruit of the 2024 harvest, encoder trained on about 528 of them; browning equals
+storage group there, so secondary only. Browning and cavity 0–3; rot 0–1 in 2425 only.
 
-**The constraints that bound every result.** Every fruit is rescaled to 128 voxels in length, so millimetre figures are approximate and differ per fruit (0.6267 mm is the voxel size before rescaling, per the preprint). Volumes 128³. Latent 32³,
-one scalar per cell, spacing about 2.5 mm, encoder receptive field about 19 mm. Browning
-grade 1 is kernel membrane discoloration (sub-millimetre), grade 2 up to 1 cm³ in the core,
-grade 3 above that or in the flesh. A 1 cm³ lesion is about 12 mm across — smaller than what
-a single latent value summarises.
+**Constraints.** Volumes 128³; every fruit aligned on the stem–calyx axis and rescaled to 128 voxels
+in length, so millimetre figures are approximate and differ per fruit. Latent cell about 2.5 mm,
+receptive field about 19 mm. Most 2526 volumes include the stalk; 2425 volumes do not *(to settle
+with Hugo)*.
 
-**The prediction these imply**, stated before looking: grade 3 detectable, grade 2 weak,
-grade 1 not at all; mild cavity easier than mild browning because a void has far more
-contrast than browned flesh.
+**Prediction, stated before looking.** Browning grade 3 detectable, grade 2 weak, grade 1 not;
+mild cavity easier than mild browning.
+
+## Comparisons (one external model, no architecture study)
+
+128³ input features · CT averaged to 32³ · Hugo's latent · random frozen encoder · Med3D (frozen) ·
+Hugo's `train_clf_3d.py` from scratch, rerun with box splits · own self-supervised extension.
 
 ## Evaluation rules, fixed before any result is seen
 
-1. Split by box, never by fruit: all fruit of one box stay on the same side of every split, for
-   every model fitted on labels (rule adopted 2 October 2026; replaces "split at fruit level").
-   Folds by stratified group cross-validation.
-2. Exploration and plots may use all fruit of both seasons, always labelled by season. Model
-   fitting: the primary analysis is cross-validation within the 2526 fruit (never seen by the
-   encoder), with whole boxes held out. The 2024 fruit are secondary: comparison with Hugo's
-   numbers and a reverse cross-season check (fit on 2526, evaluate on 2024), stating that the
-   encoder saw about 80 % of them. (Changed 3 October 2026; was "fit on 2024, evaluate on 2025–26".)
-3. Confidence intervals by a bootstrap over whole boxes, not the spread across cross-validation
-   folds. Method comparisons report the interval of the paired difference on the same
-   out-of-fold predictions. Features are fixed in advance or selected inside the cross-validation.
-4. Browning is the primary target. Cavity is reported separately as the easy control.
-   Never merged.
-5. `binary_23` primary, `binary_123` always reported beside it. The drop between them is a
-   result. Where possible use the 0–3 grades directly, with an ordinal model.
-6. Recall and precision alongside accuracy — the two errors cost different things.
-7. Reference points, none requiring a trained network: randomly initialised frozen encoder
-   (lower bound), the two-feature support vector machine of Van De Looverbosch 2020
-   (90–95%, the practical bar), one external encoder (3DINO), published numbers as the
-   upper bound. Added 3 October 2026: raw CT average-pooled to 32³, and one fine-tuning arm of
-   Hugo's encoder (measures the cost of freezing). Conditional: Hugo's `train_clf_3d.py`, only if
-   he re-runs it with our box splits.
-8. Nuisance check on every representation: does it predict storage batch or orchard better
-   than it predicts the defect?
-9. Normalisation from training data only, computed without reference to class.
-10. Excluded fruit: the 17 unscanned 2526 fruit (Hugo's advice). Rotten fruit were given the
-    highest browning and cavity grades by hand; exclude them once Hugo identifies them, and until
-    then report grade 3 with and without the fruit that have browning 3 and cavity 3.
+1. Split by box, never by fruit, for every model fitted on labels, including setting choices.
+2. Primary fitting within 2526. 2425 only for comparison with Hugo, the reverse check (fit 2526,
+   test 2024, state that the encoder saw about 80 % of them) and the healthy reference.
+3. Final test: 3 boxes held out, drawn with a recorded seed among the combinations whose label
+   shares lie within ±30 % of the population; sealed until the pipeline is frozen *(to settle with
+   Hugo; fallback: cross-validation only with this plan committed)*. Exploration and plots exclude
+   the test boxes.
+4. Intervals by bootstrap over whole boxes, paired on the same out-of-fold predictions.
+5. Browning primary; cavity separate, never merged; `defective` never the target.
+6. Report per grade: recall per grade, a severity score fitted on grade 0 vs 3 only, binary_23 with
+   binary_123 beside it. Two curves: any defect, and cavity-free browning.
+7. Recall and precision beside accuracy.
+8. Orchard check: mixed model with a random intercept per box and the score split into box mean
+   and within-box deviation; report the intraclass correlation.
+9. Normalisation from training folds only, without reference to class.
+10. Exclusions: the 17 unscanned 2526 fruit; rotten fruit once identified. Until then, grade 3
+    reported with and without the 24 fruit with browning 3 and cavity 3.
 
-## Method stance
+## Methods
 
-Statistical first: PLS-DA, penalised regression, ordinal (cumulative-link) models for the
-graded outcome, PCA for effective dimensionality. Pooling choices (mean, maximum, attention)
-are kept because maximum pooling expresses a decision rule — "the worst region decides" —
-that no linear model on the flattened grid can represent.
+Summaries of the grid: the full 32 × 32 × 32 array; deviation-from-healthy map with persistence
+summaries (high percentile as comparison). Cylindrical bins (height × radius) were dropped on
+10 October 2026. Reference coordinates of the healthy fruit for the deviation map *(to settle: the
+earlier reference used height and radius; the same cell (x, y, z) is affected by the free rotation
+around the stem–calyx axis)*.
 
-Explanations must be testable. Counterfactual generation and prototype placement counts,
-not heatmaps.
+Models, each on the unfolded array: PLS-DA, ridge or elastic-net logistic, cumulative-link (mixed)
+models. Plus one extra model row, run after the core study: N-way partial least squares (Bro 1996)
+on the four-way array fruit × x × y × z, first at the 32³ levels. Each component has one score per
+fruit and three weight vectors (x, y, z); the template is their product. Compared with unfolded
+partial least squares on the same array, with the same box splits; number of components chosen by
+cross-validation over whole boxes inside the training boxes. Two checks, because the alignment
+fixes only the stem–calyx axis: a fit on a core crop around that axis, and a refit after random
+rotation of the test fruit around it. Prediction, stated before looking *(proposal)*: no gain over
+unfolded partial least squares on grade 3; the added value is the three weight profiles.
+
+No attention pooling, no 512-channel layer.
+
+## Extensions
+
+Own self-supervised extension (mid November–December, decision 1 December): a head on Hugo's
+frozen encoder, trained without labels, one vector per fruit *(to settle with Hugo)*.
+Counterfactual images (January–February): only if Step 0 shows browned cores are reconstructed;
+direction from full-grid PLS, cavity-free core browning only.
 
 ## Do not
 
-- Train anything from scratch.
-- Use a heatmap as evidence of what the model uses.
+- Train a new architecture from scratch (Hugo's existing scripts may be rerun).
+- Use a heatmap or the weight profiles of a model as evidence of what it uses.
 - Draw a quantitative conclusion from a 2D embedding.
-- Report a per-cell map at a resolution the 19 mm receptive field cannot support.
-- Use the `defective` column as the primary target — it is the maximum of browning and
-  cavity, and merges an easy task with a hard one.
-- Compare many architectures. The strategy matters more and the comparison does not transfer.
+- Report a per-cell map at a resolution the receptive field cannot support.
+- Compare many architectures.
 
 ## Source hierarchy
 
-1. Hugo's preprint, its supplement, the repository README, the label CSVs, the rubric.
-   Authoritative on our own data.
-2. Papers with a verified identifier. Authoritative on the field.
-3. The Notes and Approved ideas tabs. Our derived decisions.
-4. Parked ideas, old notes, past chats. History, never cited as fact.
-
-A claim about our data traces to tier 1 or is marked as inference. A claim about the
-literature carries a verified identifier. Nothing is passed on from one paper's description
-of another without checking the original.
+1. Hugo's preprint, supplement, repository README, label CSVs, rubric, Hugo's own answers.
+2. Papers with a verified identifier.
+3. The proposal document and the Notes tab.
+4. Parked ideas, old notes, past chats: history only.
 
 ## Dates
 
-15 October 2026 proposal · all experiments by 18 December 2026 · February 2027 mid-term ·
-April 2027 writing complete · May 2027 defence.
+15 October 2026 proposal · core study to mid November · all experiments by 18 December 2026 ·
+January–February 2027 counterfactuals and consolidation · February mid-term · May 2027 defence.
