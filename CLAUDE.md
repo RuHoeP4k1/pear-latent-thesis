@@ -13,10 +13,16 @@ Encodes pear X-ray computed tomography (CT) volumes with Hugo's frozen, pretrain
 autoencoder (VAE), then analyses the latent space statistically: is internal browning detectable from
 it, and at which severity does detection stop working?
 
-**No encoder is trained.** The only things fitted are small models on frozen features: partial least
-squares discriminant analysis (PLS-DA), penalised logistic regression, ordinal models, optionally a
-small attention-pooling layer or prototype head, and one fine-tuning arm of Hugo's encoder. If a task
-seems to need training a network from scratch, the plan has drifted: stop and check `CHARTER.md`.
+**No encoder is trained**, except the own self-supervised extension (a head on Hugo's frozen
+encoder), if Hugo agrees; no new architecture is trained from scratch. The other things fitted are
+small models on frozen features: partial least squares discriminant analysis (PLS-DA), penalised
+logistic regression, ordinal models, N-way partial least squares (one extra row after the core
+study, see `CHARTER.md`, Methods), and one fine-tuning arm of Hugo's encoder. If a task seems to
+need training a network from scratch, the plan has drifted: stop and check `CHARTER.md`.
+
+Design: primary fitting is grouped cross-validation within the 433 scanned 2526 fruit, whole boxes
+held out. The 660 2425 fruit are secondary (comparison with Hugo, reverse check, healthy
+reference). 433 + 660 = 1,093 volumes.
 
 ## 2. Non-negotiable rules
 
@@ -50,12 +56,12 @@ cite this table or the source.
 
 | Quantity | Value | Source |
 |---|---|---|
-| Voxel size | 0.6267 mm before rescaling; after rescaling to 128 voxels in length the size differs per fruit | preprint |
+| Voxel size | 0.6267 mm is the scanner voxel size before rescaling, not the size of a 128³ voxel; after rescaling to 128 voxels in length the size differs per fruit | preprint |
 | Volume | 128 × 128 × 128, NIfTI, min-max scaled to [0, 1] per volume at load | `utils/volumes.py` |
 | Latent | 1 × 32 × 32 × 32, one scalar per cell, use the mean `mu` | `component/vae.py` |
 | Layer before the latent heads | 512 channels × 32³ | `component/vae.py` (base_channel 256) |
-| Latent cell spacing | 4 voxels, about 2.5 mm | layer strides |
-| Receptive field of one cell | 31 voxels, about 19.4 mm | computed from layer list |
+| Latent cell spacing | 4 voxels, about 2.5 mm (approximate, differs per fruit) | layer strides |
+| Receptive field of one cell | 31 voxels, about 19 mm (approximate, differs per fruit) | computed from layer list |
 | KL weight (beta) | 1e-6: a compression latent, not a semantic one | `train_vae.py` default |
 | Reconstruction | MAE 0.0022, SSIM 0.9915, PSNR 36.92 | preprint |
 | Encoder training set | about 528 of the 660 fruit of 2024 (random 80/10/10 split, seed 42) | `train_vae.py`, `utils/splits.py` |
@@ -78,7 +84,8 @@ full; pool it during encoding.
 - `labels_conference_pear_2526.csv`: 450 fruit, 15 boxes of 30 (A to O), all scanned after storage.
   Columns `filename, browning, cavity, defective, binary_123, binary_23`.
   Box letter = orchard ID (Hugo, October 2026). The 17 unscanned fruit are excluded. No rot
-  column; rotten fruit carry browning 3 and cavity 3 by hand — exclude once identified.
+  column; rotten fruit carry browning 3 and cavity 3 by hand — exclude once identified. Until Hugo
+  identifies them, report grade 3 with and without the 24 fruit with browning 3 and cavity 3.
 - Only `browning` and `cavity` are common to both files. Harmonise on those.
 - Box letters are unrelated across seasons (Ruben, 3 October 2026): box A in 2425 and box A in
   2526 have nothing in common. Whatever a letter stands for (orchard, batch, storage regime), it
@@ -94,8 +101,9 @@ full; pool it during encoding.
 1. **Encode once** (laptop, CPU, about 1.5 hours for all fruit). Forward pass through the frozen encoder; write
    `derived/latents/<encoder>/<run_id>/latents.npy`, `manifest.parquet` (one row per fruit:
    `fruit_id`, season, box, file, row index) and `run.json`. About 145 MB for all fruit.
-2. **Pool** (any machine). Array arithmetic on the saved latents: mean, 99th percentile, cylindrical
-   binning (height × radius, averaged over angle). Produces a feature table.
+2. **Pool** (any machine). Array arithmetic on the saved latents. Options: the full 32³ grid, and
+   the deviation-from-healthy map with persistence summaries (high percentile as comparison). No
+   cylindrical bins (dropped 10 October 2026), no attention pooling, no 512-channel layer.
 3. **Model** (any machine). Statistics on that table. From here it is an ordinary dataset.
 
 Step 1 is cached to disk and never recomputed by a notebook. marimo reruns cells reactively; without
@@ -104,10 +112,11 @@ the cache, touching a downstream cell would rerun a forward pass over the whole 
 ## 6. Coordinates
 
 Preprocessing aligns the stem–calyx axis and rescales each fruit to 128 voxels in length, so height
-is comparable across fruit and rotation about that axis is not. For statistics across fruit, convert
-to cylindrical coordinates (height, radius) and average over angle (no separate test of rotational
-symmetry; decided by Ruben, 5 October 2026). Keep per-fruit analyses at full resolution, where
-angle still carries information.
+is comparable across fruit and rotation about that axis is not: the same cell (x, y, z) can lie at
+a different angle in different fruit. Cylindrical bins (height × radius, averaged over angle) were
+dropped on 10 October 2026; models use the full grid. For N-way partial least squares the charter
+adds two checks for the free rotation (core crop, random rotation of the test fruit). The reference
+coordinates of the healthy fruit for the deviation map are still to settle (`CHARTER.md`, Methods).
 
 Verified on all volumes (notebooks 02 and 03, 5 October 2026): the stem–calyx axis is the third
 array axis, with the wide calyx end at the low end, in every volume. Most 2526 volumes include the
