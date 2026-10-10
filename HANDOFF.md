@@ -103,8 +103,8 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
    proposal in `docs/meeting_2026-10-15.md` section 2) is discussed with Hugo first. Also still to
    do: the reversed evaluation design (charter rule 2) in the Approved ideas tab.
 2. "2025 and 2026 fruit" or one harvest (2025) stored into 2026? Wording in charter and plan.
-3. CHARTER.md "The constraints" says every fruit is rescaled to 128 voxels in length; in most 2526
-   volumes that length includes the stalk. Wording to decide after the meeting.
+3. Settled in the charter of 10 October: "Constraints" now states that most 2526 volumes include
+   the stalk and 2425 volumes do not, marked *(to settle with Hugo)*.
 4. Block 0 checkpoint of 8 October ("encode and decode one 2526 pear") cannot be met: the weights
    arrive on 15 October. The gate test cannot use browning annotations for 2526: cut-open
    photographs exist only for the 2024–2025 season (in the pear folder).
@@ -129,6 +129,34 @@ Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit 
 8. The test-box rule and fold design (`docs/meeting_2026-10-15.md` section 2).
 9. Lab workstation (only for fine-tuning now): GPU model, NVIDIA driver version, operating
    system, `uv`, tmux.
+10. Item 2 of Hugo's slide: a head on his encoder, or a new model? (Decides whether the own
+    self-supervised extension is allowed.)
+11. Cavity-label issues: grades that disagree with visible voids (to back with the cavity
+    cross-check, if built).
+12. The month0 to month4 repeat scans: which fruit, and are they available?
+13. Overlap with Hugo's own classification and synthetic-data work.
+
+For Ruben (not Hugo), added 10 Oct:
+
+14. Reference coordinates of the healthy fruit for the deviation map. The earlier reference used
+    height and radius; the same cell (x, y, z) is affected by the free rotation around the
+    stem–calyx axis.
+15. Whether Solo accepts a four-way array for N-way partial least squares. The documentation found
+    does not say. Test with a small synthetic array (fruit × 8 × 8 × 8) before relying on it.
+
+## Decided
+
+- 6 Oct (plan review): Med3D is the one external model (no 3DINO, no DINOv3); attention pooling and
+  the 512-channel layer are dropped; the two-feature support vector machine of Van De Looverbosch
+  2020 is literature context only; Ideas 4, 5 and 6 are not proposed; order: core study, then own
+  self-supervised extension, then counterfactuals in January–February.
+- 10 Oct: the cylindrical bins (height × radius) are dropped everywhere; N-way partial least
+  squares is one extra model row after the core study, on fruit × x × y × z, compared with unfolded
+  partial least squares on the same box splits. Implementation (own numpy, Bro 1996) waits until
+  Ruben asks; see `docs/NOTE_n-way-PLS_2026-10-10.md`.
+- Code not yet changed for the dropped bins: `src/pearlatent/pooling.py` (`cylindrical_coordinates`,
+  `cylindrical_profile`, `pool_grid`), `tests/test_pooling.py`, `notebooks/03_raw_ct_pooled.py`
+  (profile figure and text). Ruben to decide whether to remove them.
 
 ## Unverified assumptions in code
 
