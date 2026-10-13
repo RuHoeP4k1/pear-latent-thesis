@@ -24,9 +24,24 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   Fold partitions of the 12 other boxes: 186 eligible of 15,400 at ±30 %. Repeats: 1 ABI CGN DEO
   HKL; 2 ACE BGL DIN HKO; 3 AEH BGL CKO DIN; 4 AHN BDL CEI GKO; 5 AGK BCI DNO EHL. Repeats 2 and 3
   share two folds (BGL, DIN); BL, DN and KO share a fold in 3 of 5 repeats.
-- **Next step:** Ruben sends `docs/splits_for_hugo.md` to Hugo (B4 STOP). Meanwhile B5 (encode and
-  reconstruct all 1,093 fruit; ask Ruben before the full run, about 1.5 to 3 hours), B6 and the
-  2425 part of B7 can go ahead.
+- **B5 (13 Oct):** decoding takes about 56 s per fruit on the laptop CPU (encoding about 4 s;
+  the decoder runs 3D convolutions with 128 channels at 128³), so all 1,093 would take about
+  18 hours. Ruben (13 Oct): decode only what is needed now, over two nights, with batch saves.
+  Decoded: the 346 open 2526 fruit, Hugo's 66 validation fruit, a sample of 66 of his 528
+  training fruit (`hugo_training_sample`, seed 369); encoded only: the other 462 training fruit
+  and the 153 sealed fruit (decoded at the final test). Work saved in chunks of 20 fruit
+  (`src/pearlatent/encode_run.py`). Smoke test on 25 fruit with Hugo's weights, stopped and
+  resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
+  in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
+  fruit); the full run will be newer.
+- **Next step:** Ruben sends `docs/splits_for_hugo.md` to Hugo (B4 STOP). Ruben starts the full
+  run, laptop plugged in (about 8.8 hours in total):
+  night 1 `uv run python notebooks/04_encode_latents.py --encoder hugo_vae --stop-after-hours 4.5`;
+  night 2 `uv run python notebooks/04_encode_latents.py --encoder hugo_vae --resume <run name>`
+  (the name is printed at the end of night 1, and is the newest folder in
+  `derived/latents/hugo_vae/`); then, same night or later,
+  `uv run python notebooks/04_encode_latents.py --encoder random_init` (encoding only, about
+  1.4 hours). Then B6 and the 2425 part of B7 (notebook 05).
 - **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
   marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
   both label files). Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit
@@ -117,6 +132,13 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
   size 4, Adam learning rate 1e-4 for VAE and discriminator, gamma 0.01, discriminator patch size
   16 and base channel 16. Matches the strict load and CLAUDE.md section 3.
 - `load_encoder` and notebook 04 now default to `best.pth` (commit bbaa33c).
+- Read in `train_vae.py` (13 October, for open question 21): the validation and test subsets are
+  `random_split` subsets of the one dataset that carries the training augmentation (random
+  flips, scaling 0.9 to 1.1, rotation up to 30 degrees), so Hugo's validation and test metrics
+  were computed on randomly augmented volumes, with `vae(x)` (sampled z). The final test metrics
+  are computed with the model at the end of training, not reloaded from `best.pth`. Our numbers
+  use unaugmented volumes, `decode(mu)` and `best.pth`, so they need not match Table D.1 or
+  section 3.1.1 exactly. Hugo's PSNR is averaged per batch of 4, ours per fruit.
 
 ## Points to raise with Hugo (found in his code)
 
