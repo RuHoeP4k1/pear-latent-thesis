@@ -4,18 +4,17 @@ __generated_with = "0.25.1"
 app = marimo.App(width="medium", app_title="04 Encode latents")
 
 with app.setup:
-    import time
-
     import marimo as mo
-    import nibabel as nib
     import numpy as np
     import polars as pl
 
     from pearlatent.config import load_config
     from pearlatent.device import describe_device
-    from pearlatent.encoding import encode_volumes, load_encoder
-    from pearlatent.pooling import body_mask, fruit_mask, pool_grids, scale_minmax
+    from pearlatent.encode_run import encode_group
+    from pearlatent.encoding import load_vae
+    from pearlatent.reconstruction import CORE_RADIUS_FRACTION
     from pearlatent.runs import new_run_dir, write_run_record
+    from pearlatent.sealed import read_sealed_fruit
     from pearlatent.volumes import list_volumes
 
 
@@ -25,11 +24,14 @@ def _():
     # 04 Encode latents
 
     **Question.** None: this notebook produces the latents (step 1 of the pipeline, CLAUDE.md
-    section 5). It runs on the laptop as a script (CPU, about 5 seconds per fruit).
+    section 5) and, in the same pass, the reconstruction numbers of Step 0 (`x_hat =
+    vae.decode(mu)`, never `vae(x)`, which samples z). It runs on the laptop as a script (CPU,
+    about 5 seconds per fruit to encode; decoding adds about as much again).
 
     **Inputs.** `ct_dir_2425`, `ct_dir_2526` (all volumes), `hugo_repo` (clone of Hugo's
     repository at commit 183112f), `encoder_dir` (Hugo's run folder with the checkpoint and
-    `vae_hyperparameter.json`), from `config/local.toml`. Command-line arguments:
+    `vae_hyperparameter.json`), from `config/local.toml`; `derived/sealed_fruit.csv` and
+    `derived/hugo_vae_split_2425/hugo_vae_split_2425.csv`. Command-line arguments:
     `--encoder hugo_vae` (default) or `--encoder random_init` (randomly initialised encoder, the
     lower-bound reference of rule 7 of CHARTER.md), `--checkpoint` (default `best.pth`,
     the only checkpoint Hugo sent, 13 October 2026), `--seed` (default 0, used by `random_init`), `--limit`
@@ -37,14 +39,20 @@ def _():
     `--bf16 1` (bfloat16 on the GPU; off by default: full float32 precision, because browning
     is a small density shift and 1,100 fruit encode quickly anyway).
 
-    **Outputs.** `derived/latents/<encoder>/<run_id>/`: `latents.npy` (fruit × 32³ float32, the
-    mean `mu`), `layer512_pooled.npy` (fruit × 2 × 512 float32: mean and 99th percentile of each
-    channel of the layer before the latent head, inside the fruit body mask), `masks.npy`,
-    `manifest.parquet` (fruit_id, season, box, storage, file_stem, row), `features.parquet`
-    (`mu` pooled with `pearlatent.pooling.pool_grids`), `run.json`. No labels are read.
+    **Outputs.** `derived/latents/<encoder>/<run_id>/` for the open fruit and
+    `derived/sealed/latents/<encoder>/<run_id>/` for the sealed fruit (2526 test boxes and Hugo's
+    2425 test fruit; no notebook reads that folder). Each holds `latents.npy` (fruit × 32³
+    float32, the mean `mu`), `layer512_pooled.npy` (fruit × 2 × 512 float32: mean and 99th
+    percentile of each channel of the layer before the latent head, inside the fruit body mask),
+    `masks.npy`, `manifest.parquet` (fruit_id, season, box, storage, file_stem, row,
+    hugo_training, sealed), `features.parquet` (`mu` pooled with `pearlatent.pooling.pool_grids`),
+    `run.json`; with Hugo's decoder also `reconstruction.parquet`, `slice_mae_volume.npy`,
+    `slice_mae_body.npy` and `planes.npy` (see `pearlatent.encode_run`). The regions (body, core
+    with radius one third of the widest body radius) are defined in `pearlatent.reconstruction`,
+    fixed on 13 October 2026 before any reconstruction was seen. No labels are read.
 
     **Status.** draft. Tested on the laptop with `--encoder random_init --limit 2`
-    (5 October 2026); not yet run with Hugo's weights.
+    (5 October 2026); reconstruction added 13 October 2026.
 
     Run on the laptop:
 
@@ -97,8 +105,29 @@ def _(cfg, limit):
     )
     if limit:
         volumes = volumes.head(limit)
-    volumes = volumes.with_row_index("row")
-    return (volumes,)
+    _sealed = read_sealed_fruit(cfg.path("derived_dir") / "sealed_fruit.csv")
+    _hugo_training = (
+        pl.read_csv(
+            cfg.path("derived_dir") / "hugo_vae_split_2425" / "hugo_vae_split_2425.csv"
+        )
+        .filter(pl.col("hugo_split") == "train")
+        .select("fruit_id")
+    )
+    volumes = volumes.with_row_index("row").with_columns(
+        pl.col("fruit_id")
+        .is_in(_hugo_training["fruit_id"].implode())
+        .alias("hugo_training"),
+        pl.col("fruit_id").is_in(_sealed["fruit_id"].implode()).alias("sealed"),
+    )
+    # Every volume is encoded; sealed fruit go to their own folder (charter rule 3).
+    volumes_open = volumes.filter(~pl.col("sealed"))
+    volumes_sealed = volumes.filter(pl.col("sealed"))
+    print(
+        f"volumes: {volumes.height} in; open {volumes_open.height}, sealed "
+        f"{volumes_sealed.height}; flagged as Hugo VAE training fruit "
+        f"{int(volumes['hugo_training'].sum())}"
+    )
+    return volumes_open, volumes_sealed
 
 
 @app.cell
@@ -119,75 +148,74 @@ def _(
     run,
     seed,
     use_bf16,
-    volumes,
+    volumes_open,
+    volumes_sealed,
 ):
     mo.stop(
         mo.running_in_notebook() and not run.value,
         mo.md("_Press the button to start. Encoding all fruit takes about 1.5 hours; run it as a script._"),
     )
-    _encoder, _info = load_encoder(
+    _vae, _info = load_vae(
         cfg.path("hugo_repo"),
         cfg.path("encoder_dir") if encoder_name == "hugo_vae" else None,
         device_info.device,
         checkpoint=checkpoint,
         random_init_seed=seed if encoder_name == "random_init" else None,
     )
+    # The random encoder has no trained decoder, so it is not reconstructed.
+    _reconstruct = encoder_name == "hugo_vae"
     run_dir = new_run_dir(cfg.path("derived_dir") / "latents" / encoder_name, encoder_name)
-    write_run_record(
-        run_dir,
-        {
-            "step": "encode",
-            "encoder": encoder_name,
-            "limit": limit,
-            "batch_size": batch_size,
-            "device": device_info.name,
-            "bf16": use_bf16,
-            "mask": "body_mask(fruit_mask), threshold 0.1, min fraction 0.5, min 4 cells per slice",
-            **_info,
-        },
-    )
-    _n = volumes.height
-    _mu = np.lib.format.open_memmap(
-        run_dir / "latents.npy", mode="w+", dtype=np.float32, shape=(_n, 32, 32, 32)
-    )
-    _pooled = np.lib.format.open_memmap(
-        run_dir / "layer512_pooled.npy",
-        mode="w+",
-        dtype=np.float32,
-        shape=(_n, 2, 2 * _info["base_channel"]),
-    )
-    _masks = np.zeros((_n, 32, 32, 32), dtype=bool)
-    _paths = volumes["path"].to_list()
-    _start = time.perf_counter()
-    for _i in mo.status.progress_bar(
-        list(range(0, _n, batch_size)), title="Encoding", show_eta=True
+    sealed_dir = cfg.path("derived_dir") / "sealed" / "latents" / encoder_name / run_dir.name
+    sealed_dir.mkdir(parents=True, exist_ok=False)
+    _params = {
+        "step": "encode",
+        "encoder": encoder_name,
+        "limit": limit,
+        "batch_size": batch_size,
+        "device": device_info.name,
+        "bf16": use_bf16,
+        "mask": "body_mask(fruit_mask), threshold 0.1, min fraction 0.5, min 4 cells per slice",
+        "reconstruct": _reconstruct,
+        "reconstruction": "x_hat = vae.decode(mu); whole volume, body voxels, core",
+        "core_radius_fraction": CORE_RADIUS_FRACTION,
+        **_info,
+    }
+    _seconds = {}
+    for _name, _group, _dir in (
+        ("open", volumes_open, run_dir),
+        ("sealed", volumes_sealed, sealed_dir),
     ):
-        _j = min(_i + batch_size, _n)
-        _scaled = np.stack(
-            [scale_minmax(np.asarray(nib.load(p).dataobj)) for p in _paths[_i:_j]]
-        )
-        _masks[_i:_j] = [body_mask(fruit_mask(s)) for s in _scaled]
-        _mu[_i:_j], _pooled[_i:_j] = encode_volumes(
-            _encoder,
-            _scaled,
-            _masks[_i:_j],
+        write_run_record(_dir, {**_params, "group": _name, "n_fruit": _group.height})
+        _seconds[_name] = encode_group(
+            _vae,
+            _group,
+            _dir,
             device_info.device,
+            batch_size,
+            reconstruct=_reconstruct,
             bf16=use_bf16,
+            progress=lambda _b, _n=_name: mo.status.progress_bar(
+                _b, title=f"Encoding ({_n})", show_eta=True
+            ),
         )
-    _mu.flush()
-    _pooled.flush()
-    np.save(run_dir / "masks.npy", _masks)
-    volumes.drop("path").write_parquet(run_dir / "manifest.parquet")
-    pool_grids(np.asarray(_mu), _masks, volumes["fruit_id"].to_list()).write_parquet(
-        run_dir / "features.parquet"
+    mo.md(
+        f"Wrote `{run_dir}` ({volumes_open.height} fruit) and `{sealed_dir}` "
+        f"({volumes_sealed.height} sealed fruit); seconds per fruit: {_seconds}."
     )
-    seconds_per_fruit = (time.perf_counter() - _start) / _n
-    mo.md(f"Wrote `{run_dir}` ({_n} fruit, {seconds_per_fruit:.1f} s per fruit).")
     return (run_dir,)
 
 
 @app.cell
 def _(run_dir):
+    _recon_file = run_dir / "reconstruction.parquet"
+    _recon_text = "No reconstruction (random encoder)."
+    if _recon_file.exists():
+        _recon = pl.read_parquet(_recon_file)
+        _numbers = _recon.select(pl.exclude("fruit_id")).to_numpy()
+        _recon_text = (
+            f"`reconstruction.parquet`: {_recon.height} rows, all finite: "
+            f"{bool(np.isfinite(_numbers).all())}."
+        )
     _mu = np.load(run_dir / "latents.npy", mmap_mode="r")
     _pooled = np.load(run_dir / "layer512_pooled.npy", mmap_mode="r")
     _feat = pl.read_parquet(run_dir / "features.parquet")
@@ -197,7 +225,7 @@ def _(run_dir):
                 f"`latents.npy` {_mu.shape}, finite: {bool(np.isfinite(_mu).all())}; "
                 f"`layer512_pooled.npy` {_pooled.shape}, finite: "
                 f"{bool(np.isfinite(_pooled).all())}; `mu` range "
-                f"{float(np.min(_mu)):.3g} to {float(np.max(_mu)):.3g}."
+                f"{float(np.min(_mu)):.3g} to {float(np.max(_mu)):.3g}. {_recon_text}"
             ),
             mo.ui.table(_feat, selection=None, label="Pooled mu"),
         ]

@@ -56,7 +56,7 @@ def import_hugo_vae(repo: str | Path):
     return VAE
 
 
-def load_encoder(
+def load_vae(
     repo: str | Path,
     model_dir: str | Path | None,
     device: str,
@@ -67,11 +67,12 @@ def load_encoder(
     # saved at the lowest validation reconstruction loss.
     # UNVERIFIED: that `best.pth` (not the last-epoch `checkpoint.pth`, which Hugo's `load_vae`
     # loads) is the model of the preprint; ask Hugo (HANDOFF.md, "Unverified assumptions").
-    """Hugo's encoder in evaluation mode, and a dictionary describing what was loaded.
+    """Hugo's whole VAE (encoder and decoder) in evaluation mode, and a dictionary describing it.
 
     model_dir: run folder with `vae_hyperparameter.json` and the checkpoint, as Hugo's
-    `utils/load_models.py` `load_vae` expects. None gives a randomly initialised encoder with
-    `random_init_seed` (the lower-bound reference point, rule 7 of CHARTER.md).
+    `utils/load_models.py` `load_vae` expects. None gives a randomly initialised model with
+    `random_init_seed` (the lower-bound reference point, rule 7 of CHARTER.md); its decoder is
+    random too and is not used.
     """
     import torch
 
@@ -101,16 +102,33 @@ def load_encoder(
     )
     if model_dir is not None:
         path = Path(model_dir) / checkpoint
-        state = torch.load(path, map_location="cpu")
+        # weights_only=True: only tensors and plain values are unpickled.
+        state = torch.load(path, map_location="cpu", weights_only=True)
+        # strict loading (the default): every parameter name and shape must match.
         vae.load_state_dict(state["vae_state_dict"])
         info["checkpoint"] = str(path)
         info["checkpoint_epoch"] = state.get("epoch")
         info["checkpoint_random_state"] = state.get("random_state")
-    encoder = vae.encoder.to(device).eval()
-    for p in encoder.parameters():
+    vae = vae.to(device).eval()
+    for p in vae.parameters():
         p.requires_grad_(False)
     info |= {"featuremap_size": featuremap_size, "base_channel": base_channel}
-    return encoder, info
+    return vae, info
+
+
+def load_encoder(
+    repo: str | Path,
+    model_dir: str | Path | None,
+    device: str,
+    checkpoint: str = "best.pth",
+    random_init_seed: int | None = None,
+):
+    """Hugo's encoder in evaluation mode, and a dictionary describing what was loaded.
+
+    The encoder part of `load_vae`; same arguments.
+    """
+    vae, info = load_vae(repo, model_dir, device, checkpoint, random_init_seed)
+    return vae.encoder, info
 
 
 def encode_volumes(
