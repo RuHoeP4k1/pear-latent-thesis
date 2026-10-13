@@ -165,3 +165,28 @@ if __name__ == "__main__":
     from pearlatent.config import load_config
 
     write_hugo_vae_split(load_config())
+
+
+# Size of the sample of Hugo's training fruit that is decoded for the Step 0 comparison
+# (Ruben, 13 October 2026: decoding all 528 takes about 8 hours on the laptop). 66 matches the
+# size of his validation group, the unseen group it is compared with.
+TRAINING_SAMPLE_SIZE = 66
+
+
+def hugo_training_sample(
+    split: pl.DataFrame, n: int = TRAINING_SAMPLE_SIZE, seed: int = HUGO_VAE_SEED
+) -> list[str]:
+    """`n` of Hugo's training fruit at random, for the one Step 0 comparison.
+
+    In: the split table (`fruit_id, hugo_split`). The training fruit are sorted by fruit_id
+    first, so the draw does not depend on row order; then `default_rng(seed).choice(..., n,
+    replace=False)`. Out: the drawn fruit_ids, sorted.
+    """
+    import numpy as np
+
+    training = sorted(
+        split.filter(pl.col("hugo_split") == "train")["fruit_id"].to_list()
+    )
+    rng = np.random.default_rng(seed)
+    picks = rng.choice(len(training), size=n, replace=False)
+    return sorted(training[int(i)] for i in picks)
