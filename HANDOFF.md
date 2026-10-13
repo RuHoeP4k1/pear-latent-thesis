@@ -10,9 +10,23 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   (encoder and decoder, `best.pth`, in Ruben's Downloads folder on 13 October). Split rule agreed
   (charter rule 3, restricted randomisation, seed 369). Plan files updated to the charter of
   13 October. No model fitted on labels yet.
-- **Next step:** Part B of `HANDOFF_claude-code_2026-10-13.md`: check the weights (B1), reproduce
-  Hugo's VAE split (B2), write the test-box rule and stop for Ruben's approval (B3), then the
-  draw, the summary for Hugo (B4), encoding with reconstruction (B5) and notebook 05 (B6, B7).
+- **Done 13 Oct (handoff of 13 October, B1 to B4):** weights checked (section "Weights, received
+  13 October"); Hugo's VAE split reproduced (`src/pearlatent/hugo_split.py`, 528 / 66 / 66); 528
+  training fruit excluded in `derived/exclusions.csv`; rule `docs/test_box_rule.md` approved by
+  Ruben and committed (a23b627) before the draw; draw run once (`python -m
+  pearlatent.test_box_draw`, code b972889) into `derived/test_boxes/`; `derived/sealed_fruit.csv`
+  holds 66 + 87 fruit; `drop_sealed` in `src/pearlatent/sealed.py`; mail text in
+  `docs/splits_for_hugo.md`.
+- **Results of the draw (13 Oct):** season totals over 433 scanned fruit: non-consumable 179,
+  browning ≥ 2 without cavity 73, browning 3 100, any cavity 115. Eligible sets: 120 at ±30 %
+  (222 at ±40 %, 296 at ±50 %); every box occurs in 18 to 31 eligible sets. Drawn test boxes
+  **F, J, M** (87 fruit; counts 35 / 18 / 19 / 22 against expected 36.0 / 14.7 / 20.1 / 23.1).
+  Fold partitions of the 12 other boxes: 186 eligible of 15,400 at ±30 %. Repeats: 1 ABI CGN DEO
+  HKL; 2 ACE BGL DIN HKO; 3 AEH BGL CKO DIN; 4 AHN BDL CEI GKO; 5 AGK BCI DNO EHL. Repeats 2 and 3
+  share two folds (BGL, DIN); BL, DN and KO share a fold in 3 of 5 repeats.
+- **Next step:** Ruben sends `docs/splits_for_hugo.md` to Hugo (B4 STOP). Meanwhile B5 (encode and
+  reconstruct all 1,093 fruit; ask Ruben before the full run, about 1.5 to 3 hours), B6 and the
+  2425 part of B7 can go ahead.
 - **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
   marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
   both label files). Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit
@@ -50,8 +64,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     differs strongly per 2526 box; candidate shortcut for the nuisance check.
   - Earlier (3 Oct, notebook 01): label rules for `defective`, `binary_123`, `binary_23`,
     `non-consumable` hold for every fruit; 17 labelled 2526 fruit have no volume.
-- **Blocked on:** nothing for B1 to B3. Plots that use 2526 labels wait for Hugo's green light on
-  the test boxes (B4).
+- **Blocked on:** Hugo's green light (B4) for anything that plots 2526 labels.
 
 ## Verified from Hugo's repository (Tier 1)
 
