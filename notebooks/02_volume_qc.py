@@ -254,8 +254,9 @@ def _():
     ## 4. Exclusion table
 
     Rule 10 of CHARTER.md. Excluded: the 17 unscanned 2526 fruit (Hugo's advice). Flagged: 2526
-    fruit with browning 3 and cavity 3 (possibly rotten, until Hugo identifies the rotten fruit)
-    and every volume flagged above. Later notebooks call `apply_exclusions(df, exclusions, mode)`:
+    fruit with browning 3 and cavity 3 (Hugo, 13 October 2026: rot is not really a problem in
+    2526, so they stay in; the flag only drives one sensitivity row without them) and every volume
+    flagged above. Later notebooks call `apply_exclusions(df, exclusions, mode)`:
     mode `"primary"` drops excluded fruit, mode `"sensitivity"` also drops flagged fruit.
 
     **Result (5 October 2026).** 17 fruit excluded and 24 flagged (browning 3 and cavity 3), all

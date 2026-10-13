@@ -1,10 +1,10 @@
 """The table of excluded and flagged fruit, and the one function every notebook uses to apply it.
 
-Rule 10 of CHARTER.md (5 October 2026):
+Rule 10 of CHARTER.md (5 October 2026, flag reason updated 13 October 2026):
 - exclude: the 17 unscanned 2526 fruit (Hugo's advice: poor scan setup);
-- flag: 2526 fruit with browning 3 and cavity 3 (possibly rotten; Hugo said rotten fruit were
-  given the highest browning and cavity grades by hand, and the 2526 file has no rot column),
-  until Hugo identifies the rotten fruit;
+- flag: 2526 fruit with browning 3 and cavity 3. Hugo (13 October 2026): rot is not really a
+  problem in 2526, so these fruit stay in the primary analysis; the flag only drives the one
+  sensitivity row without them (charter rule 10, version of 13 October);
 - flag: any volume flagged by the quality check (`pearlatent.volume_qc.flag_volumes`).
 
 Mode "primary" drops excluded fruit; mode "sensitivity" also drops flagged fruit. A fruit may
@@ -51,7 +51,7 @@ def build_exclusions(
             "fruit_id",
             "season",
             pl.lit(
-                "browning 3 and cavity 3: possibly rotten, not yet identified"
+                "browning 3 and cavity 3: sensitivity row only (charter rule 10)"
             ).alias("reason"),
             pl.lit("flag").alias("action"),
         ),
