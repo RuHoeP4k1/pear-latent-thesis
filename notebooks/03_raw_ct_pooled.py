@@ -4,16 +4,15 @@ __generated_with = "0.25.1"
 app = marimo.App(width="medium", app_title="03 Raw CT at latent resolution")
 
 with app.setup:
-    import altair as alt
     import marimo as mo
+    import matplotlib.pyplot as plt
     import nibabel as nib
     import numpy as np
     import polars as pl
 
     from pearlatent.config import load_config
     from pearlatent.pooling import (
-        N_HEIGHT,
-        N_RADIUS,
+        MASK_THRESHOLD,
         block_mean,
         body_mask,
         fruit_mask,
@@ -30,8 +29,8 @@ def _():
     # 03 Raw CT at latent resolution
 
     **Question.** What does the raw computed tomography (CT) look like when averaged to the
-    latent grid of 32³, and does the pooling code (fruit mask, mean, 99th percentile,
-    cylindrical profile) give sensible values on real fruit? The averaged raw CT is also a
+    latent grid of 32³, and does the pooling code (fruit mask, mean, 99th percentile) give
+    sensible values on real fruit? The averaged raw CT is also a
     reference point (rule 7 of CHARTER.md): the latent has to carry more usable information
     than this to be worth using.
 
@@ -76,8 +75,8 @@ def _():
     fruit body is kept: the largest connected part, without slices of fewer than 4 cells along
     the third axis (the stalk, present in the 2526 volumes; see section 3). Features are computed
     inside the mask only, so they do not mix in fruit shape through the number of background
-    cells. The cylindrical profile has 8 height bins (bin 0 at the calyx end) and 4 radius bins
-    (bin 0 the core, bin 3 the skin), averaged over angle.
+    cells. The cylindrical profile (height × radius bins, averaged over angle) was dropped on
+    10 October 2026 (CHARTER.md); its columns are removed from the feature table.
 
     Reading all volumes takes about a minute. The latest saved run is reloaded; press the button
     to compute a new one.
@@ -107,8 +106,6 @@ def _(out_base, recompute, volumes):
                 "mask_threshold": 0.1,
                 "mask_min_fraction": 0.5,
                 "mask": "body_mask(fruit_mask), min 4 cells per slice",
-                "n_height": N_HEIGHT,
-                "n_radius": N_RADIUS,
                 "n_volumes": volumes.height,
             },
         )
@@ -133,7 +130,10 @@ def _(out_base, recompute, volumes):
 def _(run_dir):
     manifest = pl.read_parquet(run_dir / "manifest.parquet")
     raw_features = manifest.join(
-        pl.read_parquet(run_dir / "features.parquet"), on="fruit_id", validate="1:1"
+        # Runs before 10 October 2026 also hold the cylindrical profile (cyl_*); dropped.
+        pl.read_parquet(run_dir / "features.parquet").select(pl.exclude("^cyl_.*$")),
+        on="fruit_id",
+        validate="1:1",
     )
     mo.vstack(
         [
@@ -141,7 +141,7 @@ def _(run_dir):
             mo.ui.table(raw_features, selection=None, label="Pooled raw CT features"),
         ]
     )
-    return (raw_features,)
+    return manifest, raw_features
 
 
 @app.cell(hide_code=True)
@@ -149,57 +149,29 @@ def _():
     mo.md(r"""
     ## 2. Sanity checks
 
-    Number of fruit cells per season (fruit size at the latent resolution), mean and 99th
-    percentile inside the fruit, and the cylindrical profile averaged over all fruit of a season.
-    The profile should be symmetric in nothing in particular, but it should be smooth and show
-    the core (radius bin 0) and the calyx and stem ends (height bins 0 and 7) differing from the
-    flesh. Empty bins would mean the mask or the binning is wrong.
+    Number of fruit cells per season (fruit size at the latent resolution), and the mean and 99th
+    percentile of the scaled CT inside the fruit body.
 
     **Result (5 October 2026).** Median fruit body 3,382 cells in 2425 and 2,591 in 2526; median
-    scaled CT inside the body 0.79 in both seasons. The profile is smooth and similar in both
-    seasons: lowest in the core at mid height (the core and seed cavity, 0.68 to 0.75 in radius
-    bin 0 of height bins 2 to 4) and in the skin bin (0.60 to 0.77, partial-volume cells at the
-    surface). Two fruit (2526_K14, 2526_N05) have one empty bin, the core of the top height bin:
-    the narrowest slices of the neck have no cell close enough to the centre. Every other bin of
-    every fruit has values. Later models must handle these two missing values inside the
-    training fold.
+    scaled CT inside the body 0.79 in both seasons.
     """)
     return
 
 
 @app.cell
 def _(raw_features):
-    _cyl = [c for c in raw_features.columns if c.startswith("cyl_")]
-    _summary = raw_features.group_by("season").agg(
-        pl.len().alias("n_fruit"),
-        pl.col("n_mask_cells").min().alias("mask_cells_min"),
-        pl.col("n_mask_cells").median().alias("mask_cells_median"),
-        pl.col("mean").median().round(4).alias("mean_median"),
-        pl.col("p99").median().round(4).alias("p99_median"),
-        pl.sum_horizontal([pl.col(c).is_nan() for c in _cyl]).sum().alias("empty_bins"),
-    )
-    _profile = (
+    mo.ui.table(
         raw_features.group_by("season")
-        .agg([pl.col(c).mean() for c in _cyl])
-        .unpivot(index="season", variable_name="bin", value_name="value")
-        .with_columns(
-            pl.col("bin").str.extract(r"h(\d+)").cast(pl.Int32).alias("height_bin"),
-            pl.col("bin").str.extract(r"r(\d+)").cast(pl.Int32).alias("radius_bin"),
+        .agg(
+            pl.len().alias("n_fruit"),
+            pl.col("n_mask_cells").min().alias("mask_cells_min"),
+            pl.col("n_mask_cells").median().alias("mask_cells_median"),
+            pl.col("mean").median().round(4).alias("mean_median"),
+            pl.col("p99").median().round(4).alias("p99_median"),
         )
-    )
-    _heat = (
-        alt.Chart(_profile.to_pandas())
-        .mark_rect()
-        .encode(
-            alt.X("radius_bin:O", title="Radius bin (0 core, 3 skin)"),
-            alt.Y("height_bin:O", title="Height bin (0 calyx end)"),
-            alt.Color("value:Q", title="Mean scaled CT", scale=alt.Scale(zero=False)),
-            alt.Column("season:N"),
-        )
-        .properties(width=160, height=240)
-    )
-    mo.vstack(
-        [mo.ui.table(_summary.sort("season"), selection=None, label="Per season"), _heat]
+        .sort("season"),
+        selection=None,
+        label="Per season",
     )
     return
 
@@ -240,6 +212,93 @@ def _(raw_features):
         selection=None,
         label="Body length in slices of 4 voxels, per box",
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ### Stalk viewer
+
+    One row of fruit per season, 2526 above 2425, drawn at random (choose a box to restrict the
+    draw; the button draws other fruit). Within a row the fruit are sorted by body length, shortest
+    first. Each panel is the maximum projection of the scaled volume along the first array axis:
+    the second axis runs left to right, the third axis bottom (calyx end) to top. The two orange
+    lines mark the bottom and top of the fruit body (`body_mask`, at the 4-voxel resolution of
+    the grid); fruit above the upper line is stalk that `body_mask` removed. The panel title gives
+    the body length in slices of 4 voxels and the stalk length above the body in voxels. Each
+    panel reads one volume from disk, so a redraw takes a few seconds.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(raw_features):
+    def _box_dropdown(season: str) -> mo.ui.dropdown:
+        _boxes = raw_features.filter(pl.col("season") == season)["box"].unique().sort()
+        return mo.ui.dropdown(
+            ["all boxes", *_boxes.to_list()], value="all boxes", label=f"Box {season}"
+        )
+
+    stalk_box = {"2526": _box_dropdown("2526"), "2425": _box_dropdown("2425")}
+    stalk_n = mo.ui.slider(4, 16, value=10, label="Fruit per season", show_value=True)
+    stalk_redraw = mo.ui.button(
+        value=0, on_click=lambda v: v + 1, label="Draw other fruit"
+    )
+    mo.hstack(
+        [stalk_box["2526"], stalk_box["2425"], stalk_n, stalk_redraw],
+        justify="start",
+        gap=2,
+    )
+    return stalk_box, stalk_n, stalk_redraw
+
+
+@app.cell(hide_code=True)
+def _(manifest, run_dir, volumes):
+    _body_masks = np.load(run_dir / "masks.npy", mmap_mode="r")
+    _rows = dict(manifest.select("fruit_id", "row").iter_rows())
+    _paths = dict(volumes.select("fruit_id", "path").iter_rows())
+
+    def stalk_view(fruit_id: str, ax) -> None:
+        """Draw the maximum projection of one volume with the fruit body extent on `ax`."""
+        _scaled = scale_minmax(np.asarray(nib.load(_paths[fruit_id]).dataobj))
+        _slices = np.flatnonzero(
+            np.asarray(_body_masks[_rows[fruit_id]]).any(axis=(0, 1))
+        )
+        _bottom, _top = 4 * int(_slices[0]), 4 * int(_slices[-1] + 1)
+        _fruit = np.flatnonzero((_scaled > MASK_THRESHOLD).any(axis=(0, 1)))
+        _stalk = max(int(_fruit[-1]) + 1 - _top, 0)
+        # Image rows: third axis; columns: second axis; origin lower puts the calyx end at the bottom
+        ax.imshow(_scaled.max(axis=0).T, origin="lower", cmap="gray", vmin=0, vmax=1)
+        for _k in (_bottom, _top):
+            ax.axhline(_k - 0.5, color="orange", linewidth=1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        _title = [fruit_id, f"body {len(_slices)}, stalk {_stalk}"]
+        ax.set_title(chr(10).join(_title), fontsize=8)
+
+    return (stalk_view,)
+
+
+@app.cell
+def _(raw_features, stalk_box, stalk_n, stalk_redraw, stalk_view):
+    _fig, _axes = plt.subplots(
+        2, stalk_n.value, figsize=(1.5 * stalk_n.value, 4.4), squeeze=False
+    )
+    for _axes_row, _season in zip(_axes, ["2526", "2425"], strict=True):
+        _pool = raw_features.filter(pl.col("season") == _season)
+        if stalk_box[_season].value != "all boxes":
+            _pool = _pool.filter(pl.col("box") == stalk_box[_season].value)
+        _drawn = _pool.sample(
+            min(stalk_n.value, _pool.height), seed=stalk_redraw.value
+        ).sort("n_mask_slices", "fruit_id")
+        for _ax in _axes_row:
+            _ax.set_axis_off()
+        for _ax, _fruit_id in zip(_axes_row, _drawn["fruit_id"], strict=False):
+            _ax.set_axis_on()
+            stalk_view(_fruit_id, _ax)
+    _fig.tight_layout()
+    _fig
     return
 
 
