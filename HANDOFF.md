@@ -98,6 +98,12 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
   `logvar` of 1 × 1 × 32 × 32 × 32 and `decode(mu)` of 1 × 1 × 128³.
 - `best.pth` is the checkpoint at the lowest validation reconstruction loss (Hugo's
   `train_vae.py`), epoch 430.
+- `vae_hyperparameter.json` received later the same day (Ruben's Downloads folder; to be copied
+  to `data/weights/hugo_vae/`): model "VAE-GAN", `vae_featuremap_size` 32, `vae_base_channel`
+  256, `vae_use_residual` true, latent 1 × 32 × 32 × 32, loss MAE, beta 1e-06, 500 epochs, batch
+  size 4, Adam learning rate 1e-4 for VAE and discriminator, gamma 0.01, discriminator patch size
+  16 and base channel 16. Matches the strict load and CLAUDE.md section 3.
+- `load_encoder` and notebook 04 now default to `best.pth` (commit bbaa33c).
 
 ## Points to raise with Hugo (found in his code)
 
@@ -225,7 +231,7 @@ For Ruben, added 13 Oct:
 |---|---|---|
 | `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct). Supported by the preprint, section 2.2, as summarised in Ruben's other Claude session on 5 Oct (the two orchards with optimal storage have fruit in three boxes); not yet read in the preprint itself | preprint section 2.2, Hugo |
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
-| `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`). Hugo sent only `best.pth` (epoch 430, seed 369) and no `vae_hyperparameter.json`; the loader needs both changed before it can load it | Hugo: is `best.pth` the model of the preprint? |
+| `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`). Hugo sent only `best.pth` (epoch 430, seed 369) and `vae_hyperparameter.json`; the loader now defaults to `best.pth` | Hugo: is `best.pth` the model of the preprint? |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for the ResNet-18 baseline) | `nvidia-smi` on the workstation |
 
 Note on names: in 2425 the `box` column holds the orchard letter (60 to 90 fruit). Per the
