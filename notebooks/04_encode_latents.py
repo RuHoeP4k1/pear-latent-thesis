@@ -31,8 +31,8 @@ def _():
     repository at commit 183112f), `encoder_dir` (Hugo's run folder with the checkpoint and
     `vae_hyperparameter.json`), from `config/local.toml`. Command-line arguments:
     `--encoder hugo_vae` (default) or `--encoder random_init` (randomly initialised encoder, the
-    lower-bound reference of rule 7 of CHARTER.md), `--checkpoint` (default `checkpoint.pth`,
-    what Hugo's `load_vae` loads), `--seed` (default 0, used by `random_init`), `--limit`
+    lower-bound reference of rule 7 of CHARTER.md), `--checkpoint` (default `best.pth`,
+    the only checkpoint Hugo sent, 13 October 2026), `--seed` (default 0, used by `random_init`), `--limit`
     (default 0 = all volumes), `--batch` (default `encode_batch_size` from the config),
     `--bf16 1` (bfloat16 on the GPU; off by default: full float32 precision, because browning
     is a small density shift and 1,100 fruit encode quickly anyway).
@@ -61,7 +61,7 @@ def _():
     cfg = load_config()
     _args = mo.cli_args()
     encoder_name = _args.get("encoder") or "hugo_vae"
-    checkpoint = _args.get("checkpoint") or "checkpoint.pth"
+    checkpoint = _args.get("checkpoint") or "best.pth"
     seed = int(_args.get("seed") or 0)
     limit = int(_args.get("limit") or 0)
     batch_size = int(_args.get("batch") or cfg.compute("encode_batch_size", 4))

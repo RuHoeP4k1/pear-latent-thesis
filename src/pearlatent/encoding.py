@@ -60,11 +60,13 @@ def load_encoder(
     repo: str | Path,
     model_dir: str | Path | None,
     device: str,
-    checkpoint: str = "checkpoint.pth",
+    checkpoint: str = "best.pth",
     random_init_seed: int | None = None,
 ):
-    # UNVERIFIED: whether `checkpoint.pth` (last epoch, what Hugo's `load_vae` loads) or
-    # `best.pth` (lowest validation loss) is the encoder of the preprint; HANDOFF.md question 1.
+    # Default `best.pth`: the only checkpoint Hugo sent (13 October 2026; epoch 430, seed 369),
+    # saved at the lowest validation reconstruction loss.
+    # UNVERIFIED: that `best.pth` (not the last-epoch `checkpoint.pth`, which Hugo's `load_vae`
+    # loads) is the model of the preprint; ask Hugo (HANDOFF.md, "Unverified assumptions").
     """Hugo's encoder in evaluation mode, and a dictionary describing what was loaded.
 
     model_dir: run folder with `vae_hyperparameter.json` and the checkpoint, as Hugo's
