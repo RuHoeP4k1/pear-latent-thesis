@@ -1,6 +1,6 @@
 ---
 name: workstation-run
-description: How to prepare, launch and collect long or GPU jobs on the MeBioS lab workstation over SSH (encoding CT volumes, fine-tuning). Load before writing anything that will run on the workstation or when the user asks to run something on the GPU.
+description: How to prepare, launch and collect long or GPU jobs on the MeBioS lab workstation over SSH (encoding CT volumes, ResNet-18 baseline). Load before writing anything that will run on the workstation or when the user asks to run something on the GPU.
 ---
 
 # Running work on the lab workstation

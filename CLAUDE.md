@@ -13,12 +13,13 @@ Encodes pear X-ray computed tomography (CT) volumes with Hugo's frozen, pretrain
 autoencoder (VAE), then analyses the latent space statistically: is internal browning detectable from
 it, and at which severity does detection stop working?
 
-**No encoder is trained**, except the own self-supervised extension (a head on Hugo's frozen
-encoder), if Hugo agrees; no new architecture is trained from scratch. The other things fitted are
-small models on frozen features: partial least squares discriminant analysis (PLS-DA), penalised
+**No encoder is trained and no self-supervised model is trained** (dropped 13 October 2026: the
+GPU is too small). One network is trained from scratch: the ResNet-18 baseline, architecture
+imported from Hugo's pinned clone, on the lab workstation with our box folds. Everything else is a
+small model on frozen features: partial least squares discriminant analysis (PLS-DA), penalised
 logistic regression, ordinal models, N-way partial least squares (one extra row after the core
-study, see `CHARTER.md`, Methods), and one fine-tuning arm of Hugo's encoder. If a task seems to
-need training a network from scratch, the plan has drifted: stop and check `CHARTER.md`.
+study, see `CHARTER.md`, Methods). If a task seems to need training a network from scratch other
+than the ResNet-18 baseline, the plan has drifted: stop and check `CHARTER.md`.
 
 Design: primary fitting is grouped cross-validation within the 433 scanned 2526 fruit, whole boxes
 held out. The 660 2425 fruit are secondary (comparison with Hugo, reverse check, healthy
@@ -38,9 +39,12 @@ reference). 433 + 660 = 1,093 volumes.
 4. **Every fruit identifier carries its season.** File names A01 to J30 occur in both label files and
    are different fruit. Build `fruit_id = "<season>_<filename stem>"` (for example `2526_A01`) before
    joining or concatenating anything, and the box as `"<season>_<letter>"`.
-5. **Browning is the primary target; `defective` is never the primary target.** `defective` is the
-   maximum of browning and cavity and merges an easy task (cavities are gas voids, high contrast)
-   with a hard one (browning is a small density shift). Cavity is reported separately as the control.
+5. **Target order (charter rule 5, agreed with Hugo, 13 October 2026).** First `defective` (the
+   maximum of browning and cavity): consumable versus non-consumable (`binary_23`, defective ≥ 2),
+   with recall per defective grade; then browning and cavity separately, and whether the two can be
+   separated. Results on `defective` are always split by cause (browning only, cavity only, both):
+   cavity (gas voids, high contrast) is the easier signal and can carry the score on its own, while
+   browning is a small density shift.
 6. **Claims about our data trace to Tier 1** (Hugo's preprint SSRN 6433761 and its supplement,
    github.com/Hugo-Li-Junyan/Synthetic_CT_pear, the two label CSV files, the grading rubric).
    If code depends on an unverified fact, mark it `# UNVERIFIED:` and list it in `HANDOFF.md`.
@@ -63,8 +67,8 @@ cite this table or the source.
 | Latent cell spacing | 4 voxels, about 2.5 mm (approximate, differs per fruit) | layer strides |
 | Receptive field of one cell | 31 voxels, about 19 mm (approximate, differs per fruit) | computed from layer list |
 | KL weight (beta) | 1e-6: a compression latent, not a semantic one | `train_vae.py` default |
-| Reconstruction | MAE 0.0022, SSIM 0.9915, PSNR 36.92 | preprint |
-| Encoder training set | about 528 of the 660 fruit of 2024 (random 80/10/10 split, seed 42) | `train_vae.py`, `utils/splits.py` |
+| Reconstruction | Section 3.1.1: MAE 0.0022, SSIM 0.9915, PSNR 36.9226 "on the test set". Section 2.5.1 says the metrics were computed on the validation set; Table D.1 ("Evaluation metrics on validation dataset"), best model: MAE 0.0025, SSIM 0.9915, PSNR 36.9226. Which set: ask Hugo | preprint |
+| Encoder training set | about 528 of the 660 fruit of 2024; random 80/10/10 split by fruit, all orchards pooled (preprint sections 2.2 and 2.5, which give no seed and no fruit list); in code `utils/splits.split_train_val_test` (validation 0.1, test 0.1) over the rows of the label CSV in file order; the seed is stored in `checkpoint.pth` under `random_state`; seed 369 (Hugo, 13 October 2026; also in `slurm/train_vae.slurm`). Seed 42 is only the default in `train_vae.py`. UNVERIFIED: the fruit list, until it is reproduced (handoff B2) and Hugo confirms it | `train_vae.py`, `utils/splits.py` |
 
 Consequences: a 1 cm³ lesion covers roughly 60 of 32,768 cells, so mean pooling moves by about
 0.2 %; any localisation map is blurred to about the receptive field, so per-cell detail finer than
@@ -84,8 +88,12 @@ full; pool it during encoding.
 - `labels_conference_pear_2526.csv`: 450 fruit, 15 boxes of 30 (A to O), all scanned after storage.
   Columns `filename, browning, cavity, defective, binary_123, binary_23`.
   Box letter = orchard ID (Hugo, October 2026). The 17 unscanned fruit are excluded. No rot
-  column; rotten fruit carry browning 3 and cavity 3 by hand — exclude once identified. Until Hugo
-  identifies them, report grade 3 with and without the 24 fruit with browning 3 and cavity 3.
+  column. Hugo (13 October): rot is not really a problem in 2526 (storage conditions less
+  extreme); the 24 fruit with browning 3 and cavity 3 stay in, with one sensitivity row without
+  them.
+- Stalks: Hugo (13 October): the stalks are not a problem; no stalk removal. Their effect on the
+  reconstruction is checked in Step 0. `body_mask` is still used to measure height over the fruit
+  body.
 - Only `browning` and `cavity` are common to both files. Harmonise on those.
 - Box letters are unrelated across seasons (Ruben, 3 October 2026): box A in 2425 and box A in
   2526 have nothing in common. Whatever a letter stands for (orchard, batch, storage regime), it
@@ -101,6 +109,8 @@ full; pool it during encoding.
 1. **Encode once** (laptop, CPU, about 1.5 hours for all fruit). Forward pass through the frozen encoder; write
    `derived/latents/<encoder>/<run_id>/latents.npy`, `manifest.parquet` (one row per fruit:
    `fruit_id`, season, box, file, row index) and `run.json`. About 145 MB for all fruit.
+   Decode `mu` with `vae.decode(mu)` for Step 0. Do not use `vae(x)`: its forward pass samples z.
+   The random encoder stays a planned run (Ruben, 13 October 2026).
 2. **Pool** (any machine). Array arithmetic on the saved latents. Options: the full 32³ grid, and
    the deviation-from-healthy map with persistence summaries (high percentile as comparison). No
    cylindrical bins (dropped 10 October 2026), no attention pooling, no 512-channel layer.
@@ -122,7 +132,9 @@ Verified on all volumes (notebooks 02 and 03, 5 October 2026): the stem–calyx 
 array axis, with the wide calyx end at the low end, in every volume. Most 2526 volumes include the
 stalk (8 of 12 in a random sample) and the stalk counts in the 128-voxel length, so there the fruit body spans 21 to 32 of the
 32 latent slices (median 28; 2425: median 31). Measure height over the body:
-`pearlatent.pooling.body_mask` removes the stalk and fills internal cavities.
+`pearlatent.pooling.body_mask` removes the stalk and fills internal cavities. Hugo (13 October):
+the stalks are not a problem; no stalk removal. Their effect on the reconstruction is checked in
+Step 0. `body_mask` is still used to measure height over the fruit body.
 
 ## 7. Statistics
 
@@ -181,7 +193,7 @@ Load the `thesis-notebook` skill before writing or editing any notebook. In shor
 - **Laptop (Windows)**: editing, encoding (CPU, about 5 seconds per fruit; decided by Ruben,
   5 October 2026), statistics on saved latents, plots. CPU PyTorch.
 - **School PC (Windows, no admin)**: editing, statistics on saved latents, plots.
-- **Lab workstation (Linux, GPU, via SSH)**: fine-tuning. Load the `workstation-run` skill.
+- **Lab workstation (Linux, GPU, via SSH)**: ResNet-18 baseline. Load the `workstation-run` skill.
 - Code syncs only through git (`git pull` at start, `git push` at end). Data is synced separately.
 
 Details: `docs/workflow.md`.
@@ -198,6 +210,15 @@ Details: `docs/workflow.md`.
 5. Statistical framing first (PLS-DA, penalised regression, ordinal models, PCA), not
    machine-learning-first framing.
 6. Commit small, messages in the imperative. At the end of a session, run `/handoff`.
+7. **No black box** (Ruben, 13 October 2026). Ruben must be able to follow and backtrack every
+   step. Before writing code for a step, say in a few lines what it will do and why; after running
+   it, say what it did and what came out. Write plain, readable code: short functions with a
+   docstring that says what goes in, what comes out and why; a comment on every choice (a
+   threshold, a seed, a region, a tolerance), not on syntax; names that say what a thing is; no
+   long chained one-liners. No hidden steps: every filter, exclusion, rescaling or join prints how
+   many fruit went in and came out. When a library function's behaviour matters for the result
+   (for example `torch.utils.data.random_split`), explain it in a comment. Ask Ruben before any run
+   longer than a few minutes and before any change to the plan.
 
 ## 12. Commands
 

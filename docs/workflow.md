@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Laptop | Windows | Main editing, Claude Code sessions, statistics on saved latents, figures | CPU |
 | School PC | Windows, no administrator rights | Same as laptop when away from it | CPU |
-| Lab workstation | Linux (to confirm), NVIDIA GPU, reached by SSH | Encoding CT volumes, fine-tuning | CUDA 12.8 |
+| Lab workstation | Linux (to confirm), NVIDIA GPU, reached by SSH | ResNet-18 baseline (encoding runs on the laptop) | CUDA 12.8 |
 
 Git is the only route by which code moves between machines. Data moves separately (university
 storage, `scp`), and never through git or GitHub.
