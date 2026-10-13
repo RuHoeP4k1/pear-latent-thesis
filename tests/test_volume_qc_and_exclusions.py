@@ -2,7 +2,11 @@ import numpy as np
 import polars as pl
 import pytest
 
-from pearlatent.exclusions import apply_exclusions, build_exclusions
+from pearlatent.exclusions import (
+    HUGO_TRAINING_REASON,
+    apply_exclusions,
+    build_exclusions,
+)
 from pearlatent.volume_qc import flag_volumes, volume_stats
 
 
@@ -113,3 +117,18 @@ def test_apply_exclusions_modes(labels, volumes):
     assert len(primary) == 4 and len(sensitivity) == 3
     with pytest.raises(ValueError, match="mode"):
         apply_exclusions(labels, ex, "all")
+
+
+def test_hugo_training_fruit_excluded_validation_and_test_not(labels, volumes):
+    hugo_split = pl.DataFrame(
+        {
+            "fruit_id": ["2425_A01", "2425_A02", "2425_A03"],
+            "hugo_split": ["train", "validation", "test"],
+        }
+    )
+    ex = build_exclusions(labels, volumes, hugo_split=hugo_split)
+    hugo_rows = ex.filter(pl.col("reason") == HUGO_TRAINING_REASON)
+    assert hugo_rows["fruit_id"].to_list() == ["2425_A01"]
+    assert hugo_rows["action"].to_list() == ["exclude"]
+    # Validation and test fruit are not exclusions (test fruit are sealed elsewhere)
+    assert not {"2425_A02", "2425_A03"} & set(ex["fruit_id"].to_list())

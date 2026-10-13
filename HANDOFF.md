@@ -231,6 +231,7 @@ For Ruben, added 13 Oct:
 |---|---|---|
 | `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct). Supported by the preprint, section 2.2, as summarised in Ruben's other Claude session on 5 Oct (the two orchards with optimal storage have fruit in three boxes); not yet read in the preprint itself | preprint section 2.2, Hugo |
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
+| `src/pearlatent/hugo_split.py` | our `labels_conference_pear_2425.csv` has the same rows in the same order as the `labels.csv` Hugo trained with; a different order gives a different split from seed 369. Reproduced on 13 Oct: 528 / 66 / 66 (validation: 30 harvest, 31 suboptimal, 5 optimal storage; test: 32, 29, 5) | Hugo confirms the list (open question 19, handoff B4) |
 | `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`). Hugo sent only `best.pth` (epoch 430, seed 369) and `vae_hyperparameter.json`; the loader now defaults to `best.pth` | Hugo: is `best.pth` the model of the preprint? |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for the ResNet-18 baseline) | `nvidia-smi` on the workstation |
 

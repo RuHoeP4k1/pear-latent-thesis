@@ -256,7 +256,8 @@ def _():
     Rule 10 of CHARTER.md. Excluded: the 17 unscanned 2526 fruit (Hugo's advice). Flagged: 2526
     fruit with browning 3 and cavity 3 (Hugo, 13 October 2026: rot is not really a problem in
     2526, so they stay in; the flag only drives one sensitivity row without them) and every volume
-    flagged above. Later notebooks call `apply_exclusions(df, exclusions, mode)`:
+    flagged above. Also excluded: the 528 2425 fruit Hugo's VAE was trained on (charter rule
+    2, 13 October 2026), kept only for the one Step 0 comparison. Later notebooks call `apply_exclusions(df, exclusions, mode)`:
     mode `"primary"` drops excluded fruit, mode `"sensitivity"` also drops flagged fruit.
 
     **Result (5 October 2026).** 17 fruit excluded and 24 flagged (browning 3 and cavity 3), all
@@ -271,7 +272,13 @@ def _():
 @app.cell
 def _(cfg, qc_flagged, volumes):
     labels = load_labels(cfg)
-    exclusions = build_exclusions(labels, volumes, qc_flagged)
+    # Hugo's VAE split (written by `python -m pearlatent.hugo_split`); its 528 training fruit
+    # are excluded (charter rule 2, 13 October 2026).
+    _split_file = (
+        cfg.path("derived_dir") / "hugo_vae_split_2425" / "hugo_vae_split_2425.csv"
+    )
+    _hugo_split = pl.read_csv(_split_file)
+    exclusions = build_exclusions(labels, volumes, qc_flagged, _hugo_split)
     exclusions.write_csv(cfg.path("derived_dir") / "exclusions.csv")
     return exclusions, labels
 
