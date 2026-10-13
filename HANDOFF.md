@@ -79,6 +79,26 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
    (MATLAB). Section 2.5: random 80/10/10 split; the validation set was used for hyperparameter
    tuning and model selection.
 
+## Weights, received 13 October
+
+Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(weights_only=True)`.
+
+- Received: one file, `best.pth` (389,867,547 bytes, SHA-256 `b416375b…2c64d37`), copied from
+  Ruben's Downloads folder to `data/weights/hugo_vae/best.pth` (ignored by git). Not received:
+  `checkpoint.pth`, `vae_hyperparameter.json`, the rest of the run folder.
+- Keys: `epoch` = 430, `random_state` = 369 (matches Hugo's statement), `vae_state_dict`,
+  `gan_state_dict`, `vae_optimizer_state_dict`, `gan_optimizer_state_dict`. There is no `use_gan`
+  key; the discriminator weights (`gan_state_dict`, 5,891,004 numbers) show that the run trained
+  with the adversarial loss.
+- `vae_state_dict`: 12 `encoder.` and 16 `decoder.` tensors, 26,597,379 numbers. Encoder and
+  decoder are both present.
+- Without the JSON, `vae_base_channel` and `vae_featuremap_size` cannot be read. Checked instead:
+  Hugo's `VAE` (clone at 183112f) built with base channel 256 and feature-map size 32 loads the
+  state dict with `strict=True` (all names and shapes match); a random 128³ input gives `mu` and
+  `logvar` of 1 × 1 × 32 × 32 × 32 and `decode(mu)` of 1 × 1 × 128³.
+- `best.pth` is the checkpoint at the lowest validation reconstruction loss (Hugo's
+  `train_vae.py`), epoch 430.
+
 ## Points to raise with Hugo (found in his code)
 
 1. Discussed 13 October 2026. Hugo's VAE train/validation/test split is random by fruit
@@ -205,7 +225,7 @@ For Ruben, added 13 Oct:
 |---|---|---|
 | `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct). Supported by the preprint, section 2.2, as summarised in Ruben's other Claude session on 5 Oct (the two orchards with optimal storage have fruit in three boxes); not yet read in the preprint itself | preprint section 2.2, Hugo |
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
-| `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`) | Hugo (open question 1) |
+| `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`). Hugo sent only `best.pth` (epoch 430, seed 369) and no `vae_hyperparameter.json`; the loader needs both changed before it can load it | Hugo: is `best.pth` the model of the preprint? |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for the ResNet-18 baseline) | `nvidia-smi` on the workstation |
 
 Note on names: in 2425 the `box` column holds the orchard letter (60 to 90 fruit). Per the
