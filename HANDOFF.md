@@ -5,15 +5,20 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-05
-- **Phase:** data checks done; pooling and encoding code ready and tested with a randomly
-  initialised encoder. No real latents yet: Hugo's weights are copied at the meeting on
-  15 October. No model fitted on labels yet, on purpose (split rule not agreed).
+- **Date:** 2026-10-13
+- **Phase:** meeting with Hugo held on 13 October (moved from 15 October). Weights received
+  (encoder and decoder, `best.pth`, in Ruben's Downloads folder on 13 October). Split rule agreed
+  (charter rule 3, restricted randomisation, seed 369). Plan files updated to the charter of
+  13 October. No model fitted on labels yet.
+- **Next step:** Part B of `HANDOFF_claude-code_2026-10-13.md`: check the weights (B1), reproduce
+  Hugo's VAE split (B2), write the test-box rule and stop for Ruben's approval (B3), then the
+  draw, the summary for Hugo (B4), encoding with reconstruction (B5) and notebook 05 (B6, B7).
 - **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
   marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
   both label files). Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit
   183112f (`hugo_repo` in `config/local.toml`). Encoding runs on this laptop (CPU, about
-  5 seconds per fruit, decided 5 Oct); the workstation is only for fine-tuning and is not set up.
+  5 seconds per fruit, decided 5 Oct); the workstation is only for the ResNet-18 baseline and is
+  not set up.
   School PC not set up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
   `notebooks/00_environment_check.py`. For pairing on a live notebook also run
   `npx skills add marimo-team/marimo-pair` (not in git) and put `jq` and `curl` on the PATH.
@@ -45,14 +50,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     differs strongly per 2526 box; candidate shortcut for the nuisance check.
   - Earlier (3 Oct, notebook 01): label rules for `defective`, `binary_123`, `binary_23`,
     `non-consumable` hold for every fruit; 17 labelled 2526 fruit have no volume.
-- **Next step:** Ruben reviews `docs/meeting_2026-10-15.md` in a separate Claude session and meets
-  Hugo on 15 October. Then, on the laptop: put Hugo's run folder at `encoder_dir` in
-  `config/local.toml`; `uv run python notebooks/04_encode_latents.py --encoder hugo_vae --limit 4`,
-  check shapes and that `mu` is finite; run without `--limit` (about 1.5 hours); run
-  `--encoder random_init` for the lower bound. After the split rule is agreed with Hugo: write it
-  into CHARTER.md, then implement the test-box draw and the folds in `src/pearlatent/splits.py`.
-- **Blocked on:** Hugo's weights (15 October) for encoding; the split rule (meeting) for any
-  model fitted on labels.
+- **Blocked on:** nothing for B1 to B3. Plots that use 2526 labels wait for Hugo's green light on
+  the test boxes (B4).
 
 ## Verified from Hugo's repository (Tier 1)
 
@@ -75,11 +74,16 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 6. No trained weights in the repository (`.gitignore` excludes `*.pth`).
 7. The repository has no licence file. Do not copy its code into this repository; reference it at a
    pinned commit instead (git submodule or a separate clone).
+8. Preprint, section 2.2: the scans were resampled to 0.6267 mm isotropic, then each fruit was
+   rotated to the vertical axis, rescaled to 128 voxels in length and zero-padded to 128³
+   (MATLAB). Section 2.5: random 80/10/10 split; the validation set was used for hyperparameter
+   tuning and model selection.
 
 ## Points to raise with Hugo (found in his code)
 
-1. Hugo's VAE train/validation/test split is random by fruit (`utils/splits.py`). This does not
-   affect us if the 2025 and 2026 fruit are truly unseen, but it should be stated in the thesis.
+1. Discussed 13 October 2026. Hugo's VAE train/validation/test split is random by fruit
+   (`utils/splits.py`). This does not affect us if the 2025 and 2026 fruit are truly unseen, but
+   it should be stated in the thesis.
 2. Hugo's 3D classifier (`train_clf_3d.py`, `split_train_val_test_by_batch`) puts fruit from every
    box into train, validation and test. Our rule keeps whole boxes together. Classification numbers
    from his script and from ours are therefore not directly comparable.
@@ -112,29 +116,33 @@ Source: github.com/Hugo-Li-Junyan/Synthetic_CT_pear, commit 183112f (2026-08-31)
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
 Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
-(poor scan setup); a 2526 box letter is an orchard ID. The full list for the meeting is in
-`docs/meeting_2026-10-15.md` section 3; not all questions below are in that document.
+(poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 13 Oct (meeting):
+1 (weights received; seed 369 per Hugo; checkpoint read in B1), 3 (rot not really a problem in
+2526), 6 (stalks not a problem), 7 (we reproduce the split ourselves, B2), 8 (test-box rule,
+charter rule 3), 10 (item 2 dropped with the self-supervised extension). Numbers are kept so
+earlier references stay valid.
 
-1. Weights: Hugo has the encoder ready and copies it on 15 October. Still ask for the decoder,
-   `vae_hyperparameter.json`, which checkpoint (`checkpoint.pth` or `best.pth`) and which seed.
 2. Whether the data may be uploaded to cloud services. Ruben (3 Oct): Claude may read notebook
    outputs. molab and other uploads: no until Hugo confirms in writing.
-3. Which 2526 fruit were rotten (the 2526 file has no rot column).
 4. Are 2024 and 2526 orchards with the same letter different orchards?
 5. Ruben's position on the grade 2 non-consumable threshold (Hugo asked).
-6. Preprocessing: why most 2526 volumes include the stalk and the 2425 volumes do not, and
-   whether the 2526 volumes can be preprocessed the same way.
-7. The list of 2024 fruit in Hugo's VAE test split (seed 42): the 2024 fruit the encoder has not
-   seen.
-8. The test-box rule and fold design (`docs/meeting_2026-10-15.md` section 2).
-9. Lab workstation (only for fine-tuning now): GPU model, NVIDIA driver version, operating
-   system, `uv`, tmux.
-10. Item 2 of Hugo's slide: a head on his encoder, or a new model? (Decides whether the own
-    self-supervised extension is allowed.)
+9. Lab workstation (only for the ResNet-18 baseline now): GPU model, NVIDIA driver version,
+   operating system, `uv`, tmux.
 11. Cavity-label issues: grades that disagree with visible voids (to back with the cavity
     cross-check, if built).
 12. The month0 to month4 repeat scans: which fruit, and are they available?
 13. Overlap with Hugo's own classification and synthetic-data work.
+16. ResNet-18: "full" means 16 base channels (his default) or 64? Epochs, batch size and memory
+    on the lab GPU. Can we see his own ResNet results, and with which split?
+17. Which extra labels he can provide, and in what form.
+18. Fruit dimensions: the length of each fruit before rescaling to 128 voxels (from his MATLAB
+    preprocessing), and whether that rescaling was the same along all three axes. If both, every
+    dimension in millimetres follows from our volumes. Otherwise the original scans.
+19. Confirm the reproduced list of 2024 fruit outside his VAE training set (B2; sent together
+    with the test boxes, B4). If it does not match: his `labels.csv` (row order) and which run
+    folder was used.
+21. The preprint reports MAE 0.0022 on the test set (section 3.1.1) and MAE 0.0025 on the
+    validation set (Table D.1), with the same SSIM and PSNR. Which numbers belong to which set?
 
 For Ruben (not Hugo), added 10 Oct:
 
@@ -143,6 +151,11 @@ For Ruben (not Hugo), added 10 Oct:
     stem–calyx axis.
 15. Whether Solo accepts a four-way array for N-way partial least squares. The documentation found
     does not say. Test with a small synthetic array (fruit × 8 × 8 × 8) before relying on it.
+
+For Ruben, added 13 Oct:
+
+20. Remove `cylindrical_coordinates`, `cylindrical_profile` and the profile part of `pool_grid`
+    from `src/pearlatent/pooling.py`, with their tests? Notebook 03 no longer uses them (1e5d1f1).
 
 ## Decided
 
@@ -157,6 +170,34 @@ For Ruben (not Hugo), added 10 Oct:
 - Code not yet changed for the dropped bins: `src/pearlatent/pooling.py` (`cylindrical_coordinates`,
   `cylindrical_profile`, `pool_grid`), `tests/test_pooling.py`, `notebooks/03_raw_ct_pooled.py`
   (profile figure and text). Ruben to decide whether to remove them.
+- 13 Oct (meeting with Hugo): counterfactuals welcomed; no 3D self-supervised training (GPU), so
+  the own self-supervised extension is dropped; ResNet-18 from scratch as baseline (Hugo has
+  probably trained one himself, but wants Ruben to train his own); target order: `defective`
+  first (consumable versus not, per grade), then browning versus cavity; downsampled CT kept as
+  comparison; stalks not a problem; test-box rule agreed (restricted randomisation, charter rule
+  3); Hugo's VAE split reproducible from his split function and seed; rot not really a problem in
+  2526; grade approach agreed; Hugo reads Keicher et al. 2023; Hugo may provide extra labels; fruit
+  dimensions can be computed from the original CT scans. Hugo confirmed his VAE seed: 369.
+- 13 Oct (Ruben): the random encoder stays as a comparison row. Order of work: test boxes first
+  (rule approved, then draw, then summary to Hugo for a green light), then the reconstruction
+  errors per label group with visual comparisons and the stalk, then the latent analysis. Code
+  must be readable and every step explained (CLAUDE.md section 11).
+- 13 Oct (Ruben): in 2425, Hugo's 528 encoder-training fruit are excluded from all analysis (the
+  encoder has seen them), except one Step 0 comparison of reconstruction error, never pooled with
+  the other fruit. His 66 validation fruit are on the training side. His 66 test fruit are sealed
+  and join the final test as one batch, reported per storage group and separately from the 2526
+  test boxes. Hugo's split by fruit means every 2024 orchard is also in his training set; this
+  cannot be undone and is stated in the thesis.
+- 13 Oct (Ruben): test boxes by a random draw among the sets within ±30 % (charter rule 3), seed
+  369. A ranking variant ("keep the best 20, draw among them") was considered the same day and
+  not chosen. Balance counts: non-consumable, browning ≥ 2 without cavity, browning 3, any cavity
+  ("browning 3 with cavity 3" dropped). Fallback ±40 %, then ±50 % if fewer than 10 sets qualify.
+- 13 Oct (Ruben): cross-validation design settled as in `docs/cv_explained.md`: outer 4 folds of 3
+  boxes over the 12 non-test boxes, 5 repeats from eligible partitions (seed 369), inner split
+  inside the training boxes only to choose settings (its score never reported as performance),
+  bootstrap over boxes for intervals, paired for comparisons, sealed test once at the end.
+- 13 Oct (Ruben): a model fitted on Hugo's 2425 validation fruit is not evaluated on his 2425 test
+  fruit (same ten orchards). Main models are fitted on 2526.
 
 ## Unverified assumptions in code
 
@@ -165,7 +206,7 @@ For Ruben (not Hugo), added 10 Oct:
 | `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct). Supported by the preprint, section 2.2, as summarised in Ruben's other Claude session on 5 Oct (the two orchards with optimal storage have fruit in three boxes); not yet read in the preprint itself | preprint section 2.2, Hugo |
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
 | `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`) | Hugo (open question 1) |
-| `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for fine-tuning) | `nvidia-smi` on the workstation |
+| `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for the ResNet-18 baseline) | `nvidia-smi` on the workstation |
 
 Note on names: in 2425 the `box` column holds the orchard letter (60 to 90 fruit). Per the
 preprint a physical box is 30 fruit of one orchard in one storage group. Grouping by orchard is
