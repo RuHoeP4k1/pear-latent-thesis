@@ -49,8 +49,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Next step:** set up the Mac (section below). Ask Ruben whether `docs/splits_for_hugo.md` was
-  sent to Hugo (B4 STOP; not recorded). Then B6 and the 2425 part of B7 (notebook 05) on run
+- **Next step:** set up the Mac (section below). Ruben has not yet sent `docs/splits_for_hugo.md`
+  to Hugo (B4 STOP, 17 Oct); remind him. Then B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run waits for Ruben (see above).
 - **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
   marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
@@ -95,7 +95,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 Nothing below travels through git; copy it by drive or USB stick. Sizes on 17 Oct.
 
-1. **Copy from the laptop:** `C:/Users/hoeve/thesis-data/` (4.3 GB, volumes and both label
+1. **Transfer (17 Oct):** Ruben carries the data via KU Leuven OneDrive. Unzip it outside the
+   repository. **Copy from the laptop:** `C:/Users/hoeve/thesis-data/` (4.3 GB, volumes and both label
    files); the repository's `data/weights/` (372 MB, Hugo's `best.pth` and hyperparameters);
    `derived/` (900 MB, includes the finished encoding run, `exclusions.csv`, `sealed_fruit.csv`,
    `test_boxes/`, `hugo_vae_split_2425/`). Do not re-run the test-box draw: `derived/test_boxes/`
@@ -103,7 +104,8 @@ Nothing below travels through git; copy it by drive or USB stick. Sizes on 17 Oc
 2. **Repository:** `git clone` it, then put `data/weights/` and `derived/` in place.
 3. **Hugo's repository:** `git clone https://github.com/Hugo-Li-Junyan/Synthetic_CT_pear` next to
    this one and `git checkout 183112f` (12 MB; copying the folder also works).
-4. **Config:** copy `config/local.example.toml` to `config/local.toml` and set the Mac paths
+4. **Config:** Claude writes it on the Mac: copy `config/local.example.toml` to
+   `config/local.toml` and set the Mac paths
    (`ct_dir_2526`, `ct_dir_2425`, `labels_2425`, `labels_2526`; `hugo_repo = "../Synthetic_CT_pear"`
    if cloned next to it). Set `device = "cpu"` for anything that re-encodes or decodes, so new
    runs stay comparable with the laptop runs (CPU, float32); `"auto"` would pick Apple MPS.
@@ -112,7 +114,9 @@ Nothing below travels through git; copy it by drive or USB stick. Sizes on 17 Oc
    `pyproject.toml`); `uv run pytest`; `uv run python notebooks/00_environment_check.py`.
 6. **Check the copy:** load `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/latents.npy`
    (940 × 32 × 32 × 32) and the sealed one (153 fruit).
-7. **Claude Code on the Mac:** the memory folder is keyed by the project path, so copy
+7. **Claude Code on the Mac:** Ruben brings `claude-config.zip` (made 17 Oct; folders `rules`,
+   `agents`, `skills`, `commands` go to `~/.claude/`, `project-memory/*` goes to the project's
+   `memory/` folder; no login token, no `settings.json`). Background: the memory folder is keyed by the project path, so copy
    `C:/Users/hoeve/.claude/projects/C--Users-hoeve-code-pear-latent-thesis/memory/` into the new
    project folder under `~/.claude/projects/` (two notes: record only seen results; marimo
    pairing). The user-level `~/.claude/` (rules, `agents/challenger.md`, skills `marimo`,
