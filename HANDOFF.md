@@ -5,7 +5,22 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-13
+- **Date:** 2026-10-17
+- **Moving to a Mac (17 Oct):** Ruben moves from the Windows laptop to a Mac this afternoon. Git
+  was clean and pushed at that point. On the Mac, first do the checklist in the section "Setting
+  up the Mac" below, then continue with the next step.
+- **Encoding done (13–15 Oct, checked 17 Oct):** full run with Hugo's weights is
+  `20261013T171306Z_hugo_vae` (two sessions: 13 Oct 19:13 to 14 Oct 03:19, stopped by the time
+  limit; resumed 15 Oct, finished). Open part `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/`:
+  940 fruit (346 of 2526, 594 of 2425), latents 940 × 32³ all finite, 478 rows in
+  `reconstruction.parquet` (346 + 66 + 66 decoded, as planned). Sealed part
+  `derived/sealed/latents/hugo_vae/20261013T171306Z_hugo_vae/`: 153 fruit, encoded only.
+  `run.json` says `dirty: true` because the untracked `HANDOFF_claude-code_2026-10-13.md` was in
+  the folder; the code was commit 0c9052f.
+  **Random encoder not run:** `derived/latents/random_init/20261015T131710Z_random_init/` (and the
+  sealed twin) holds only `run.json` and an empty `parts/`: started and stopped before the first
+  chunk. Delete both folders before starting it again (needs Ruben's go-ahead, about 1.4 hours;
+  on the Mac it would run on MPS unless `device = "cpu"`, see below).
 - **Phase:** meeting with Hugo held on 13 October (moved from 15 October). Weights received
   (encoder and decoder, `best.pth`, in Ruben's Downloads folder on 13 October). Split rule agreed
   (charter rule 3, restricted randomisation, seed 369). Plan files updated to the charter of
@@ -34,14 +49,9 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Next step:** Ruben sends `docs/splits_for_hugo.md` to Hugo (B4 STOP). Ruben starts the full
-  run, laptop plugged in (about 8.8 hours in total):
-  night 1 `uv run python notebooks/04_encode_latents.py --encoder hugo_vae --stop-after-hours 4.5`;
-  night 2 `uv run python notebooks/04_encode_latents.py --encoder hugo_vae --resume <run name>`
-  (the name is printed at the end of night 1, and is the newest folder in
-  `derived/latents/hugo_vae/`); then, same night or later,
-  `uv run python notebooks/04_encode_latents.py --encoder random_init` (encoding only, about
-  1.4 hours). Then B6 and the 2425 part of B7 (notebook 05).
+- **Next step:** set up the Mac (section below). Ask Ruben whether `docs/splits_for_hugo.md` was
+  sent to Hugo (B4 STOP; not recorded). Then B6 and the 2425 part of B7 (notebook 05) on run
+  `20261013T171306Z_hugo_vae`. The random-encoder run waits for Ruben (see above).
 - **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
   marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
   both label files). Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit
@@ -80,6 +90,35 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   - Earlier (3 Oct, notebook 01): label rules for `defective`, `binary_123`, `binary_23`,
     `non-consumable` hold for every fruit; 17 labelled 2526 fruit have no volume.
 - **Blocked on:** Hugo's green light (B4) for anything that plots 2526 labels.
+
+## Setting up the Mac (written 17 Oct, on the Windows laptop)
+
+Nothing below travels through git; copy it by drive or USB stick. Sizes on 17 Oct.
+
+1. **Copy from the laptop:** `C:/Users/hoeve/thesis-data/` (4.3 GB, volumes and both label
+   files); the repository's `data/weights/` (372 MB, Hugo's `best.pth` and hyperparameters);
+   `derived/` (900 MB, includes the finished encoding run, `exclusions.csv`, `sealed_fruit.csv`,
+   `test_boxes/`, `hugo_vae_split_2425/`). Do not re-run the test-box draw: `derived/test_boxes/`
+   is the one draw. Do not copy `.venv/` or `__pycache__/`.
+2. **Repository:** `git clone` it, then put `data/weights/` and `derived/` in place.
+3. **Hugo's repository:** `git clone https://github.com/Hugo-Li-Junyan/Synthetic_CT_pear` next to
+   this one and `git checkout 183112f` (12 MB; copying the folder also works).
+4. **Config:** copy `config/local.example.toml` to `config/local.toml` and set the Mac paths
+   (`ct_dir_2526`, `ct_dir_2425`, `labels_2425`, `labels_2526`; `hugo_repo = "../Synthetic_CT_pear"`
+   if cloned next to it). Set `device = "cpu"` for anything that re-encodes or decodes, so new
+   runs stay comparable with the laptop runs (CPU, float32); `"auto"` would pick Apple MPS.
+   Ask Ruben before using MPS for a run whose numbers enter the thesis.
+5. **Environment:** install `uv`, then `uv sync` (torch comes from the CPU index on macOS, see
+   `pyproject.toml`); `uv run pytest`; `uv run python notebooks/00_environment_check.py`.
+6. **Check the copy:** load `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/latents.npy`
+   (940 × 32 × 32 × 32) and the sealed one (153 fruit).
+7. **Claude Code on the Mac:** the memory folder is keyed by the project path, so copy
+   `C:/Users/hoeve/.claude/projects/C--Users-hoeve-code-pear-latent-thesis/memory/` into the new
+   project folder under `~/.claude/projects/` (two notes: record only seen results; marimo
+   pairing). The user-level `~/.claude/` (rules, `agents/challenger.md`, skills `marimo`,
+   `synced`) also needs copying. The marimo pairing note is Windows-specific (jq path); on the
+   Mac `brew install jq` and rerun `npx skills add marimo-team/marimo-pair`.
+8. Update the "Laptop" line above to describe the Mac once it works.
 
 ## Verified from Hugo's repository (Tier 1)
 
@@ -277,6 +316,11 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-10-17 — encoding checked, move to a Mac prepared
+- Checked the full encoding run `20261013T171306Z_hugo_vae`: 940 open + 153 sealed fruit,
+  478 decoded, all finite. Random-encoder run started 15 Oct but empty.
+- Wrote the Mac setup checklist. No code changed.
 
 ### 2026-10-05 — Hugo's answers, data checks, pooling and encoding code
 - Decided (Ruben): hold out 2526 test boxes, rule to agree with Hugo first, folds wait; within-box
