@@ -17,10 +17,11 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   `derived/sealed/latents/hugo_vae/20261013T171306Z_hugo_vae/`: 153 fruit, encoded only.
   `run.json` says `dirty: true` because the untracked `HANDOFF_claude-code_2026-10-13.md` was in
   the folder; the code was commit 0c9052f.
-  **Random encoder not run:** `derived/latents/random_init/20261015T131710Z_random_init/` (and the
-  sealed twin) holds only `run.json` and an empty `parts/`: started and stopped before the first
-  chunk. Delete both folders before starting it again (needs Ruben's go-ahead, about 1.4 hours;
-  on the Mac it would run on MPS unless `device = "cpu"`, see below).
+  **Random encoder done (20 Oct, Mac, CPU):** run `20261020T120336Z_random_init`, seed 0, code
+  54101c4 (clean), 14:03 to 14:31 (about 1.5 s per fruit on the Mac CPU). Open part 940 fruit
+  (346 of 2526, 594 of 2425), sealed part 153 (87 + 66), all finite, nothing decoded (no trained
+  decoder); same fruit in the same order as the Hugo run, both parts. The empty attempt of
+  15 Oct was deleted; the 2-fruit test `20261005T142117Z_random_init` is kept.
 - **Phase:** meeting with Hugo held on 13 October (moved from 15 October). Weights received
   (encoder and decoder, `best.pth`, in Ruben's Downloads folder on 13 October). Split rule agreed
   (charter rule 3, restricted randomisation, seed 369). Plan files updated to the charter of
@@ -51,7 +52,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   fruit); the full run will be newer.
 - **Next step:** Mac set up on 20 Oct (including `marimo-pair`, project level). Ruben has not yet sent `docs/splits_for_hugo.md`
   to Hugo (B4 STOP, 17 Oct); remind him. Then B6 and the 2425 part of B7 (notebook 05) on run
-  `20261013T171306Z_hugo_vae`. The random-encoder run waits for Ruben (see above).
+  `20261013T171306Z_hugo_vae`. The random-encoder run is done (20 Oct).
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
   marimo 0.25.1; data in `~/data/pear-thesis` (433 volumes 2526, 660 volumes 2425, both label
