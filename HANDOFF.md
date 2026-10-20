@@ -32,7 +32,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   Ruben and committed (a23b627) before the draw; draw run once (`python -m
   pearlatent.test_box_draw`, code b972889) into `derived/test_boxes/`; `derived/sealed_fruit.csv`
   holds 66 + 87 fruit; `drop_sealed` in `src/pearlatent/sealed.py`; mail text in
-  `docs/splits_for_hugo.md`.
+  `derived/mail_hugo_2026-10-20/mail_to_hugo.md` (outside git, with the attachment).
 - **Results of the draw (13 Oct):** season totals over 433 scanned fruit: non-consumable 179,
   browning ≥ 2 without cavity 73, browning 3 100, any cavity 115. Eligible sets: 120 at ±30 %
   (222 at ±40 %, 296 at ±50 %); every box occurs in 18 to 31 eligible sets. Drawn test boxes
@@ -50,7 +50,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Next step:** Mac set up on 20 Oct (including `marimo-pair`, project level). Ruben has not yet sent `docs/splits_for_hugo.md`
+- **Next step:** Mac set up on 20 Oct (including `marimo-pair`, project level). Ruben has not yet sent `derived/mail_hugo_2026-10-20/mail_to_hugo.md` (outside git, with the attachment)
   to Hugo (B4 STOP, 17 Oct); remind him. Then B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run is done (20 Oct).
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
