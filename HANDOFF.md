@@ -49,7 +49,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Next step:** Mac set up on 20 Oct (only `marimo-pair` still to install). Ruben has not yet sent `docs/splits_for_hugo.md`
+- **Next step:** Mac set up on 20 Oct (including `marimo-pair`, project level). Ruben has not yet sent `docs/splits_for_hugo.md`
   to Hugo (B4 STOP, 17 Oct); remind him. Then B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run waits for Ruben (see above).
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
