@@ -55,8 +55,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
   marimo 0.25.1; data in `~/data/pear-thesis` (433 volumes 2526, 660 volumes 2425, both label
-  files). Weights directly in `data/weights/` (`best.pth`, `vae_hyperparameter.json`; on the
-  laptop they were in `data/weights/hugo_vae/`), so `encoder_dir = "data/weights"`. Hugo's
+  files). Weights in `data/weights/hugo_vae/` as on the laptop. Hugo's
   repository cloned at `../Synthetic_CT_pear`, commit 183112f. Checked 20 Oct: `uv run pytest`
   62 passed (Hugo split tests included), notebook 00 runs, both latent arrays of run
   `20261013T171306Z_hugo_vae` load (940 and 153 fruit, finite, 478 reconstruction rows).
