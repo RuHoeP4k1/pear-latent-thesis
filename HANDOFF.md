@@ -49,15 +49,19 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Next step:** set up the Mac (section below). Ruben has not yet sent `docs/splits_for_hugo.md`
+- **Next step:** Mac set up on 20 Oct (only `marimo-pair` still to install). Ruben has not yet sent `docs/splits_for_hugo.md`
   to Hugo (B4 STOP, 17 Oct); remind him. Then B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run waits for Ruben (see above).
-- **Laptop:** `C:\Users\hoeve\code\pear-latent-thesis`, Python 3.12.12, torch 2.14.1+cpu,
-  marimo 0.25.1; data in `C:/Users/hoeve/thesis-data` (433 volumes 2526, 660 volumes 2425,
-  both label files). Hugo's repository cloned at `C:/Users/hoeve/code/Synthetic_CT_pear`, commit
-  183112f (`hugo_repo` in `config/local.toml`). Encoding runs on this laptop (CPU, about
-  5 seconds per fruit, decided 5 Oct); the workstation is only for the ResNet-18 baseline and is
-  not set up.
+- **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
+  3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
+  marimo 0.25.1; data in `~/data/pear-thesis` (433 volumes 2526, 660 volumes 2425, both label
+  files). Weights directly in `data/weights/` (`best.pth`, `vae_hyperparameter.json`; on the
+  laptop they were in `data/weights/hugo_vae/`), so `encoder_dir = "data/weights"`. Hugo's
+  repository cloned at `../Synthetic_CT_pear`, commit 183112f. Checked 20 Oct: `uv run pytest`
+  62 passed (Hugo split tests included), notebook 00 runs, both latent arrays of run
+  `20261013T171306Z_hugo_vae` load (940 and 153 fruit, finite, 478 reconstruction rows).
+  Encoding ran on the Windows laptop (CPU, about 5 seconds per fruit, decided 5 Oct); the
+  workstation is only for the ResNet-18 baseline and is not set up.
   School PC not set up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
   `notebooks/00_environment_check.py`. For pairing on a live notebook also run
   `npx skills add marimo-team/marimo-pair` (not in git) and put `jq` and `curl` on the PATH.
