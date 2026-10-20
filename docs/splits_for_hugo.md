@@ -4,8 +4,9 @@ Written 13 October 2026 from the draw in `derived/test_boxes/` (rule `docs/test_
 commit a23b627; code b972889) and the split in `derived/hugo_vae_split_2425/` (code 52e1088).
 Revised 20 October 2026 (Mac): the split was recomputed with Hugo's function, PyTorch 2.14.1, and
 equals the laptop file of 13 October; the label file has the same SHA-256. The fruit lists are now
-an attachment: `derived/mail_hugo_2026-10-20/vae_split_check_2425.csv` (660 rows: `filename`,
-`row_in_csv` (0-based), `split`; no labels; not in git). For Ruben to paste into a mail.
+an attachment: `derived/mail_hugo_2026-10-20/vae_split_check_2425.xlsx` (tabs settings, train,
+validation, test; columns `filename`, `row_in_csv` (0-based); no labels; not in git; written with
+`uv run --with xlsxwriter` from the CSV beside it). For Ruben to paste into a mail.
 
 ---
 
@@ -49,8 +50,9 @@ cross-validation is repeated with 5 of them, drawn with seed 369:
 
 **3. Your VAE split (2024–25).** This is purely a safety check, so that the research rests on the
 right groups: I would like to be sure that the fruit I treat as unseen by your VAE really are.
-The attached `vae_split_check_2425.csv` gives, for each of the 660 fruit, the split I get
-(528 train / 66 validation / 66 test). Settings:
+The attached `vae_split_check_2425.xlsx` has one tab per group (train, validation, test) with
+the file names, so you can compare them directly with yours; the split I get is
+528 train / 66 validation / 66 test. Settings (also in the first tab):
 
 - your `utils/splits.split_train_val_test` from your repository at commit 183112f,
   `val_split = 0.1`, `test_split = 0.1`, `random_state = 369`;
@@ -71,4 +73,4 @@ another mandatory session at that time.
 
 Thanks, Ruben
 
-Attachment: `vae_split_check_2425.csv`
+Attachment: `vae_split_check_2425.xlsx`
