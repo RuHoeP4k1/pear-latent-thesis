@@ -50,8 +50,10 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Next step:** Mac set up on 20 Oct (including `marimo-pair`, project level). Ruben has not yet sent `derived/mail_hugo_2026-10-20/mail_to_hugo.md` (outside git, with the attachment)
-  to Hugo (B4 STOP, 17 Oct); remind him. Then B6 and the 2425 part of B7 (notebook 05) on run
+- **Next step:** Mac set up on 20 Oct (including `marimo-pair`, project level). Mail to Hugo sent 20 Oct (`derived/mail_hugo_2026-10-20/`,
+  outside git: test boxes, folds, his VAE split as `vae_split_check_2425.xlsx`, request to start
+  the meeting of Thursday 29 Oct one hour later). Waiting for his answer on the split and the
+  meeting time; until he confirms, the split stays UNVERIFIED (B2). Then B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run is done (20 Oct).
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
