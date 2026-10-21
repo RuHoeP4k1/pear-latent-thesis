@@ -76,9 +76,11 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   latents (distributions per season, storage group and box; PCA score plots coloured by box and
   storage); (2) a way to decide whether outliers must be removed, on X only and before labels
   are used (chemometrics: Hotelling T² and Q residuals of a PCA or PLS model on the 12 boxes; rule
-  written down first); (3) the reconstruction tests (Step 0, charter question 1). Check first
-  whether Hugo's reply ("a very good practice") counts as the green light (B4) for plots of 2526
-  labels. Earlier wording: B6 and the 2425 part of B7 (notebook 05) on run
+  written down first); (3) the reconstruction tests (Step 0, charter question 1). Hugo's green
+  light (B4) for plots of 2526 labels: given (Ruben, 21 Oct). Started: `notebooks/05_latent_sanity.py`
+  (draft; per-fruit numbers per box, mean and standard deviation per cell, PCA on the 2526 fruit
+  with score plot and parallel coordinates of PC1 to PC10; runs as a script; nothing read from
+  its figures yet). Earlier wording: B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run is done (20 Oct).
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
@@ -120,7 +122,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     differs strongly per 2526 box; candidate shortcut for the nuisance check.
   - Earlier (3 Oct, notebook 01): label rules for `defective`, `binary_123`, `binary_23`,
     `non-consumable` hold for every fruit; 17 labelled 2526 fruit have no volume.
-- **Blocked on:** Hugo's green light (B4) for anything that plots 2526 labels.
+- **Blocked on:** nothing (B4 given 21 Oct).
 
 ## Setting up the Mac (written 17 Oct, on the Windows laptop)
 
