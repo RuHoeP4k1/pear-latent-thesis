@@ -23,6 +23,7 @@ dependencies = [
     "torch>=2.7",
     # plotting for the thesis document
     "matplotlib>=3.9",
+    "plotly>=7.1.0",
 ]
 
 [dependency-groups]

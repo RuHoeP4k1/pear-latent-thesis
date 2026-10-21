@@ -8,6 +8,7 @@ with app.setup:
     import marimo as mo
     import matplotlib.pyplot as plt
     import nibabel as nib
+    import plotly.graph_objects as go
     import numpy as np
     import polars as pl
     from sklearn.decomposition import PCA
@@ -260,8 +261,13 @@ def _():
     mo.md(r"""
     ## 5. Score plot and parallel coordinates
 
-    Choose which groups to show, then drag a rectangle in the score plot to select fruit. The parallel-coordinates plot below shows
-    every fruit as one line over PC1 to PC10: grey for all fruit, coloured for the selection.
+    Choose which groups to show, then drag a rectangle in the score plot to select fruit.
+
+    The parallel-coordinates plot below shows every shown fruit as one line over the group,
+    the defective grade and PC1 to PC10. Every axis has its own scale. Drag along an axis to
+    keep only the lines that pass through that range; this works on several axes at once.
+    Click next to a selected range on the axis to remove it. Fruit selected in the score plot
+    are drawn in red.
     """)
     return
 
@@ -368,41 +374,67 @@ def _(colour_choice, shape_choice, shown_df, x_choice, y_choice):
 
 
 @app.cell
-def _(colour_choice, pc_names, score_plot, shown_df):
+def _(score_plot):
     selected_ids = score_plot.value["fruit_id"].to_list()
+    mo.md(f"**{len(selected_ids)} fruit selected in the score plot.**")
+    return (selected_ids,)
 
-    # Long format: one row per fruit and component, which is what a line chart needs.
-    lines = shown_df.select("fruit_id", colour_choice.value, *pc_names).unpivot(
-        index=["fruit_id", colour_choice.value],
-        on=pc_names,
-        variable_name="component",
-        value_name="score",
-    )
-    _x = alt.X("component:N", sort=pc_names, title=None)
 
-    _all_fruit = (
-        alt.Chart(lines)
-        .mark_line(color="lightgrey", opacity=0.4)
-        .encode(x=_x, y=alt.Y("score:Q"), detail="fruit_id:N")
-    )
-    _selection = (
-        alt.Chart(lines.filter(pl.col("fruit_id").is_in(selected_ids)))
-        .mark_line(opacity=0.9)
-        .encode(
-            x=_x,
-            y="score:Q",
-            detail="fruit_id:N",
-            color=alt.Color(f"{colour_choice.value}:N"),
-            tooltip=["fruit_id", "component", "score"],
+@app.cell
+def _(colour_choice, pc_names, selected_ids, shown_df):
+    def as_codes(values: pl.Series) -> tuple[list[int], list[str]]:
+        """Turn a column of categories into numbers 0, 1, 2, ... for plotting.
+
+        Plotly's parallel coordinates only take numbers. Returns the number of every fruit
+        and the list of category names, so the axis can show the names again.
+        """
+        names = sorted(str(v) for v in values.unique().to_list())
+        codes = [names.index(str(v)) for v in values.to_list()]
+        return codes, names
+
+    # Two label axes first, so they can be used as filters, then one axis per component.
+    _group_codes, _group_names = as_codes(shown_df["group"])
+    _axes = [
+        dict(
+            label="group",
+            values=_group_codes,
+            tickvals=list(range(len(_group_names))),
+            ticktext=_group_names,
+        ),
+        dict(
+            label="defective",
+            values=shown_df["defective"].to_list(),
+            tickvals=[0, 1, 2, 3],
+        ),
+    ]
+    _axes += [dict(label=name, values=shown_df[name].to_list()) for name in pc_names]
+
+    # Line colour: if fruit are selected in the score plot, red for those and grey for the
+    # rest; otherwise the "Colour by" choice.
+    if selected_ids:
+        _colour_codes = shown_df["fruit_id"].is_in(selected_ids).cast(pl.Int8).to_list()
+        _colour_names = ["not selected", "selected"]
+        _colourscale = [[0, "lightgrey"], [1, "crimson"]]
+    else:
+        _colour_codes, _colour_names = as_codes(shown_df[colour_choice.value])
+        _colourscale = "Turbo"
+
+    _figure = go.Figure(
+        go.Parcoords(
+            dimensions=_axes,
+            line=dict(
+                color=_colour_codes,
+                colorscale=_colourscale,
+                showscale=True,
+                colorbar=dict(
+                    tickvals=list(range(len(_colour_names))), ticktext=_colour_names
+                ),
+            ),
         )
     )
-    mo.vstack(
-        [
-            mo.md(f"**{len(selected_ids)} fruit selected.**"),
-            (_all_fruit + _selection).properties(width=700, height=300),
-        ]
-    )
-    return (selected_ids,)
+    _figure.update_layout(height=450, margin=dict(l=80, r=80, t=60, b=30))
+    _figure
+    return
 
 
 @app.cell
