@@ -67,6 +67,15 @@ def _(cfg, run_dir):
         labels, on="fruit_id", how="left", validate="1:1"
     ).with_columns(defective=pl.max_horizontal("browning", "cavity"))
 
+    # One readable group name per fruit, to filter and colour the plots.
+    # 2526: all fruit were scanned after storage. 2425: Hugo's split and the storage group,
+    # for example "2425 validation, harvest" (fresh) or "2425 validation, suboptimal_storage".
+    fruit = fruit.with_columns(
+        group=pl.when(pl.col("season") == "2526")
+        .then(pl.lit("2526"))
+        .otherwise(pl.format("2425 {}, {}", "hugo_split", "storage"))
+    )
+
     print(f"latents: {latents.shape[0]} fruit, grid {latents.shape[1:]}")
     print(f"manifest: {manifest.height} fruit; after the join: {fruit.height} fruit")
     print(f"fruit without a grade: {fruit['browning'].null_count()}")
@@ -180,6 +189,8 @@ def _():
 
     Choose which fruit the PCA is fitted on. The 2025–26 fruit are the main data set. "All open
     fruit" also includes the 2024–25 fruit, among them the 528 Hugo trained his VAE on.
+    Fruit that are not in the fit still get scores: they are projected onto the same
+    components, so 2024–25 fruit can be shown in a PCA fitted on 2025–26.
     """)
     return
 
@@ -204,12 +215,13 @@ def _(flat, fruit, pca_fruit_choice):
 
     n_components = 10  # enough to look at; this is exploration, not a model
     pca = PCA(n_components=n_components)
-    scores = pca.fit_transform(flat[keep])
+    pca.fit(flat[keep])
+    scores = pca.transform(flat)  # all 940 fruit, also those not in the fit
 
     pc_names = [f"PC{i + 1}" for i in range(n_components)]
-    scores_df = fruit.filter(pl.Series(keep)).with_columns(
+    scores_df = fruit.with_columns(
         pl.Series(name, scores[:, i]) for i, name in enumerate(pc_names)
-    )
+    ).with_columns(in_pca_fit=pl.Series(keep))
     print(f"PCA fitted on {keep.sum()} of {fruit.height} fruit")
     return pc_names, pca, scores_df
 
@@ -237,35 +249,51 @@ def _():
     mo.md(r"""
     ## 5. Score plot and parallel coordinates
 
-    Drag a rectangle in the score plot to select fruit. The parallel-coordinates plot below shows
+    Choose which groups to show, then drag a rectangle in the score plot to select fruit. The parallel-coordinates plot below shows
     every fruit as one line over PC1 to PC10: grey for all fruit, coloured for the selection.
     """)
     return
 
 
 @app.cell
-def _(pc_names):
+def _(fruit, pc_names):
+    all_groups = sorted(fruit["group"].unique().to_list())
+    # Default: everything except Hugo's 528 training fruit, which the encoder has seen.
+    group_choice = mo.ui.multiselect(
+        options=all_groups,
+        value=[g for g in all_groups if "train" not in g],
+        label="Show groups",
+    )
     colour_choice = mo.ui.dropdown(
-        options=["box", "storage", "hugo_split", "defective", "browning", "cavity"],
-        value="box",
+        options=["group", "box", "storage", "defective", "browning", "cavity"],
+        value="group",
         label="Colour by",
     )
     x_choice = mo.ui.dropdown(options=pc_names, value="PC1", label="x axis")
     y_choice = mo.ui.dropdown(options=pc_names, value="PC2", label="y axis")
-    mo.hstack([colour_choice, x_choice, y_choice], justify="start")
-    return colour_choice, x_choice, y_choice
+    mo.vstack(
+        [group_choice, mo.hstack([colour_choice, x_choice, y_choice], justify="start")]
+    )
+    return colour_choice, group_choice, x_choice, y_choice
 
 
 @app.cell
-def _(colour_choice, scores_df, x_choice, y_choice):
+def _(group_choice, scores_df):
+    shown_df = scores_df.filter(pl.col("group").is_in(group_choice.value))
+    print(f"showing {shown_df.height} of {scores_df.height} fruit")
+    return (shown_df,)
+
+
+@app.cell
+def _(colour_choice, shown_df, x_choice, y_choice):
     _chart = (
-        alt.Chart(scores_df)
+        alt.Chart(shown_df)
         .mark_point(filled=True, size=40)
         .encode(
             x=alt.X(f"{x_choice.value}:Q"),
             y=alt.Y(f"{y_choice.value}:Q"),
             color=alt.Color(f"{colour_choice.value}:N"),
-            tooltip=["fruit_id", "box", "storage", "browning", "cavity"],
+            tooltip=["fruit_id", "group", "box", "browning", "cavity"],
         )
         .properties(width=500, height=400)
     )
@@ -275,11 +303,11 @@ def _(colour_choice, scores_df, x_choice, y_choice):
 
 
 @app.cell
-def _(colour_choice, pc_names, score_plot, scores_df):
+def _(colour_choice, pc_names, score_plot, shown_df):
     selected_ids = score_plot.value["fruit_id"].to_list()
 
     # Long format: one row per fruit and component, which is what a line chart needs.
-    lines = scores_df.select("fruit_id", colour_choice.value, *pc_names).unpivot(
+    lines = shown_df.select("fruit_id", colour_choice.value, *pc_names).unpivot(
         index=["fruit_id", colour_choice.value],
         on=pc_names,
         variable_name="component",
@@ -336,17 +364,21 @@ def _():
 
     Pick a fruit to see its CT volume, its latent, and how its latent differs from the mean latent
     of all fruit. If fruit are selected in the score plot, only those are offered; otherwise all
-    fruit in the PCA. Type in the box to search by name.
+    fruit of the groups shown in section 5. Type in the box to search by name.
     """)
     return
 
 
 @app.cell
-def _(scores_df, selected_ids):
+def _(selected_ids, shown_df):
     if selected_ids:
         offered_ids = selected_ids
     else:
-        offered_ids = scores_df["fruit_id"].to_list()
+        offered_ids = shown_df["fruit_id"].to_list()
+    mo.stop(
+        not offered_ids,
+        mo.md("_No fruit shown: choose at least one group in section 5._"),
+    )
 
     fruit_picker = mo.ui.dropdown(
         options=offered_ids, value=offered_ids[0], searchable=True, label="Fruit"
