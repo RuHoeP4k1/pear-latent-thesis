@@ -92,6 +92,16 @@ to 1.95 at ±30 %), and then no set can pass for that count. The fallback below 
    `ks = rng.choice(P, size=5, replace=False)`, where P is the number of eligible partitions;
    repeat r (1 to 5) uses the eligible partition at position `ks[r − 1]` (0-based) in the
    lexicographic list.
+5. *Amendment, 21 October 2026 (Ruben), after the draw of 13 October and before any model was
+   fitted on labels:* the number of repeats is raised from 5 to 20, because 5 balanced partitions
+   overlap strongly (repeats 2 and 3 share two folds) and repeated double cross-validation is
+   normally run with many repeats (Filzmoser, Liebmann and Varmuza 2009, *Journal of
+   Chemometrics* 23, 160–171). Repeats 1 to 5 stay exactly as drawn (Hugo has seen them). The
+   15 new repeats are drawn from the P − 5 eligible partitions that were not drawn, kept in
+   lexicographic order: `rng = numpy.random.default_rng(369)` (a new generator);
+   `ks = rng.choice(P − 5, size=15, replace=False)`; repeat 5 + r uses position `ks[r − 1]`.
+   Written to `derived/outer_folds_20/` (`python -m pearlatent.extra_repeats`); the draw of
+   13 October in `derived/test_boxes/` is not changed.
 
 ## 7. What is written and reported
 

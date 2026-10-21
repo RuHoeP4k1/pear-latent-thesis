@@ -8,6 +8,7 @@ from pearlatent.splits import (
     TOLERANCES,
     box_counts,
     choose_tolerance,
+    draw_more_partitions,
     draw_partitions,
     draw_test_boxes,
     eligible_box_sets,
@@ -126,3 +127,15 @@ def test_draw_partitions_deterministic_distinct(labels):
     drawn = draw_partitions(partitions, ok, n_repeats=5)
     assert drawn == draw_partitions(partitions, ok, n_repeats=5)
     assert len(set(drawn)) == 5
+
+
+def test_draw_more_partitions_skips_earlier_draw(labels):
+    counts = box_counts(labels)
+    partitions, _ = eligible_partitions(counts)
+    ok = [True] * len(partitions)
+    first = draw_partitions(partitions, ok, n_repeats=3)
+    more = draw_more_partitions(partitions, ok, first, n_more=7)
+    assert more == draw_more_partitions(partitions, ok, first, n_more=7)
+    # 10 partitions in total: the 3 earlier ones plus all 7 others, no repeats.
+    assert set(first) | set(more) == set(partitions)
+    assert not set(first) & set(more)

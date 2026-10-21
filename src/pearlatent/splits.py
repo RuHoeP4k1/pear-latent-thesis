@@ -242,3 +242,25 @@ def draw_partitions(
     rng = np.random.default_rng(seed)
     picks = rng.choice(len(candidates), size=n_repeats, replace=False)
     return [candidates[int(i)] for i in picks]
+
+
+def draw_more_partitions(
+    partitions: list,
+    eligible: list[bool],
+    already_drawn: list,
+    n_more: int,
+    seed: int = SPLIT_SEED,
+) -> list:
+    """Section 6.4, amendment of 21 October 2026: `n_more` extra eligible partitions.
+
+    In: all partitions in lexicographic order, their eligibility, and the partitions drawn
+    before. Out: `n_more` eligible partitions not drawn before. The earlier draw stays as it was;
+    a fresh generator with `seed` picks positions in the list of the remaining eligible ones.
+    """
+    drawn = set(already_drawn)
+    candidates = [
+        p for p, ok in zip(partitions, eligible, strict=True) if ok and p not in drawn
+    ]
+    rng = np.random.default_rng(seed)
+    picks = rng.choice(len(candidates), size=n_more, replace=False)
+    return [candidates[int(i)] for i in picks]
