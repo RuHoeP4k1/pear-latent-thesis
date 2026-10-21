@@ -98,10 +98,10 @@ passes the same ±30 % check as the test set (if too few pass: ±40 %, then ±50
 The score depends somewhat on which boxes happen to share a fold. To see how much, the whole outer
 cross-validation is repeated with 20 different eligible partitions, drawn at random with seed 369
 (5 drawn on 13 October, 15 added on 21 October; `derived/outer_folds_20/`, rule section 6.4
-item 5). This is repeated double cross-validation (Filzmoser, Liebmann and Varmuza 2009,
-*Journal of Chemometrics* 23, 160–171): an inner loop chooses the settings, an outer loop
-estimates the prediction error, and the whole is repeated over different splits, because a
-single split gives one draw of an estimate that depends on the split. Krstajic et al. (2014,
+item 5). Repeating the cross-validation of a PLS model over many random splits is the approach of
+Filzmoser, Liebmann and Varmuza (2009, *Journal of Chemometrics* 23, 160–171), because a single
+split gives one draw of an estimate that depends on the split. (Their scheme, repeated double
+cross-validation, also has an inner loop; design A does not, see section 4.) Krstajic et al. (2014,
 *Journal of Cheminformatics* 6:10) list reporting a single nested cross-validation as a pitfall
 for the same reason.
 
