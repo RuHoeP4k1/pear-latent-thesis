@@ -7,6 +7,7 @@ with app.setup:
     import altair as alt
     import marimo as mo
     import matplotlib.pyplot as plt
+    import nibabel as nib
     import numpy as np
     import polars as pl
     from sklearn.decomposition import PCA
@@ -37,7 +38,9 @@ def _():
 @app.cell
 def _():
     cfg = load_config()
-    run_dir = cfg.path("derived_dir") / "latents" / "hugo_vae" / "20261013T171306Z_hugo_vae"
+    run_dir = (
+        cfg.path("derived_dir") / "latents" / "hugo_vae" / "20261013T171306Z_hugo_vae"
+    )
     return cfg, run_dir
 
 
@@ -60,9 +63,9 @@ def _(cfg, run_dir):
     labels = load_labels(cfg).select("fruit_id", "browning", "cavity")
 
     # Attach the grades to every fruit. validate="1:1" stops if a fruit occurs twice.
-    fruit = manifest.join(labels, on="fruit_id", how="left", validate="1:1").with_columns(
-        defective=pl.max_horizontal("browning", "cavity")
-    )
+    fruit = manifest.join(
+        labels, on="fruit_id", how="left", validate="1:1"
+    ).with_columns(defective=pl.max_horizontal("browning", "cavity"))
 
     print(f"latents: {latents.shape[0]} fruit, grid {latents.shape[1:]}")
     print(f"manifest: {manifest.height} fruit; after the join: {fruit.height} fruit")
@@ -73,7 +76,9 @@ def _(cfg, run_dir):
 @app.cell
 def _(fruit):
     # How many fruit per season and per group, to know what we are looking at.
-    fruit.group_by("season", "storage", "hugo_split").len().sort("season", "storage", "hugo_split")
+    fruit.group_by("season", "storage", "hugo_split").len().sort(
+        "season", "storage", "hugo_split"
+    )
     return
 
 
@@ -161,7 +166,7 @@ def _(latents):
         _fig.colorbar(_image, ax=_ax, shrink=0.8)
     _fig.tight_layout()
     _fig
-    return
+    return mean_per_cell, middle
 
 
 @app.cell(hide_code=True)
@@ -311,8 +316,125 @@ def _(colour_choice, pc_names, score_plot, scores_df):
 def _(scores_df, selected_ids):
     # The selected fruit as a table, to look them up.
     scores_df.filter(pl.col("fruit_id").is_in(selected_ids)).select(
-        "fruit_id", "box", "storage", "hugo_split", "browning", "cavity", "PC1", "PC2", "PC3"
+        "fruit_id",
+        "box",
+        "storage",
+        "hugo_split",
+        "browning",
+        "cavity",
+        "PC1",
+        "PC2",
+        "PC3",
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 6. Look at one fruit
+
+    Pick a fruit to see its CT volume, its latent, and how its latent differs from the mean latent
+    of all fruit. If fruit are selected in the score plot, only those are offered; otherwise all
+    fruit in the PCA. Type in the box to search by name.
+    """)
+    return
+
+
+@app.cell
+def _(scores_df, selected_ids):
+    if selected_ids:
+        offered_ids = selected_ids
+    else:
+        offered_ids = scores_df["fruit_id"].to_list()
+
+    fruit_picker = mo.ui.dropdown(
+        options=offered_ids, value=offered_ids[0], searchable=True, label="Fruit"
+    )
+    fruit_picker
+    return (fruit_picker,)
+
+
+@app.cell
+def _(fruit_picker, per_fruit, scores_df):
+    picked_id = fruit_picker.value
+
+    # Everything we know about this fruit in one row.
+    picked_row = (
+        scores_df.filter(pl.col("fruit_id") == picked_id)
+        .select(
+            "row",
+            "fruit_id",
+            "season",
+            "box",
+            "storage",
+            "hugo_split",
+            "file_stem",
+            "browning",
+            "cavity",
+            "PC1",
+            "PC2",
+            "PC3",
+        )
+        .join(
+            per_fruit.select(
+                "fruit_id", "latent_mean", "latent_sd", "latent_min", "latent_max"
+            ),
+            on="fruit_id",
+        )
+    )
+    picked_row
+    return (picked_row,)
+
+
+@app.cell
+def _(cfg, latents, mean_per_cell, middle, picked_row):
+    _season = picked_row["season"][0]
+    _file = cfg.path(f"ct_dir_{_season}") / f"{picked_row['file_stem'][0]}.nii"
+    ct = np.asarray(nib.load(_file).dataobj, dtype=np.float32)
+    ct_middle = ct.shape[0] // 2  # 64: the middle of 128 voxels
+
+    # `row` is the position of this fruit in latents.npy (see the manifest).
+    picked_latent = latents[picked_row["row"][0]]
+    difference = picked_latent - mean_per_cell
+
+    # The difference map uses one colour scale centred on zero, so that red means
+    # "higher than the mean fruit" and blue "lower".
+    _limit = np.abs(difference).max()
+
+    _fig, _axes = plt.subplots(3, 2, figsize=(8, 12))
+    _rows = [
+        (ct[ct_middle, :, :].T, ct[:, :, ct_middle], "CT", "gray", None),
+        (
+            picked_latent[middle, :, :].T,
+            picked_latent[:, :, middle],
+            "Latent",
+            "viridis",
+            None,
+        ),
+        (
+            difference[middle, :, :].T,
+            difference[:, :, middle],
+            "Latent minus mean",
+            "RdBu_r",
+            _limit,
+        ),
+    ]
+    for _row_axes, (_long, _cross, _name, _cmap, _lim) in zip(_axes, _rows):
+        for _ax, _picture, _view in zip(
+            _row_axes, [_long, _cross], ["long section", "cross-section"]
+        ):
+            if _lim is None:
+                _image = _ax.imshow(_picture, origin="lower", cmap=_cmap)
+            else:
+                _image = _ax.imshow(
+                    _picture, origin="lower", cmap=_cmap, vmin=-_lim, vmax=_lim
+                )
+            _ax.set_title(f"{_name}, {_view}")
+            _fig.colorbar(_image, ax=_ax, shrink=0.8)
+    _fig.suptitle(picked_row["fruit_id"][0])
+    _fig.tight_layout()
+    _fig
     return
 
 
