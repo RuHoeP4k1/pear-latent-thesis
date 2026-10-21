@@ -33,6 +33,13 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   - Bug fixed in notebook 05: the manifest column `row` is the row among all 1,093 volumes, not
     the place in `latents.npy`. Notebooks must use the place in the file (notebook 05 adds
     `position` with `with_row_index`). No other code used `row` that way (checked).
+- **Hugo's second answer (21 Oct):** agrees with design A ("makes sense to me and is even more
+  rigorous ... a solid plan"): cross-validation and the RMSECV curve choose the number of latent
+  variables; the test set is fixed and used only to report the final model, fitted on all 12
+  boxes; paired bootstrap confidence intervals reported. Meeting moved to Thursday 29 Oct, 11:00.
+  The reply Ruben sent (21 Oct, 14:06) says the number of latent variables is "chosen at the
+  minimum of the averaged curve"; `docs/cv_explained.md` section 4 still leaves the rule open
+  (minimum, elbow, or Haaland F-test). To settle (open question 26).
 - **Results seen (21 Oct):**
   - PCA on the 346 open 2526 fruit: cumulative explained variance PC1 22 %, 2 PCs 31 %, 10 PCs
     50 %, 50 PCs 74 %, 100 PCs 84 %, 200 PCs 94 %; no elbow after PC2 in the cumulative curve.
@@ -87,7 +94,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   T² or Q or both, what counts as "something wrong" (checked by eye in the CT view of notebook
   05), and whether an odd but real shape stays in. Then the reconstruction tests (Step 0,
   charter question 1) as notebook 06 on `reconstruction.parquet` of run
-  `20261013T171306Z_hugo_vae`. If the reply to Hugo is not sent yet, send it first.
+  `20261013T171306Z_hugo_vae`.
 - **Blocked on:** nothing.
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
@@ -268,6 +275,13 @@ For Ruben, added 21 Oct:
     the background and the edge band.
 25. The season difference on PC1 against PC2: check whether it follows storage or browning
     (colour by browning within the 2425 validation groups).
+
+26. Rule for the number of latent variables: the plain minimum of the averaged RMSECV curve (as
+    written to Hugo on 21 Oct) or a rule that prefers fewer (Haaland F-test, α = 0.25)? Decide
+    before the curves are seen and write it in `docs/cv_explained.md` section 4.
+27. Bootstrap on the test set: the 3 test boxes are too few for a bootstrap over boxes, so the
+    test interval resamples fruit (`docs/cv_explained.md` section 8). Hugo's mail speaks of
+    paired bootstrap intervals in general; state this difference at the meeting.
 
 For Ruben (not Hugo), added 10 Oct:
 
