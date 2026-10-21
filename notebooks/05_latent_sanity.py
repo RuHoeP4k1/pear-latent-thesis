@@ -76,6 +76,17 @@ def _(cfg, run_dir):
         .otherwise(pl.format("2425 {}, {}", "hugo_split", "storage"))
     )
 
+    # The cause of the defect (charter rule 5: results on `defective` are split by cause).
+    fruit = fruit.with_columns(
+        cause=pl.when((pl.col("browning") == 0) & (pl.col("cavity") == 0))
+        .then(pl.lit("none"))
+        .when(pl.col("cavity") == 0)
+        .then(pl.lit("browning only"))
+        .when(pl.col("browning") == 0)
+        .then(pl.lit("cavity only"))
+        .otherwise(pl.lit("both"))
+    )
+
     print(f"latents: {latents.shape[0]} fruit, grid {latents.shape[1:]}")
     print(f"manifest: {manifest.height} fruit; after the join: {fruit.height} fruit")
     print(f"fruit without a grade: {fruit['browning'].null_count()}")
@@ -264,37 +275,91 @@ def _(fruit, pc_names):
         value=[g for g in all_groups if "train" not in g],
         label="Show groups",
     )
+    grade_choice = mo.ui.multiselect(
+        options=["0", "1", "2", "3"],
+        value=["0", "1", "2", "3"],
+        label="Show defective grades",
+    )
+    cause_choice = mo.ui.multiselect(
+        options=["none", "browning only", "cavity only", "both"],
+        value=["none", "browning only", "cavity only", "both"],
+        label="Show causes",
+    )
+
+    _label_columns = [
+        "group",
+        "box",
+        "storage",
+        "defective",
+        "cause",
+        "browning",
+        "cavity",
+    ]
     colour_choice = mo.ui.dropdown(
-        options=["group", "box", "storage", "defective", "browning", "cavity"],
-        value="group",
-        label="Colour by",
+        options=_label_columns, value="group", label="Colour by"
+    )
+    shape_choice = mo.ui.dropdown(
+        options=["nothing", *_label_columns], value="defective", label="Symbol by"
     )
     x_choice = mo.ui.dropdown(options=pc_names, value="PC1", label="x axis")
     y_choice = mo.ui.dropdown(options=pc_names, value="PC2", label="y axis")
     mo.vstack(
-        [group_choice, mo.hstack([colour_choice, x_choice, y_choice], justify="start")]
+        [
+            group_choice,
+            mo.hstack([grade_choice, cause_choice], justify="start"),
+            mo.hstack(
+                [colour_choice, shape_choice, x_choice, y_choice], justify="start"
+            ),
+        ]
     )
-    return colour_choice, group_choice, x_choice, y_choice
+    return (
+        cause_choice,
+        colour_choice,
+        grade_choice,
+        group_choice,
+        shape_choice,
+        x_choice,
+        y_choice,
+    )
 
 
 @app.cell
-def _(group_choice, scores_df):
-    shown_df = scores_df.filter(pl.col("group").is_in(group_choice.value))
+def _(cause_choice, grade_choice, group_choice, scores_df):
+    # The grades are chosen as text in the multiselect; turn them back into numbers.
+    _grades = [int(g) for g in grade_choice.value]
+
+    shown_df = scores_df.filter(
+        pl.col("group").is_in(group_choice.value),
+        pl.col("defective").is_in(_grades),
+        pl.col("cause").is_in(cause_choice.value),
+    )
     print(f"showing {shown_df.height} of {scores_df.height} fruit")
     return (shown_df,)
 
 
 @app.cell
-def _(colour_choice, shown_df, x_choice, y_choice):
+def _(colour_choice, shape_choice, shown_df, x_choice, y_choice):
+    _encodings = dict(
+        x=alt.X(f"{x_choice.value}:Q"),
+        y=alt.Y(f"{y_choice.value}:Q"),
+        color=alt.Color(f"{colour_choice.value}:N"),
+        tooltip=[
+            "fruit_id",
+            "group",
+            "box",
+            "defective",
+            "cause",
+            "browning",
+            "cavity",
+        ],
+    )
+    if shape_choice.value != "nothing":
+        _encodings["shape"] = alt.Shape(f"{shape_choice.value}:N")
+
     _chart = (
         alt.Chart(shown_df)
-        .mark_point(filled=True, size=40)
-        .encode(
-            x=alt.X(f"{x_choice.value}:Q"),
-            y=alt.Y(f"{y_choice.value}:Q"),
-            color=alt.Color(f"{colour_choice.value}:N"),
-            tooltip=["fruit_id", "group", "box", "browning", "cavity"],
-        )
+        .mark_point(filled=True, size=50)
+        .encode(**_encodings)
         .properties(width=500, height=400)
     )
     score_plot = mo.ui.altair_chart(_chart)
@@ -345,9 +410,10 @@ def _(scores_df, selected_ids):
     # The selected fruit as a table, to look them up.
     scores_df.filter(pl.col("fruit_id").is_in(selected_ids)).select(
         "fruit_id",
+        "group",
         "box",
-        "storage",
-        "hugo_split",
+        "defective",
+        "cause",
         "browning",
         "cavity",
         "PC1",
