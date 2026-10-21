@@ -6,9 +6,51 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 ## Current state
 
 - **Date:** 2026-10-21
-- **Moving to a Mac (17 Oct):** Ruben moves from the Windows laptop to a Mac this afternoon. Git
-  was clean and pushed at that point. On the Mac, first do the checklist in the section "Setting
-  up the Mac" below, then continue with the next step.
+- **Phase:** data exploration on the saved latents (notebook 05). Evaluation design fixed
+  (design A, 20 repeats; see "Decided"). No model fitted on labels yet. Hugo confirmed his VAE
+  split (21 Oct) and gave the green light for plots of 2526 labels (B4, Ruben 21 Oct).
+- **Done this session (21 Oct, Mac):**
+  - Hugo's mail of 21 Oct: split file "exactly matches my implementation" (same indices with
+    PyTorch 2.7.1, 2.7.1+cuda and 2.14.1; same label file). B2 and open question 19 closed;
+    `UNVERIFIED` removed from CLAUDE.md section 3 and `hugo_split.py`. He described the CV as one
+    tuning fold per repeat and mean ± standard deviation of test accuracy across repeats.
+    Reply in `derived/mail_hugo_2026-10-21/mail_to_hugo.md` (outside git): design A in four
+    steps, test used once, test boxes kept as drawn, meeting Thursday 29 Oct 11:00 (moved from
+    10:00).
+  - Repeats raised from 5 to 20: rule amendment `docs/test_box_rule.md` section 6.4 item 5,
+    committed before the draw; `python -m pearlatent.extra_repeats` → `derived/outer_folds_20/`
+    (repeats 1 to 5 reproduced and kept; 15 more from the other 181 eligible partitions, seed
+    369). K and O share a fold in 13 of 20 repeats, D and N in 11; 55 of 66 box pairs share a
+    fold at least once. Use `derived/outer_folds_20/outer_folds.csv` from now on.
+  - Design A and dropping penalised logistic regression written into `docs/cv_explained.md`
+    (sections 4, 5, 8), `CHARTER.md` (Methods), `CLAUDE.md`, `docs/test_box_rule.md`.
+  - `notebooks/05_latent_sanity.py` (draft, runs as a script): per-fruit numbers per box; mean
+    and standard deviation per cell; PCA (50 components, exact solver, fitted on 2526 or all open
+    fruit, all fruit projected); score plot with filters on group, defective grade and cause,
+    colour and symbol choice; Plotly parallel coordinates with axis brushing (adds `plotly`);
+    view of one fruit (CT, latent, latent minus mean); Hotelling T² and Q residual screen with
+    95 % and 99 % limits.
+  - Bug fixed in notebook 05: the manifest column `row` is the row among all 1,093 volumes, not
+    the place in `latents.npy`. Notebooks must use the place in the file (notebook 05 adds
+    `position` with `with_row_index`). No other code used `row` that way (checked).
+- **Results seen (21 Oct):**
+  - PCA on the 346 open 2526 fruit: cumulative explained variance PC1 22 %, 2 PCs 31 %, 10 PCs
+    50 %, 50 PCs 74 %, 100 PCs 84 %, 200 PCs 94 %; no elbow after PC2 in the cumulative curve.
+    Ruben: elbow of the scree plot at about 13 PCs; many PCs needed, as expected for a latent
+    with KL weight 1e-6.
+  - Ruben: PC1 against PC2 shows a season difference; not all label colourings checked yet. The
+    parallel coordinates showed little.
+  - Edge band in the mean latent: background cells within one to three cells of the grid edge
+    differ from the inner background by about 0.5 to 1 unit (layer 0: −0.31, layer 1: +0.18,
+    inner background: −0.43; fruit cells about 10). Cause: zero padding (`padding=1`) in every
+    convolution of Hugo's encoder (`component/vae.py`, 183112f). The fruit touches the grid at
+    z = 0 and z = 31, so calyx and stalk cells mix fruit with this edge effect.
+  - Outlier screen, A = 13, PCA fitted on 2526, 99 % limits (computed by Claude, same code as the
+    notebook): 2526 beyond T² 5 and beyond Q 7 of 346; 2425 validation harvest Q 5 of 30,
+    suboptimal storage Q 14 of 31 and T² 1, optimal storage 0 of 5. Ruben inspected the
+    outliers: in 2526 `2526_N29`, `2526_K27`, `2526_L29` (2 with something wrong in the volume,
+    1 a very odd, "banana-like" shape; which is which not yet recorded); in the 2425 validation
+    fruit `2425_I44` and `2425_C24` (Ruben, 21 Oct).
 - **Encoding done (13–15 Oct, checked 17 Oct):** full run with Hugo's weights is
   `20261013T171306Z_hugo_vae` (two sessions: 13 Oct 19:13 to 14 Oct 03:19, stopped by the time
   limit; resumed 15 Oct, finished). Open part `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/`:
@@ -22,17 +64,6 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   (346 of 2526, 594 of 2425), sealed part 153 (87 + 66), all finite, nothing decoded (no trained
   decoder); same fruit in the same order as the Hugo run, both parts. The empty attempt of
   15 Oct was deleted; the 2-fruit test `20261005T142117Z_random_init` is kept.
-- **Phase:** meeting with Hugo held on 13 October (moved from 15 October). Weights received
-  (encoder and decoder, `best.pth`, in Ruben's Downloads folder on 13 October). Split rule agreed
-  (charter rule 3, restricted randomisation, seed 369). Plan files updated to the charter of
-  13 October. No model fitted on labels yet.
-- **Done 13 Oct (handoff of 13 October, B1 to B4):** weights checked (section "Weights, received
-  13 October"); Hugo's VAE split reproduced (`src/pearlatent/hugo_split.py`, 528 / 66 / 66); 528
-  training fruit excluded in `derived/exclusions.csv`; rule `docs/test_box_rule.md` approved by
-  Ruben and committed (a23b627) before the draw; draw run once (`python -m
-  pearlatent.test_box_draw`, code b972889) into `derived/test_boxes/`; `derived/sealed_fruit.csv`
-  holds 66 + 87 fruit; `drop_sealed` in `src/pearlatent/sealed.py`; mail text in
-  `derived/mail_hugo_2026-10-20/mail_to_hugo.md` (outside git, with the attachment).
 - **Results of the draw (13 Oct):** season totals over 433 scanned fruit: non-consumable 179,
   browning ≥ 2 without cavity 73, browning 3 100, any cavity 115. Eligible sets: 120 at ±30 %
   (222 at ±40 %, 296 at ±50 %); every box occurs in 18 to 31 eligible sets. Drawn test boxes
@@ -50,38 +81,14 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Hugo's answer (21 Oct):** the split file "exactly matches my implementation": he reran his
-  splitting code with and without loading the file, with PyTorch 2.7.1, 2.7.1+cuda and 2.14.1,
-  same indices; same label file. B2 and open question 19 are closed. He finds the test-box
-  selection good practice if justified in the thesis; seed 369 "not important" for 2526, "feel
-  free to explore other random seeds and splitting scenarios". He described the CV as: per
-  repeat 3 folds train, 1 fold tuning, best model applied to the test set, mean and standard
-  deviation of test accuracy across repeats. This differs from `docs/cv_explained.md` (inner
-  leave-one-box-out, bootstrap over boxes, test used once) and from CLAUDE.md section 7. Reply
-  drafted in `derived/mail_hugo_2026-10-21/mail_to_hugo.md` (outside git): explains our design
-  and asks if he agrees; keeps the test boxes as drawn. He also misread the meeting day ("next
-  Tuesday at 11 a.m., or Thursday?"): the reply says Thursday 29 Oct; Ruben fills in the time.
-- **20 repeats (21 Oct, Ruben):** outer-fold repeats raised from 5 to 20 (rule amendment
-  `docs/test_box_rule.md` section 6.4 item 5, committed before the draw). Repeats 1 to 5 kept as
-  drawn; 15 more from the other 181 eligible partitions, seed 369
-  (`python -m pearlatent.extra_repeats` → `derived/outer_folds_20/`). The 5 earlier repeats were
-  reproduced before drawing. K and O share a fold in 13 of 20 repeats, D and N in 11; 55 of the
-  66 box pairs share a fold at least once. Use `derived/outer_folds_20/outer_folds.csv` from now
-  on. References for the thesis: Filzmoser, Liebmann and Varmuza 2009 (repeated double
-  cross-validation), Krstajic et al. 2014 (single nested cross-validation as a pitfall), Roberts
-  et al. 2017 (block cross-validation); found by web search, full texts not yet read.
-- **Design A (21 Oct, Ruben):** see "Decided". Reply to Hugo rewritten for it.
-- **Next step:** Ruben sends the reply (meeting Thursday 29 Oct, 11:00). Then, in this order
-  (Ruben, 21 Oct): (1) basic sanity checks and a better understanding of the data on the saved
-  latents (distributions per season, storage group and box; PCA score plots coloured by box and
-  storage); (2) a way to decide whether outliers must be removed, on X only and before labels
-  are used (chemometrics: Hotelling T² and Q residuals of a PCA or PLS model on the 12 boxes; rule
-  written down first); (3) the reconstruction tests (Step 0, charter question 1). Hugo's green
-  light (B4) for plots of 2526 labels: given (Ruben, 21 Oct). Started: `notebooks/05_latent_sanity.py`
-  (draft; per-fruit numbers per box, mean and standard deviation per cell, PCA on the 2526 fruit
-  with score plot and parallel coordinates of PC1 to PC10; runs as a script; nothing read from
-  its figures yet). Earlier wording: B6 and the 2425 part of B7 (notebook 05) on run
-  `20261013T171306Z_hugo_vae`. The random-encoder run is done (20 Oct).
+- **Next step:** record which of the 3 2526 outliers is the odd shape and what is wrong with the
+  other two (open question 22), then write the outlier rule
+  in `docs/` before removing anything: number of PCA components (about 13), which limit (99 %),
+  T² or Q or both, what counts as "something wrong" (checked by eye in the CT view of notebook
+  05), and whether an odd but real shape stays in. Then the reconstruction tests (Step 0,
+  charter question 1) as notebook 06 on `reconstruction.parquet` of run
+  `20261013T171306Z_hugo_vae`. If the reply to Hugo is not sent yet, send it first.
+- **Blocked on:** nothing.
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
   marimo 0.25.1; data in `~/data/pear-thesis` (433 volumes 2526, 660 volumes 2425, both label
@@ -94,35 +101,6 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   School PC not set up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
   `notebooks/00_environment_check.py`. For pairing on a live notebook also run
   `npx skills add marimo-team/marimo-pair` (not in git) and put `jq` and `curl` on the PATH.
-- **Done this session (5 Oct):**
-  - Plan files updated after Hugo's answers (box letter = orchard ID; 17 unscanned fruit
-    excluded; rotten fruit carry the highest grades). Charter rule 1: within-box comparison added
-    and removed the same day. Rotational symmetry test dropped (Ruben).
-  - Code with tests (38 in total, all pass): `volume_qc.py`, `exclusions.py`, `pooling.py`
-    (fruit body mask without stalk and with cavities filled, block mean to 32³, mean, 99th
-    percentile, cylindrical profile 8 heights × 4 radii), `encoding.py` (Hugo's encoder from the
-    separate clone; `mu` plus the 512-channel layer pooled inside the body mask), `latest_run_dir`.
-  - Notebooks: 01 section 5 (rot), `02_volume_qc.py`, `03_raw_ct_pooled.py`,
-    `04_encode_latents.py` (all status draft, all run as scripts). Products in `derived/`:
-    `volume_qc/`, `exclusions.csv`, `raw_ct_32/<run_id>/`, `stalk_check.png`, and a 2-fruit test
-    run in `latents/random_init/`.
-  - `docs/meeting_2026-10-15.md`: data summary, proposed test-box rule and fold design, questions
-    for Hugo, uses of the 2024 data, the title.
-- **Results (5 Oct, read from script runs and images on the laptop):**
-  - 2425: defect = storage group (all 300 suboptimal-storage fruit have browning; none of the
-    360 others have browning or cavity). Rot = 1 in 16 fruit, 11 of them browning 3 and cavity 3;
-    of the 175 fruit with browning 3 and cavity 3, 11 are rotten.
-  - 2526: 24 fruit with browning 3 and cavity 3 (flagged in `exclusions.csv`, 23 scanned). Grades
-    depend strongly on the box (K: 27 of 30 without browning; O: 15 with browning 3).
-  - All 1093 volumes 128³ uint16, none flagged, no duplicates; header voxel size 1.0 is
-    meaningless; long axis = third array axis, calyx end at the low end, in every volume.
-  - Most 2526 volumes include the stalk (8 of 12 in a random sample of projections, seed 1;
-    2425: at most a short stub) and it counts in the 128-voxel length: fruit body spans median 28
-    of 32 latent slices in 2526 (21–32, box K median 25), 31 in 2425. Fruit size in voxels
-    differs strongly per 2526 box; candidate shortcut for the nuisance check.
-  - Earlier (3 Oct, notebook 01): label rules for `defective`, `binary_123`, `binary_23`,
-    `non-consumable` hold for every fruit; 17 labelled 2526 fruit have no volume.
-- **Blocked on:** nothing (B4 given 21 Oct).
 
 ## Setting up the Mac (written 17 Oct, on the Windows laptop)
 
@@ -279,6 +257,18 @@ earlier references stay valid.
 21. The preprint reports MAE 0.0022 on the test set (section 3.1.1) and MAE 0.0025 on the
     validation set (Table D.1), with the same SSIM and PSNR. Which numbers belong to which set?
 
+For Ruben, added 21 Oct:
+22. Of the 2526 outliers `2526_N29`, `2526_K27`, `2526_L29` (notebook 05, A = 13): which is
+    the odd shape, and what is wrong with the other two volumes? Why `2425_I44` and `2425_C24`
+    stand out.
+23. Outlier rule (see next step): components, limit, T² and/or Q, and what to do with a real
+    but odd shape.
+24. Fit PCA and PLS on all 32,768 cells or only on cells inside the fruit (body masks in
+    `masks.npy`, for example cells inside the body of at least half the fruit)? Would remove
+    the background and the edge band.
+25. The season difference on PC1 against PC2: check whether it follows storage or browning
+    (colour by browning within the 2425 validation groups).
+
 For Ruben (not Hugo), added 10 Oct:
 
 14. Reference coordinates of the healthy fruit for the deviation map. The earlier reference used
@@ -359,6 +349,16 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-10-21 — Hugo confirms the split; design A; notebook 05
+- Decided (Ruben): design A (repeated box cross-validation, one choice of components from the
+  averaged curve, one fit, test once); 20 repeats; penalised logistic regression dropped; AUC
+  main score; next work: exploration, outlier rule, Step 0.
+- Hugo confirmed his VAE split; reply with the design drafted outside git; meeting 29 Oct 11:00.
+- Notebook 05: PCA, filters, parallel coordinates, single-fruit view, T² and Q screen. Fixed the
+  `row` / position mix-up. Found the encoder's edge band (zero padding).
+- Ruben: about 13 PCs at the elbow, season visible on PC1/PC2; outliers 2526_N29, 2526_K27,
+  2526_L29 (2 broken, 1 odd shape) and 2425_I44, 2425_C24.
 
 ### 2026-10-17 — encoding checked, move to a Mac prepared
 - Checked the full encoding run `20261013T171306Z_hugo_vae`: 940 open + 153 sealed fruit,
