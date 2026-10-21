@@ -41,27 +41,46 @@ After the 4 rounds, every fruit of the 12 boxes has exactly one prediction, made
 never saw its box. These are the out-of-fold predictions. The score (area under the curve, recall
 per grade, and so on) is computed on all of them together, about 346 fruit.
 
-## 4. The inner split — choosing settings without looking at the held-out fold
+## 4. Choosing the number of latent variables — one curve over all repeats
 
-Most models have settings: the number of partial least squares components, the ridge penalty.
-If the setting were chosen by how well it predicts the held-out fold, that fold would no longer be
-unseen. So, inside each round, the 9 training boxes are split again:
+*(Changed 21 October 2026, Ruben: design A, the classic chemometrics scheme, replaces the nested
+design of 13 October. There is no inner split.)*
 
-1. For each candidate setting: fit on 8 of the 9 boxes, predict the 9th; repeat so each of the 9
-   boxes is predicted once (leave one box out) *(proposal: leave one box out, because it needs no
-   random grouping and uses every box)*.
-2. Pick the setting with the best score over those inner predictions.
-3. Refit on all 9 boxes with that setting; predict the held-out fold once.
+This is the scheme of a chemometrics course: a calibration set, a cross-validation, a curve of
+RMSEC and RMSECV against the number of latent variables (LVs), one choice, then a separate test
+set. Here the calibration set is the 12 boxes and the cross-validation segments are the 4 folds of
+3 boxes (contiguous blocks with the box as block; venetian blinds over fruit would put fruit of
+one box on both sides).
 
-This is called nested cross-validation. In chemometrics terms: in each round the 9 training
-boxes are the calibration set and the 3 held-out boxes the validation set (their error is the
-prediction error, RMSEP); the inner split is the internal cross-validation used to pick the number
-of latent variables from the RMSECV curve. The RMSECV at the chosen setting is not reported as
-performance, because it is the best of several tries. A by-product: if the inner split picks very
-different settings in different rounds (3 components in one, 12 in another), the setting is
-unstable, and that is worth reporting. The chosen setting may differ between rounds. That is
-expected: what is evaluated is the whole procedure (including how it chooses its setting), not one
-fitted model.
+1. For each repeat (section 5) and each round: fit PLS-DA on 9 boxes with 1 to 15 LVs and predict
+   the 3 held-out boxes with each. After 4 rounds every fruit has one prediction per number of
+   LVs; PRESS(h) is the sum of squared errors on the 0/1 column (PRESS / n is the Brier score),
+   RMSECV(h) = √(PRESS(h) / n).
+2. Average PRESS over the 20 repeats for each h. This gives one RMSECV curve; the 20 single
+   curves are plotted beside it to show their spread. RMSEC (fit on all 12 boxes, error on the
+   same fruit) is plotted with it.
+3. Choose one number of LVs from the mean curve. Rule *(to settle once the curves are seen)*: a
+   clear minimum or elbow, or the F-test of Haaland and Thomas (1988, *Analytical Chemistry* 60,
+   1193–1202): the smallest h with PRESS(h) / PRESS(min) not significantly above 1 at α = 0.25,
+   F(N, N). Its limitation: it takes the N fruit as independent, while fruit of one box are not.
+   N is then too large, the test too strict, and it tends to keep more LVs than needed. The rule
+   is written down before the test set is opened.
+4. The score of the method is computed from the cross-validation predictions at that number of
+   LVs (section 5: per repeat and on the per-fruit average of the 20).
+
+Limitation, stated in the thesis: the number of LVs is chosen on the same curve that gives the
+cross-validation score, so that score is slightly optimistic (the best point of a noisy curve).
+With about 15 candidate values and a rule that prefers fewer LVs the optimism is small, and it is
+the same for every representation compared on the same folds. The sealed test boxes give the
+independent check (RMSEP), as the test set does in the classic scheme.
+
+The cumulative-link (ordinal) model for the grade 0 to 3 uses the same scheme: PLS with the grade
+as response, the scores of the chosen number of LVs as predictors of `OrderedModel`, the
+held-out fruit projected with the round's PLS model. N-way PLS: the same, with its own scores.
+
+What is reported for classification: area under the ROC curve (AUC) as the main score (it does
+not depend on a cut-off), with recall per grade and precision at a fixed cut-off of 0.5 on the
+PLS-DA output (fixed in advance, not tuned).
 
 ## 5. Partitions and repeats — where the fold numbers come from
 
@@ -95,10 +114,9 @@ for the same reason.
 - The spread across repeats is not a confidence interval: every repeat uses the same 12 boxes.
   The interval comes from the bootstrap over boxes (section 6).
 
-Cost per model: 20 repeats × 4 rounds × (9 inner fits × number of candidate settings). Small for
-partial least squares or ridge regression. The ResNet-18 gets one partition only, with one
-validation box group taken from its training boxes for early stopping instead of the full inner
-split.
+Cost per model: 20 repeats × 4 rounds × 15 numbers of LVs = 1,200 PLS fits, small. The
+ResNet-18 gets one partition only, with one validation box group taken from its training boxes
+for early stopping.
 
 ## 6. The bootstrap over boxes — how certain is the score?
 
@@ -120,7 +138,7 @@ the interval will be wide. That is the honest amount of certainty these data all
 
 ## 7. Comparing two methods — the paired bootstrap
 
-Example: Hugo's latent against CT averaged to 32³. Both are evaluated on the same fruit with the
+Example: Hugo's latent against CT averaged to 32³. Both are evaluated at their own chosen number of LVs on the same fruit with the
 same folds. In each of the 2,000 bootstrap draws, compute both scores on the same drawn boxes and
 take the difference. The middle 95 % of the 2,000 differences is the interval of the difference.
 If it does not contain 0, the difference is larger than the variation between orchards.
@@ -131,7 +149,9 @@ removes that shared part, so the comparison is sharper than comparing two separa
 ## 8. At the very end — the sealed test, once
 
 1. Freeze everything: features, model, how settings are chosen, exclusions, threshold.
-2. Choose the settings by cross-validation over all 12 boxes, fit on all 12 boxes.
+2. The number of LVs chosen in section 4; fit once on all 12 boxes (346 fruit). Nothing is
+   averaged over folds or repeats: the 80 cross-validation models only served to draw the curve
+   and estimate the score.
 3. Predict the 3 sealed boxes and Hugo's 66 test fruit, once. Report the result, whatever it is,
    the two parts separately.
 4. With only 3 boxes, a bootstrap over boxes is not possible. The interval resamples fruit and the

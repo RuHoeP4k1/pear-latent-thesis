@@ -15,11 +15,10 @@ results. Status: **approved by Ruben on 13 October 2026**, as written below.
   each box is in exactly one fold, so after 4 rounds every fruit has exactly one out-of-fold
   prediction.
 - **Repeat**: the whole 4-round cross-validation run again with a different partition. With 5
-  repeats each fruit has 5 out-of-fold predictions; the spread over repeats shows how much the
-  score depends on which boxes happen to share a fold.
-- **Inner split**: inside one round, the 9 training boxes are split again (proposal: leave one box
-  out) only to choose settings such as the number of partial least squares components. Its score
-  is never reported as performance. The inner split is not defined by this rule; see
+  repeats (20 since 21 October, section 6.4 item 5) each fruit has 5 out-of-fold predictions; the
+  spread over repeats shows how much the score depends on which boxes happen to share a fold.
+- **Inner split**: dropped on 21 October 2026 (Ruben). The number of partial least squares
+  components is chosen from the mean cross-validation curve over the repeats; see
   `docs/cv_explained.md`, section 4.
 
 ## 2. Population

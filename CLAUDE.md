@@ -16,8 +16,8 @@ it, and at which severity does detection stop working?
 **No encoder is trained and no self-supervised model is trained** (dropped 13 October 2026: the
 GPU is too small). One network is trained from scratch: the ResNet-18 baseline, architecture
 imported from Hugo's pinned clone, on the lab workstation with our box folds. Everything else is a
-small model on frozen features: partial least squares discriminant analysis (PLS-DA), penalised
-logistic regression, ordinal models, N-way partial least squares (one extra row after the core
+small model on frozen features: partial least squares discriminant analysis (PLS-DA), ordinal
+models on PLS scores (penalised logistic regression dropped 21 October 2026), N-way partial least squares (one extra row after the core
 study, see `CHARTER.md`, Methods). If a task seems to need training a network from scratch other
 than the ResNet-18 baseline, the plan has drifted: stop and check `CHARTER.md`.
 
@@ -141,8 +141,9 @@ Step 0. `body_mask` is still used to measure height over the fruit body.
 - p ≫ n throughout (32,768 cells, a few hundred fruit). Standardise inside the training fold.
 - Prefer PLS over principal component regression: components chosen by variance describe pear size
   and shape, not browning.
-- Prefer ridge or elastic net over lasso when the coefficient map is to be read: lasso picks
-  arbitrarily among correlated neighbouring cells, and the map will not survive bootstrapping.
+- Number of PLS components (design A, Ruben, 21 October 2026): 20 repeats of the 4-fold box
+  cross-validation on the 12 non-test boxes, PRESS averaged over the repeats, one choice from that
+  curve, one fit on all 12 boxes. No inner split. See `docs/cv_explained.md`, section 4.
 - Severity is ordinal: cumulative-link models (`statsmodels` `OrderedModel`); report quadratic
   weighted kappa or Spearman correlation, not plain accuracy.
 - Testing many cells needs false-discovery-rate control; prefer cluster-based permutation tests,
@@ -159,7 +160,7 @@ Step 0. `body_mask` is still used to measure height over the fruit body.
 | Environment | `uv` (`uv sync`, `uv run`, `uv add`) | pip, conda, `uv pip install` into the project |
 | Notebooks | marimo `.py` files in `notebooks/` | Jupyter `.ipynb` |
 | Tables | Polars (lazy `scan_*` for files) | pandas, except at a library boundary (`.to_pandas()` on the last line before the call) |
-| Statistics | scikit-learn (PCA, PLS-DA, penalised regression), statsmodels (`OrderedModel`) | ad-hoc reimplementations |
+| Statistics | scikit-learn (PCA, PLS-DA), statsmodels (`OrderedModel`) | ad-hoc reimplementations |
 | Deep learning | PyTorch | TensorFlow, Lightning |
 | Volumes | nibabel | |
 | Plots | Altair inside notebooks; Matplotlib for thesis figures in `reports/figures/` | figures pasted by hand |
@@ -207,7 +208,7 @@ Details: `docs/workflow.md`.
 3. Flag contradictions between documents instead of working around them.
 4. Plain literal language in comments, markdown cells and commit messages: no metaphors,
    abbreviations written out on first use.
-5. Statistical framing first (PLS-DA, penalised regression, ordinal models, PCA), not
+5. Statistical framing first (PLS-DA, ordinal models, PCA), not
    machine-learning-first framing.
 6. Commit small, messages in the imperative. At the end of a session, run `/handoff`.
 7. **No black box** (Ruben, 13 October 2026). Ruben must be able to follow and backtrack every

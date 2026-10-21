@@ -111,8 +111,10 @@ summaries (high percentile as comparison). Reference coordinates of the healthy 
 deviation map *(to settle: the same cell (x, y, z) is affected by the free rotation around the
 stem–calyx axis)*.
 
-Models, each on the unfolded array: PLS-DA, ridge or elastic-net logistic, cumulative-link (mixed)
-models. Plus one extra model row after the core study: N-way partial least squares (Bro 1996) on
+Models, each on the unfolded array: PLS-DA, cumulative-link (mixed) models on PLS scores
+(penalised logistic regression dropped 21 October 2026, Ruben: in p ≫ n data it does about what
+PLS-DA does). Number of PLS components: from the mean RMSECV curve over the 20 repeats, then one
+fit on the 12 boxes (`docs/cv_explained.md`, section 4). Plus one extra model row after the core study: N-way partial least squares (Bro 1996) on
 fruit × x × y × z, first at the 32³ levels, compared with unfolded partial least squares on the same
 box splits, with a core-crop check and a random-rotation check. Prediction *(proposal)*: no gain on
 grade 3; the added value is the three weight profiles.

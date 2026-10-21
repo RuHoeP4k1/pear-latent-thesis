@@ -70,7 +70,15 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   on. References for the thesis: Filzmoser, Liebmann and Varmuza 2009 (repeated double
   cross-validation), Krstajic et al. 2014 (single nested cross-validation as a pitfall), Roberts
   et al. 2017 (block cross-validation); found by web search, full texts not yet read.
-- **Next step:** Ruben sends the reply (meeting Thursday 29 Oct, 11:00). Then B6 and the 2425 part of B7 (notebook 05) on run
+- **Design A (21 Oct, Ruben):** see "Decided". Reply to Hugo rewritten for it.
+- **Next step:** Ruben sends the reply (meeting Thursday 29 Oct, 11:00). Then, in this order
+  (Ruben, 21 Oct): (1) basic sanity checks and a better understanding of the data on the saved
+  latents (distributions per season, storage group and box; PCA score plots coloured by box and
+  storage); (2) a way to decide whether outliers must be removed, on X only and before labels
+  are used (chemometrics: Hotelling T² and Q residuals of a PCA or PLS model on the 12 boxes; rule
+  written down first); (3) the reconstruction tests (Step 0, charter question 1). Check first
+  whether Hugo's reply ("a very good practice") counts as the green light (B4) for plots of 2526
+  labels. Earlier wording: B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run is done (20 Oct).
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
@@ -321,6 +329,15 @@ For Ruben, added 13 Oct:
   boxes over the 12 non-test boxes, 5 repeats from eligible partitions (seed 369), inner split
   inside the training boxes only to choose settings (its score never reported as performance),
   bootstrap over boxes for intervals, paired for comparisons, sealed test once at the end.
+- 21 Oct (Ruben): design A replaces the nested design of 13 Oct. 20 repeats of the 4-fold box
+  cross-validation on the 12 non-test boxes; PRESS averaged over the repeats gives one RMSECV
+  curve; one number of PLS components chosen from it (rule to settle when the curves are seen:
+  a clear minimum, or the Haaland and Thomas 1988 F-test at α = 0.25, whose limitation is that it
+  treats fruit of one box as independent); one fit on all 12 boxes; test once. No inner split.
+  The cross-validation score at the chosen number is slightly optimistic; stated in the thesis.
+  AUC is the main classification score, with recall per grade and precision at a cut-off of 0.5
+  fixed in advance. Ordinal model on PLS scores. Penalised logistic regression dropped (does
+  about what PLS-DA does in p ≫ n data). SVM not added. `docs/cv_explained.md` section 4.
 - 13 Oct (Ruben): a model fitted on Hugo's 2425 validation fruit is not evaluated on his 2425 test
   fruit (same ten orchards). Main models are fitted on 2526.
 
