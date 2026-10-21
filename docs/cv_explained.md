@@ -77,15 +77,25 @@ almost no defects and its round says little. So a partition is eligible when eac
 passes the same ±30 % check as the test set (if too few pass: ±40 %, then ±50 %).
 
 The score depends somewhat on which boxes happen to share a fold. To see how much, the whole outer
-cross-validation is repeated with 5 different eligible partitions, drawn at random with seed 369.
+cross-validation is repeated with 20 different eligible partitions, drawn at random with seed 369
+(5 drawn on 13 October, 15 added on 21 October; `derived/outer_folds_20/`, rule section 6.4
+item 5). This is repeated double cross-validation (Filzmoser, Liebmann and Varmuza 2009,
+*Journal of Chemometrics* 23, 160–171): an inner loop chooses the settings, an outer loop
+estimates the prediction error, and the whole is repeated over different splits, because a
+single split gives one draw of an estimate that depends on the split. Krstajic et al. (2014,
+*Journal of Cheminformatics* 6:10) list reporting a single nested cross-validation as a pitfall
+for the same reason.
 
 - In every repeat, each box is predicted exactly once. No box counts more than another.
-- Each fruit then has 5 out-of-fold predictions, one per repeat. Report the score of each repeat
-  (to show the spread) and the score of the per-fruit average of the 5.
+- Each fruit then has 20 out-of-fold predictions, one per repeat. Report the score of each repeat
+  (to show the spread) and the score of the per-fruit average of the 20.
 - What can recur across repeats is which boxes share a fold (balanced partitions may keep pairing
-  the same boxes). The report shows how often each pair of boxes shares a fold.
+  the same boxes). The report shows how often each pair of boxes shares a fold. In the 20 drawn
+  repeats, K and O share a fold 13 times and 11 of the 66 pairs never do.
+- The spread across repeats is not a confidence interval: every repeat uses the same 12 boxes.
+  The interval comes from the bootstrap over boxes (section 6).
 
-Cost per model: 5 repeats × 4 rounds × (9 inner fits × number of candidate settings). Small for
+Cost per model: 20 repeats × 4 rounds × (9 inner fits × number of candidate settings). Small for
 partial least squares or ridge regression. The ResNet-18 gets one partition only, with one
 validation box group taken from its training boxes for early stopping instead of the full inner
 split.

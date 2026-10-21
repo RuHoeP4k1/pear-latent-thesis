@@ -61,7 +61,16 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   drafted in `derived/mail_hugo_2026-10-21/mail_to_hugo.md` (outside git): explains our design
   and asks if he agrees; keeps the test boxes as drawn. He also misread the meeting day ("next
   Tuesday at 11 a.m., or Thursday?"): the reply says Thursday 29 Oct; Ruben fills in the time.
-- **Next step:** Ruben sends the reply. Then B6 and the 2425 part of B7 (notebook 05) on run
+- **20 repeats (21 Oct, Ruben):** outer-fold repeats raised from 5 to 20 (rule amendment
+  `docs/test_box_rule.md` section 6.4 item 5, committed before the draw). Repeats 1 to 5 kept as
+  drawn; 15 more from the other 181 eligible partitions, seed 369
+  (`python -m pearlatent.extra_repeats` → `derived/outer_folds_20/`). The 5 earlier repeats were
+  reproduced before drawing. K and O share a fold in 13 of 20 repeats, D and N in 11; 55 of the
+  66 box pairs share a fold at least once. Use `derived/outer_folds_20/outer_folds.csv` from now
+  on. References for the thesis: Filzmoser, Liebmann and Varmuza 2009 (repeated double
+  cross-validation), Krstajic et al. 2014 (single nested cross-validation as a pitfall), Roberts
+  et al. 2017 (block cross-validation); found by web search, full texts not yet read.
+- **Next step:** Ruben sends the reply (meeting Thursday 29 Oct, 11:00). Then B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run is done (20 Oct).
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
