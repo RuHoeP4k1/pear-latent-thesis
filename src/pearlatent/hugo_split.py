@@ -9,9 +9,10 @@ random_state)`. Seed 369 (Hugo, 13 October 2026; also in his `slurm/train_vae.sl
 Hugo's function is imported from the separate clone at the pinned commit, not copied (his
 repository has no licence file).
 
-# UNVERIFIED: that our `labels_conference_pear_2425.csv` has the same rows in the same order as
-# the `labels.csv` Hugo trained with. A different row order gives a different list from the same
-# seed. Hugo confirms the list (handoff of 13 October, B4; HANDOFF.md open question 19).
+Verified (Hugo, mail of 21 October 2026): the list this module produces matches his split. He
+reran his splitting code with PyTorch 2.7.1, 2.7.1+cuda and 2.14.1 and got the same indices, and
+his label file is the same as our `labels_conference_pear_2425.csv`. A different row order would
+give a different list from the same seed.
 """
 
 from __future__ import annotations

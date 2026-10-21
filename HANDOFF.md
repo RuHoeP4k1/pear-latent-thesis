@@ -5,7 +5,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-17
+- **Date:** 2026-10-21
 - **Moving to a Mac (17 Oct):** Ruben moves from the Windows laptop to a Mac this afternoon. Git
   was clean and pushed at that point. On the Mac, first do the checklist in the section "Setting
   up the Mac" below, then continue with the next step.
@@ -50,10 +50,18 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Next step:** Mac set up on 20 Oct (including `marimo-pair`, project level). Mail to Hugo sent 20 Oct (`derived/mail_hugo_2026-10-20/`,
-  outside git: test boxes, folds, his VAE split as `vae_split_check_2425.xlsx`, request to start
-  the meeting of Thursday 29 Oct one hour later). Waiting for his answer on the split and the
-  meeting time; until he confirms, the split stays UNVERIFIED (B2). Then B6 and the 2425 part of B7 (notebook 05) on run
+- **Hugo's answer (21 Oct):** the split file "exactly matches my implementation": he reran his
+  splitting code with and without loading the file, with PyTorch 2.7.1, 2.7.1+cuda and 2.14.1,
+  same indices; same label file. B2 and open question 19 are closed. He finds the test-box
+  selection good practice if justified in the thesis; seed 369 "not important" for 2526, "feel
+  free to explore other random seeds and splitting scenarios". He described the CV as: per
+  repeat 3 folds train, 1 fold tuning, best model applied to the test set, mean and standard
+  deviation of test accuracy across repeats. This differs from `docs/cv_explained.md` (inner
+  leave-one-box-out, bootstrap over boxes, test used once) and from CLAUDE.md section 7. Reply
+  drafted in `derived/mail_hugo_2026-10-21/mail_to_hugo.md` (outside git): explains our design
+  and asks if he agrees; keeps the test boxes as drawn. He also misread the meeting day ("next
+  Tuesday at 11 a.m., or Thursday?"): the reply says Thursday 29 Oct; Ruben fills in the time.
+- **Next step:** Ruben sends the reply. Then B6 and the 2425 part of B7 (notebook 05) on run
   `20261013T171306Z_hugo_vae`. The random-encoder run is done (20 Oct).
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
@@ -226,7 +234,8 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
 Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
-(poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 13 Oct (meeting):
+(poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
+confirmed). Answered and removed on 13 Oct (meeting):
 1 (weights received; seed 369 per Hugo; checkpoint read in B1), 3 (rot not really a problem in
 2526), 6 (stalks not a problem), 7 (we reproduce the split ourselves, B2), 8 (test-box rule,
 charter rule 3), 10 (item 2 dropped with the self-supervised extension). Numbers are kept so
@@ -248,9 +257,6 @@ earlier references stay valid.
 18. Fruit dimensions: the length of each fruit before rescaling to 128 voxels (from his MATLAB
     preprocessing), and whether that rescaling was the same along all three axes. If both, every
     dimension in millimetres follows from our volumes. Otherwise the original scans.
-19. Confirm the reproduced list of 2024 fruit outside his VAE training set (B2; sent together
-    with the test boxes, B4). If it does not match: his `labels.csv` (row order) and which run
-    folder was used.
 21. The preprint reports MAE 0.0022 on the test set (section 3.1.1) and MAE 0.0025 on the
     validation set (Table D.1), with the same SSIM and PSNR. Which numbers belong to which set?
 
@@ -315,7 +321,6 @@ For Ruben, added 13 Oct:
 |---|---|---|
 | `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct). Supported by the preprint, section 2.2, as summarised in Ruben's other Claude session on 5 Oct (the two orchards with optimal storage have fruit in three boxes); not yet read in the preprint itself | preprint section 2.2, Hugo |
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
-| `src/pearlatent/hugo_split.py` | our `labels_conference_pear_2425.csv` has the same rows in the same order as the `labels.csv` Hugo trained with; a different order gives a different split from seed 369. Reproduced on 13 Oct: 528 / 66 / 66 (validation: 30 harvest, 31 suboptimal, 5 optimal storage; test: 32, 29, 5) | Hugo confirms the list (open question 19, handoff B4) |
 | `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`). Hugo sent only `best.pth` (epoch 430, seed 369) and `vae_hyperparameter.json`; the loader now defaults to `best.pth` | Hugo: is `best.pth` the model of the preprint? |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for the ResNet-18 baseline) | `nvidia-smi` on the workstation |
 
