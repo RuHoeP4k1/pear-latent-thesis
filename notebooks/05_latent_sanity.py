@@ -8,9 +8,10 @@ with app.setup:
     import marimo as mo
     import matplotlib.pyplot as plt
     import nibabel as nib
-    import plotly.graph_objects as go
     import numpy as np
+    import plotly.graph_objects as go
     import polars as pl
+    from scipy import stats
     from sklearn.decomposition import PCA
 
     from pearlatent.config import load_config
@@ -51,7 +52,8 @@ def _():
     ## 1. Load the latents and attach the labels
 
     The latent of one fruit is a 32 × 32 × 32 grid of numbers (the mean `mu` of Hugo's encoder).
-    Row `i` of `latents.npy` belongs to row `i` of `manifest.parquet`.
+    The n-th latent in `latents.npy` belongs to the n-th row of `manifest.parquet`; the column
+    `position` below holds that n.
     """)
     return
 
@@ -59,7 +61,10 @@ def _():
 @app.cell
 def _(cfg, run_dir):
     latents = np.load(run_dir / "latents.npy")
-    manifest = pl.read_parquet(run_dir / "manifest.parquet")
+    # The n-th row of the manifest belongs to the n-th latent. That place is stored as
+    # `position`. (The manifest's own column `row` is the row in the list of all 1,093
+    # volumes, so it is NOT the place in latents.npy.)
+    manifest = pl.read_parquet(run_dir / "manifest.parquet").with_row_index("position")
 
     labels = load_labels(cfg).select("fruit_id", "browning", "cavity")
 
@@ -203,6 +208,12 @@ def _():
     fruit" also includes the 2024–25 fruit, among them the 528 Hugo trained his VAE on.
     Fruit that are not in the fit still get scores: they are projected onto the same
     components, so 2024–25 fruit can be shown in a PCA fitted on 2025–26.
+
+    Note: the variance is spread over many components (on the 2025–26 fruit: PC1 22 %, 10
+    components about 50 %, 50 components about 74 %, 100 components about 84 %; computed on
+    21 October 2026). Hugo's VAE has a very small KL weight (1e-6), so its latent is a
+    compression of the volume, not a few smooth factors; each cell carries its own local
+    detail.
     """)
     return
 
@@ -225,34 +236,50 @@ def _(flat, fruit, pca_fruit_choice):
     else:
         keep = np.ones(fruit.height, dtype=bool)
 
-    n_components = 10  # enough to look at; this is exploration, not a model
-    pca = PCA(n_components=n_components)
+    # 50 components are fitted for the scree plot and for section 7 (Hotelling T² and Q).
+    # Only the first 10 are shown in the score plot and the parallel coordinates.
+    # svd_solver="full": the exact solution, so every run gives the same numbers
+    # (the default may pick a randomised solver for a matrix this wide).
+    pca = PCA(n_components=50, svd_solver="full")
     pca.fit(flat[keep])
     scores = pca.transform(flat)  # all 940 fruit, also those not in the fit
 
-    pc_names = [f"PC{i + 1}" for i in range(n_components)]
+    pc_names = [f"PC{i + 1}" for i in range(10)]
     scores_df = fruit.with_columns(
         pl.Series(name, scores[:, i]) for i, name in enumerate(pc_names)
     ).with_columns(in_pca_fit=pl.Series(keep))
     print(f"PCA fitted on {keep.sum()} of {fruit.height} fruit")
-    return pc_names, pca, scores_df
+    return keep, pc_names, pca, scores, scores_df
 
 
 @app.cell
-def _(pc_names, pca):
-    # Scree plot: how much of the variation each component explains.
+def _(pca):
+    # Scree plot: bars for each component, line for the running total.
     explained = pl.DataFrame(
         {
-            "component": pc_names,
+            "component": np.arange(1, pca.n_components_ + 1),
             "explained_percent": 100 * pca.explained_variance_ratio_,
         }
     ).with_columns(cumulative_percent=pl.col("explained_percent").cum_sum())
 
-    alt.Chart(explained).mark_bar().encode(
-        x=alt.X("component:N", sort=pc_names, title=None),
-        y=alt.Y("explained_percent:Q", title="Explained variance (%)"),
-        tooltip=["component", "explained_percent", "cumulative_percent"],
-    ).properties(width=500, height=200)
+    _x = alt.X("component:Q", title="Component")
+    _bars = (
+        alt.Chart(explained)
+        .mark_bar()
+        .encode(
+            x=_x,
+            y=alt.Y("explained_percent:Q", title="Explained variance (%)"),
+            tooltip=["component", "explained_percent", "cumulative_percent"],
+        )
+    )
+    _total = (
+        alt.Chart(explained)
+        .mark_line(color="black", point=True)
+        .encode(x=_x, y=alt.Y("cumulative_percent:Q", title="Cumulative (%)"))
+    )
+    alt.layer(_bars, _total).resolve_scale(y="independent").properties(
+        width=600, height=250
+    )
     return
 
 
@@ -493,7 +520,7 @@ def _(fruit_picker, per_fruit, scores_df):
     picked_row = (
         scores_df.filter(pl.col("fruit_id") == picked_id)
         .select(
-            "row",
+            "position",
             "fruit_id",
             "season",
             "box",
@@ -524,8 +551,8 @@ def _(cfg, latents, mean_per_cell, middle, picked_row):
     ct = np.asarray(nib.load(_file).dataobj, dtype=np.float32)
     ct_middle = ct.shape[0] // 2  # 64: the middle of 128 voxels
 
-    # `row` is the position of this fruit in latents.npy (see the manifest).
-    picked_latent = latents[picked_row["row"][0]]
+    # `position` is the place of this fruit in latents.npy (see section 1).
+    picked_latent = latents[picked_row["position"][0]]
     difference = picked_latent - mean_per_cell
 
     # The difference map uses one colour scale centred on zero, so that red means
@@ -565,6 +592,149 @@ def _(cfg, latents, mean_per_cell, middle, picked_row):
     _fig.suptitle(picked_row["fruit_id"][0])
     _fig.tight_layout()
     _fig
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 7. Outlier screen: Hotelling T² and Q residuals
+
+    Two numbers per fruit, from the PCA of section 4 with the first A components:
+
+    - **Hotelling T²**: how far the fruit lies from the centre *within* the model (unusually large
+      scores). T² = Σ (score²ₐ / varianceₐ) over the A components.
+    - **Q residual** (squared prediction error): how much of the fruit the model does *not*
+      describe. Q = Σ (centred value − value rebuilt from A components)² over the 32,768 cells.
+
+    The limits are computed from the fruit the PCA was fitted on, at 95 % and 99 %:
+    T² limit = A(n − 1)/(n − A) · F(A, n − A); Q limit from the approximation of Box (1954),
+    Q ≈ g·χ²(h) with g = variance(Q) / (2·mean(Q)) and h = 2·mean(Q)² / variance(Q)
+    (as in Nomikos and MacGregor 1995). Fruit not in the fit are only compared with those limits.
+
+    **This is a screen, not a rule.** Nothing is removed here. The rule (number of components,
+    limit, and what happens to a flagged fruit) is written down before any fruit is removed.
+    With only about 50 % of the variance in 10 components, Q is large for every fruit; the
+    question is which fruit are large compared with the others.
+    """)
+    return
+
+
+@app.cell
+def _():
+    n_model_components = mo.ui.slider(
+        start=1,
+        stop=50,
+        value=10,
+        label="Components A in the outlier model",
+        show_value=True,
+    )
+    n_model_components
+    return (n_model_components,)
+
+
+@app.cell
+def _(flat, keep, n_model_components, pca, scores, shown_df):
+    _A = n_model_components.value
+    _n = int(keep.sum())  # fruit the PCA was fitted on
+
+    # Hotelling T²: squared scores, each divided by the variance of its component.
+    _t_scores = scores[:, :_A]
+    t_squared = (_t_scores**2 / pca.explained_variance_[:_A]).sum(axis=1)
+
+    # Q: rebuild every fruit from A components and sum the squared differences.
+    _centred = flat - pca.mean_
+    _rebuilt = _t_scores @ pca.components_[:_A]
+    q_residual = ((_centred - _rebuilt) ** 2).sum(axis=1)
+
+    # Limits from the fruit in the fit only.
+    def t_squared_limit(level):
+        return _A * (_n - 1) / (_n - _A) * stats.f.ppf(level, _A, _n - _A)
+
+    def q_limit(level):
+        _q_fit = q_residual[keep]
+        _g = _q_fit.var() / (2 * _q_fit.mean())
+        _h = 2 * _q_fit.mean() ** 2 / _q_fit.var()
+        return _g * stats.chi2.ppf(level, _h)
+
+    limits = {
+        "T² 95 %": t_squared_limit(0.95),
+        "T² 99 %": t_squared_limit(0.99),
+        "Q 95 %": q_limit(0.95),
+        "Q 99 %": q_limit(0.99),
+    }
+
+    # Attach to the fruit table, keep only the fruit shown (filters of section 5).
+    outlier_df = (
+        pl.DataFrame(
+            {
+                "position": np.arange(len(flat)),
+                "t_squared": t_squared,
+                "q_residual": q_residual,
+            }
+        )
+        .with_columns(pl.col("position").cast(pl.UInt32))
+        .join(
+            shown_df.select(
+                "position", "fruit_id", "group", "box", "defective", "cause"
+            ),
+            on="position",
+        )
+        .with_columns(
+            beyond_99=(pl.col("t_squared") > limits["T² 99 %"])
+            | (pl.col("q_residual") > limits["Q 99 %"])
+        )
+    )
+    print({name: round(float(value), 1) for name, value in limits.items()})
+    return limits, outlier_df
+
+
+@app.cell
+def _(colour_choice, limits, outlier_df):
+    _colour = (
+        colour_choice.value if colour_choice.value in outlier_df.columns else "group"
+    )
+    _points = (
+        alt.Chart(outlier_df)
+        .mark_point(filled=True, size=40)
+        .encode(
+            x=alt.X("t_squared:Q", title="Hotelling T²"),
+            y=alt.Y("q_residual:Q", title="Q residual"),
+            color=alt.Color(f"{_colour}:N"),
+            tooltip=[
+                "fruit_id",
+                "group",
+                "box",
+                "defective",
+                "cause",
+                "t_squared",
+                "q_residual",
+            ],
+        )
+    )
+    # Dashed lines: 95 % limits; solid lines: 99 % limits.
+    _limit_lines = [
+        alt.Chart().mark_rule(strokeDash=[4, 4]).encode(x=alt.datum(limits["T² 95 %"])),
+        alt.Chart().mark_rule().encode(x=alt.datum(limits["T² 99 %"])),
+        alt.Chart().mark_rule(strokeDash=[4, 4]).encode(y=alt.datum(limits["Q 95 %"])),
+        alt.Chart().mark_rule().encode(y=alt.datum(limits["Q 99 %"])),
+    ]
+    alt.layer(_points, *_limit_lines).properties(width=550, height=400)
+    return
+
+
+@app.cell
+def _(outlier_df):
+    # Fruit beyond a 99 % limit, by group. With 1 % false alarms, about 1 in 100 fruit
+    # lies beyond each limit by chance alone.
+    mo.vstack(
+        [
+            outlier_df.group_by("group")
+            .agg(n_fruit=pl.len(), beyond_99=pl.col("beyond_99").sum())
+            .sort("group"),
+            outlier_df.filter(pl.col("beyond_99")).sort("q_residual", descending=True),
+        ]
+    )
     return
 
 
