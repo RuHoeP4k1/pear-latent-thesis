@@ -8,11 +8,14 @@ with app.setup:
     import marimo as mo
     import matplotlib.pyplot as plt
     import numpy as np
+    import plotly.graph_objects as go
     import polars as pl
+    from matplotlib.animation import FuncAnimation, PillowWriter
 
     from pearlatent.config import load_config
     from pearlatent.exclusions import read_volume_decisions
     from pearlatent.labels import load_labels
+    from pearlatent.runs import latest_run_dir
     from pearlatent.step0 import (
         MAX_RADIUS,
         N_HEIGHT_BINS,
@@ -606,6 +609,181 @@ def _(cfg, example_figure, hr_figure, save_step0_figures):
     )
     example_figure.savefig(_folder / "06_examples.png", dpi=130, bbox_inches="tight")
     print(f"saved 06_height_radius_maps.png and 06_examples.png to {_folder}")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 7. Scroll through an example fruit (3D)
+
+    The example fruit of section 6, decoded in full by
+    `python -m pearlatent.decode_examples` (about one minute per fruit on the CPU; run only
+    after Ruben's approval). Three orthogonal slices through the chosen point, for CT,
+    reconstruction and residual; a 3D view of the three CT planes; and a GIF that scrolls along
+    the stem-calyx axis, for a presentation.
+    """)
+    return
+
+
+@app.cell
+def _(cfg, examples):
+    _example_dir = latest_run_dir(
+        cfg.path("derived_dir") / "step0_examples", "examples"
+    )
+    _command = "uv run python -m pearlatent.decode_examples " + " ".join(
+        examples["fruit_id"].to_list()
+    )
+    mo.stop(
+        _example_dir is None,
+        mo.md(f"_No decoded examples yet. After approval, run:_\n\n`{_command}`"),
+    )
+    _saved = np.load(_example_dir / "volumes.npz")
+    example_volumes = {
+        str(_id): (
+            _saved["ct"][_k].astype(np.float32),
+            _saved["reconstruction"][_k].astype(np.float32),
+        )
+        for _k, _id in enumerate(_saved["fruit_id"])
+    }
+    print(f"decoded examples from {_example_dir.name}: {list(example_volumes)}")
+    return (example_volumes,)
+
+
+@app.cell
+def _(example_volumes):
+    volume_choice = mo.ui.dropdown(
+        options=list(example_volumes), value=list(example_volumes)[0], label="Fruit"
+    )
+    x_slice = mo.ui.slider(0, 127, value=64, label="x", show_value=True)
+    y_slice = mo.ui.slider(0, 127, value=64, label="y", show_value=True)
+    z_slice = mo.ui.slider(0, 127, value=50, label="z (stem-calyx)", show_value=True)
+    mo.hstack([volume_choice, x_slice, y_slice, z_slice], justify="start")
+    return volume_choice, x_slice, y_slice, z_slice
+
+
+@app.cell
+def _(example_volumes, volume_choice, x_slice, y_slice, z_slice):
+    _ct, _rec = example_volumes[volume_choice.value]
+    _residual = _rec - _ct
+    _i, _j, _k = x_slice.value, y_slice.value, z_slice.value
+    _fig, _axes = plt.subplots(3, 3, figsize=(10, 10))
+    for _r, (_volume, _name, _cmap, _lim) in enumerate(
+        [
+            (_ct, "CT", "gray", (0, 1)),
+            (_rec, "reconstruction", "gray", (0, 1)),
+            (_residual, "residual", "RdBu_r", (-0.3, 0.3)),
+        ]
+    ):
+        # Long sections transposed so the stem-calyx axis is vertical, calyx at the bottom.
+        for _c, (_picture, _view) in enumerate(
+            [
+                (_volume[_i, :, :].T, f"x = {_i}"),
+                (_volume[:, _j, :].T, f"y = {_j}"),
+                (_volume[:, :, _k], f"z = {_k}"),
+            ]
+        ):
+            _ax = _axes[_r, _c]
+            _ax.imshow(_picture, origin="lower", cmap=_cmap, vmin=_lim[0], vmax=_lim[1])
+            _ax.set_xticks([])
+            _ax.set_yticks([])
+            _ax.set_title(f"{_name}, {_view}", fontsize=9)
+    _fig.suptitle(volume_choice.value)
+    _fig.tight_layout()
+    _fig
+    return
+
+
+@app.cell
+def _(example_volumes, volume_choice, x_slice, y_slice, z_slice):
+    _ct, _ = example_volumes[volume_choice.value]
+    # Every second voxel, so the 3D view stays fast (64 × 64 points per plane).
+    _step = 2
+    _grid = np.arange(0, 128, _step)
+    _a, _b = np.meshgrid(_grid, _grid, indexing="ij")
+    _i, _j, _k = x_slice.value, y_slice.value, z_slice.value
+    _planes = [
+        # (x, y, z coordinates of the plane, colour values)
+        (np.full_like(_a, _i), _a, _b, _ct[_i, ::_step, ::_step]),
+        (_a, np.full_like(_a, _j), _b, _ct[::_step, _j, ::_step]),
+        (_a, _b, np.full_like(_a, _k), _ct[::_step, ::_step, _k]),
+    ]
+    _figure = go.Figure(
+        [
+            go.Surface(
+                x=_x,
+                y=_y,
+                z=_z,
+                surfacecolor=_colour,
+                colorscale="gray",
+                cmin=0,
+                cmax=1,
+                showscale=False,
+            )
+            for _x, _y, _z, _colour in _planes
+        ]
+    )
+    _figure.update_layout(
+        height=550,
+        scene=dict(aspectmode="cube", zaxis_title="z (stem-calyx)"),
+        title=f"{volume_choice.value}: three CT planes",
+    )
+    _figure
+    return
+
+
+@app.cell
+def _():
+    save_gif = mo.ui.run_button(label="Save a GIF scrolling along z (derived/figures/)")
+    save_gif
+    return (save_gif,)
+
+
+@app.cell
+def _(cfg, example_volumes, save_gif, volume_choice):
+    mo.stop(not save_gif.value)
+    _ct, _rec = example_volumes[volume_choice.value]
+    _fig, _axes = plt.subplots(1, 3, figsize=(9, 3.4))
+    _images = []
+    for _ax, (_volume, _name, _cmap, _lim) in zip(
+        _axes,
+        [
+            (_ct, "CT", "gray", (0, 1)),
+            (_rec, "reconstruction", "gray", (0, 1)),
+            (_rec - _ct, "residual", "RdBu_r", (-0.3, 0.3)),
+        ],
+    ):
+        _images.append(
+            (
+                _ax.imshow(
+                    _volume[:, :, 0],
+                    cmap=_cmap,
+                    vmin=_lim[0],
+                    vmax=_lim[1],
+                    origin="lower",
+                ),
+                _volume,
+            )
+        )
+        _ax.set_title(_name)
+        _ax.set_xticks([])
+        _ax.set_yticks([])
+    _label = _fig.suptitle("")
+
+    def draw(z: int):
+        """Show cross-section z in the three panels."""
+        for _image, _volume in _images:
+            _image.set_data(_volume[:, :, z])
+        _label.set_text(f"{volume_choice.value}, z = {z} (calyx 0, stalk 127)")
+        return [_image for _image, _ in _images]
+
+    # Every second slice, 12 frames per second: about 5 seconds per fruit.
+    _animation = FuncAnimation(_fig, draw, frames=range(0, 128, 2))
+    _out = cfg.path("derived_dir") / "figures" / f"06_{volume_choice.value}_scroll.gif"
+    _out.parent.mkdir(parents=True, exist_ok=True)
+    _animation.save(_out, writer=PillowWriter(fps=12))
+    plt.close(_fig)
+    print(f"saved {_out}")
     return
 
 
