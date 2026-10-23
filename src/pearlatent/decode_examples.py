@@ -37,7 +37,9 @@ def main(fruit_ids: list[str]) -> None:
     chosen = manifest.filter(pl.col("fruit_id").is_in(fruit_ids))
     missing = set(fruit_ids) - set(chosen["fruit_id"].to_list())
     if missing:
-        raise ValueError(f"not among the open fruit of {ENCODING_RUN}: {sorted(missing)}")
+        raise ValueError(
+            f"not among the open fruit of {ENCODING_RUN}: {sorted(missing)}"
+        )
     latents = np.load(run / "latents.npy", mmap_mode="r")
     # CPU, as for the encoding run, so the reconstruction matches `planes.npy`.
     device = get_device(cfg.compute("device", "cpu"))
