@@ -66,8 +66,10 @@ one box on both sides).
    correction, which was written down earlier the same day and then replaced.)*
 
    a. h* is the number of LVs with the smallest mean PRESS (1 to 15).
-   b. For every fruit i and every h < h*: dᵢ(h) = eᵢ(h)² − eᵢ(h*)², with eᵢ the 0/1 label minus
-      the cross-validation prediction, averaged over the 20 repeats.
+   b. For every fruit i and every h < h*: dᵢ(h) = mean over the 20 repeats of
+      [eᵢ(h)² − eᵢ(h*)²], with eᵢ the 0/1 label minus the cross-validation prediction of that
+      repeat. (Squared errors are averaged, not errors, so that Σᵢ of the averaged squared errors
+      is exactly the mean PRESS curve of item a; clarified 23 October 2026, before any curve.)
    c. Per box b: D_b(h) = Σ dᵢ(h) over the fruit of that box. Test statistic T(h) = Σ D_b(h)
       over the 12 boxes (positive when h predicts worse than h*).
    d. Null hypothesis: h and h* predict equally well. Then the sign of each box's D_b(h) is as
