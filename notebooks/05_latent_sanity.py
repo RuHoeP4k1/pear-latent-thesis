@@ -16,6 +16,8 @@ with app.setup:
 
     from pearlatent.config import load_config
     from pearlatent.labels import load_labels
+    from pearlatent.pooling import scale_minmax
+    from pearlatent.reconstruction import body_centre, body_voxel_mask, central_planes
 
 
 @app.cell(hide_code=True)
@@ -625,7 +627,8 @@ def _():
     n_model_components = mo.ui.slider(
         start=1,
         stop=50,
-        value=10,
+        # 13: the elbow of the scree plot read by Ruben on 21 October 2026.
+        value=13,
         label="Components A in the outlier model",
         show_value=True,
     )
@@ -681,9 +684,22 @@ def _(flat, keep, n_model_components, pca, scores, shown_df):
             on="position",
         )
         .with_columns(
-            beyond_99=(pl.col("t_squared") > limits["T² 99 %"])
-            | (pl.col("q_residual") > limits["Q 99 %"])
+            _t_beyond=pl.col("t_squared") > limits["T² 99 %"],
+            _q_beyond=pl.col("q_residual") > limits["Q 99 %"],
         )
+        .with_columns(
+            beyond_99=pl.col("_t_beyond") | pl.col("_q_beyond"),
+            # Which 99 % limit the fruit lies beyond: T² (unusual within the model), Q (not
+            # described by the model), or both.
+            limit_hit=pl.when(pl.col("_t_beyond") & pl.col("_q_beyond"))
+            .then(pl.lit("T² and Q"))
+            .when(pl.col("_t_beyond"))
+            .then(pl.lit("T²"))
+            .when(pl.col("_q_beyond"))
+            .then(pl.lit("Q"))
+            .otherwise(pl.lit("none")),
+        )
+        .drop("_t_beyond", "_q_beyond")
     )
     print({name: round(float(value), 1) for name, value in limits.items()})
     return limits, outlier_df
@@ -735,6 +751,292 @@ def _(outlier_df):
             outlier_df.filter(pl.col("beyond_99")).sort("q_residual", descending=True),
         ]
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 8. The flagged fruit, three slices each
+
+    Every shown fruit beyond **either** 99 % limit of section 7, tagged with the limit it lies
+    beyond (T², Q, or both). For each: three slices of the CT volume through the centre of the
+    fruit body (the mean position of the body voxels, the same centre as `planes.npy` uses):
+    two long sections (stem–calyx axis vertical, calyx at the bottom) and one cross-section.
+
+    **Purpose.** Ruben decides by eye, per fruit, whether the volume is faulty (scan artefact,
+    wrong preprocessing) or the fruit is deformed in a way a sorting line would reject. The
+    decision is about the volume, never about the defect grade; the grade table below shows
+    whether the flagged fruit are mostly of one grade. Nothing is removed in this notebook.
+    """)
+    return
+
+
+@app.cell
+def _(fruit, outlier_df):
+    # Grades of the flagged fruit next to the grades of all shown fruit of the same group.
+    # If the flagged fruit were mostly grade 3, removing them would remove mostly defects.
+    _shown = outlier_df.select("fruit_id", "group", "beyond_99").join(
+        fruit.select("fruit_id", "defective"), on="fruit_id", validate="1:1"
+    )
+    _shown.group_by("group", "defective").agg(
+        all_shown=pl.len(), flagged=pl.col("beyond_99").sum()
+    ).sort("group", "defective")
+    return
+
+
+@app.cell
+def _(cfg, fruit, outlier_df, run_dir):
+    flagged = (
+        outlier_df.filter(pl.col("beyond_99"))
+        .join(
+            fruit.select("fruit_id", "season", "file_stem", "browning", "cavity"),
+            on="fruit_id",
+            validate="1:1",
+        )
+        .sort("group", "fruit_id")
+    )
+    # Body masks at 32³, one per fruit, in the same order as latents.npy (`position`).
+    _body_cells = np.load(run_dir / "masks.npy", mmap_mode="r")
+
+    def ct_planes(row: dict) -> np.ndarray:
+        """Three CT planes (3, 128, 128) through the centre of the fruit body.
+
+        In: one row of `flagged`. The volume is min-max scaled as for the encoder, so the
+        grey values match what the encoder saw. Out: planes with axis 0, 1 and 2 held fixed.
+        """
+        _file = cfg.path(f"ct_dir_{row['season']}") / f"{row['file_stem']}.nii"
+        _scaled = scale_minmax(np.asarray(nib.load(_file).dataobj))
+        _body = body_voxel_mask(_scaled, np.asarray(_body_cells[row["position"]]))
+        return central_planes(_scaled, body_centre(_body))
+
+    flagged_planes = {row["fruit_id"]: ct_planes(row) for row in flagged.iter_rows(named=True)}
+    print(f"flagged fruit (beyond either 99 % limit): {flagged.height}")
+    return flagged, flagged_planes
+
+
+@app.cell
+def _():
+    # Off by default: the decision on a volume is made without seeing its grades
+    # (docs/outlier_rule.md, section 3).
+    show_grades = mo.ui.checkbox(value=False, label="Show grades in the panel titles")
+    show_grades
+    return (show_grades,)
+
+
+@app.cell
+def _(flagged, flagged_planes, n_model_components, show_grades):
+    # Two fruit per row, three slices per fruit.
+    _per_row = 2
+    _n_rows = max(1, -(-flagged.height // _per_row))  # rounded up
+    _fig, _axes = plt.subplots(
+        _n_rows, 3 * _per_row, figsize=(15, 2.8 * _n_rows), squeeze=False
+    )
+    for _ax in _axes.flat:
+        _ax.axis("off")
+    _views = [
+        (0, True, "long section 1"),  # (y, z): transposed so the z axis is vertical
+        (1, True, "long section 2"),  # (x, z)
+        (2, False, "cross-section"),  # (x, y)
+    ]
+    for _k, _row in enumerate(flagged.iter_rows(named=True)):
+        _planes = flagged_planes[_row["fruit_id"]]
+        for _v, (_plane, _transpose, _view) in enumerate(_views):
+            _ax = _axes[_k // _per_row, 3 * (_k % _per_row) + _v]
+            _picture = _planes[_plane].T if _transpose else _planes[_plane]
+            # Fixed grey scale 0 to 1 (the scaled range), so fruit can be compared.
+            _ax.imshow(_picture, origin="lower", cmap="gray", vmin=0, vmax=1)
+            _ax.set_title(_view, fontsize=8)
+            if _v == 0:
+                _ax.text(
+                    0,
+                    1.18,
+                    f"{_row['fruit_id']} · {_row['group']} · beyond {_row['limit_hit']}"
+                    + (
+                        f" · browning {_row['browning']}, cavity {_row['cavity']}"
+                        if show_grades.value
+                        else ""
+                    ),
+                    transform=_ax.transAxes,
+                    fontsize=9,
+                    fontweight="bold",
+                )
+    # Fixed margins instead of tight_layout, which fails with the fruit names above the rows.
+    _height = 2.8 * _n_rows
+    _fig.subplots_adjust(
+        top=1 - 0.9 / _height, bottom=0.02, left=0.01, right=0.99, hspace=0.5
+    )
+    _fig.suptitle(
+        f"Fruit beyond a 99 % limit (A = {n_model_components.value} components)",
+        y=1 - 0.2 / _height,
+    )
+    outlier_figure = _fig
+    outlier_figure
+    return (outlier_figure,)
+
+
+@app.cell
+def _():
+    save_outlier_figure = mo.ui.run_button(label="Save the panel to derived/figures/")
+    save_outlier_figure
+    return (save_outlier_figure,)
+
+
+@app.cell
+def _(cfg, outlier_figure, save_outlier_figure):
+    # Saved under derived/ (outside git): CT images stay off GitHub until Hugo agrees.
+    mo.stop(mo.running_in_notebook() and not save_outlier_figure.value)
+    _out = cfg.path("derived_dir") / "figures" / "05_outlier_panel.png"
+    _out.parent.mkdir(parents=True, exist_ok=True)
+    outlier_figure.savefig(_out, dpi=130, bbox_inches="tight")
+    print(f"saved {_out}")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 9. Contact sheet of every shown fruit, and the descriptor screen
+
+    The PCA screen of sections 7 and 8 does not catch every faulty volume (23 October 2026: dark
+    volumes and volumes with a stray object were not flagged). So every shown fruit is looked at
+    once (`docs/outlier_rule.md`, section 2): a long section and a cross-section through the
+    centre of the body, from `planes.npy` of the encoding run (CT before encoding, min-max scaled,
+    fixed grey scale 0 to 1). Only the fruit identifier is shown, never a grade. Order: by fruit
+    identifier, 48 fruit per page.
+
+    Third route to a candidate, added on 23 October after the descriptors were first computed:
+    a fruit whose median tissue intensity is far below the others (below 0.7, against a median
+    of about 0.87; failed intensity scaling) or with more than 100 voxels of a stray object
+    above the threshold (`pearlatent.descriptors`). These fruit are listed in the table below
+    the sheet and marked with a red frame on it.
+    """)
+    return
+
+
+@app.cell
+def _(cfg, run_dir):
+    # Descriptors of all 940 open fruit (python -m pearlatent.descriptors, 23 October 2026).
+    _descriptor_run = cfg.path("derived_dir") / "descriptors" / "20261023T151348Z_descriptors"
+    descriptors = pl.read_parquet(_descriptor_run / "descriptors.parquet")
+    # Planes through the body centre, in the order of `recon_row` of the manifest:
+    # (fruit, original or reconstruction, plane, 128, 128).
+    planes = np.load(run_dir / "planes.npy", mmap_mode="r")
+    print(f"descriptors: {descriptors.height} fruit; planes: {planes.shape[0]} decoded fruit")
+    return descriptors, planes
+
+
+@app.cell
+def _(descriptors, fruit, shown_df):
+    # Thresholds of the third route (see the text above), fixed on 23 October 2026.
+    DARK_TISSUE = 0.7
+    STRAY_VOXELS = 100
+
+    sheet_fruit = (
+        shown_df.select("fruit_id", "group")
+        .join(fruit.select("fruit_id", "recon_row"), on="fruit_id", validate="1:1")
+        .join(descriptors, on="fruit_id", validate="1:1")
+        .with_columns(
+            descriptor_flag=pl.when(pl.col("tissue_intensity_median") < DARK_TISSUE)
+            .then(pl.lit("dark tissue"))
+            .when(pl.col("stray_voxels") > STRAY_VOXELS)
+            .then(pl.lit("stray object"))
+            .otherwise(pl.lit(""))
+        )
+        .sort("fruit_id")
+    )
+    _missing = sheet_fruit.filter(pl.col("recon_row").is_null()).height
+    print(
+        f"contact sheet: {sheet_fruit.height} fruit;"
+        f" without decoded planes (not shown): {_missing}"
+    )
+    sheet_fruit = sheet_fruit.filter(pl.col("recon_row").is_not_null())
+
+    FRUIT_PER_PAGE = 48
+    n_pages = -(-sheet_fruit.height // FRUIT_PER_PAGE)  # rounded up
+    page_choice = mo.ui.slider(
+        start=1, stop=max(n_pages, 1), value=1, label="Page", show_value=True
+    )
+    page_choice
+    return FRUIT_PER_PAGE, n_pages, page_choice, sheet_fruit
+
+
+@app.cell
+def _(FRUIT_PER_PAGE, planes, sheet_fruit):
+    def contact_page(page: int):
+        """One page of the contact sheet: 6 rows of 8 fruit, two slices per fruit.
+
+        In: the page number, counting from 1. Out: a Matplotlib figure. Long section: plane 0
+        (axis 0 fixed), transposed so the stem-calyx axis is vertical, calyx at the bottom.
+        Cross-section: plane 2 (the third axis fixed).
+        """
+        _rows = sheet_fruit.slice((page - 1) * FRUIT_PER_PAGE, FRUIT_PER_PAGE)
+        _per_row = 8
+        _fig, _axes = plt.subplots(6, 2 * _per_row, figsize=(16, 6 * 1.25))
+        for _ax in _axes.flat:
+            _ax.axis("off")
+        for _k, _row in enumerate(_rows.iter_rows(named=True)):
+            _original = np.asarray(planes[_row["recon_row"], 0])
+            _r, _c = divmod(_k, _per_row)
+            for _j, _picture in enumerate([_original[0].T, _original[2]]):
+                _ax = _axes[_r, 2 * _c + _j]
+                _ax.imshow(_picture, origin="lower", cmap="gray", vmin=0, vmax=1)
+                if _row["descriptor_flag"]:
+                    # A red frame marks the descriptor screen; axis("off") hides spines,
+                    # so draw a rectangle instead.
+                    _ax.add_patch(
+                        plt.Rectangle(
+                            (0, 0), 127, 127, fill=False, edgecolor="red", linewidth=2
+                        )
+                    )
+            _axes[_r, 2 * _c].set_title(_row["fruit_id"], fontsize=8, loc="left")
+        _fig.subplots_adjust(
+            left=0.005, right=0.995, top=0.96, bottom=0.005, wspace=0.03, hspace=0.3
+        )
+        return _fig
+
+    return (contact_page,)
+
+
+@app.cell
+def _(contact_page, page_choice):
+    contact_page(page_choice.value)
+    return
+
+
+@app.cell
+def _(sheet_fruit):
+    # The fruit of the third route, with the numbers that put them there.
+    sheet_fruit.filter(pl.col("descriptor_flag") != "").select(
+        "fruit_id",
+        "group",
+        "descriptor_flag",
+        "tissue_intensity_median",
+        "stray_voxels",
+    )
+    return
+
+
+@app.cell
+def _():
+    save_contact_sheet = mo.ui.run_button(
+        label="Save every page of the contact sheet to derived/figures/"
+    )
+    save_contact_sheet
+    return (save_contact_sheet,)
+
+
+@app.cell
+def _(cfg, contact_page, n_pages, save_contact_sheet):
+    # Saved under derived/ (outside git), one PNG per page.
+    mo.stop(mo.running_in_notebook() and not save_contact_sheet.value)
+    _folder = cfg.path("derived_dir") / "figures" / "05_contact_sheet"
+    _folder.mkdir(parents=True, exist_ok=True)
+    for _page in range(1, n_pages + 1):
+        _fig = contact_page(_page)
+        _fig.savefig(_folder / f"page_{_page:02d}.png", dpi=110)
+        plt.close(_fig)
+    print(f"saved {n_pages} pages to {_folder}")
     return
 
 

@@ -3,9 +3,11 @@ import polars as pl
 import pytest
 
 from pearlatent.exclusions import (
+    FAULTY_VOLUME_PREFIX,
     HUGO_TRAINING_REASON,
     apply_exclusions,
     build_exclusions,
+    read_volume_decisions,
 )
 from pearlatent.volume_qc import flag_volumes, volume_stats
 
@@ -132,3 +134,41 @@ def test_hugo_training_fruit_excluded_validation_and_test_not(labels, volumes):
     assert hugo_rows["action"].to_list() == ["exclude"]
     # Validation and test fruit are not exclusions (test fruit are sealed elsewhere)
     assert not {"2425_A02", "2425_A03"} & set(ex["fruit_id"].to_list())
+
+
+def test_faulty_volumes_excluded_and_kept_in_all_volumes_mode(
+    labels, volumes, tmp_path
+):
+    decisions_file = tmp_path / "volume_decisions.csv"
+    decisions_file.write_text(
+        "fruit_id,season,decision,note\n"
+        "2526_A01,2526,missing_part,straight cut\n"
+        "2526_A03,2526,keep,\n"
+    )
+    decisions = read_volume_decisions(decisions_file)
+    ex = build_exclusions(labels, volumes, volume_decisions=decisions)
+    faulty = ex.filter(pl.col("reason").str.starts_with(FAULTY_VOLUME_PREFIX))
+    assert faulty["fruit_id"].to_list() == ["2526_A01"]
+    assert faulty["action"].to_list() == ["exclude"]
+
+    primary = apply_exclusions(labels, ex, "primary")["fruit_id"].to_list()
+    all_volumes = apply_exclusions(labels, ex, "all_volumes")["fruit_id"].to_list()
+    # The faulty volume is out of the primary analysis but back in the all_volumes row;
+    # the unscanned fruit stays out of both.
+    assert "2526_A01" not in primary and "2526_A01" in all_volumes
+    assert "2526_A04" not in primary and "2526_A04" not in all_volumes
+    # "keep" adds no row
+    assert "2526_A03" in primary
+
+
+def test_read_volume_decisions_rejects_bad_files(tmp_path):
+    unknown = tmp_path / "unknown.csv"
+    unknown.write_text("fruit_id,season,decision,note\n2526_A01,2526,rot,\n")
+    with pytest.raises(ValueError, match="Unknown decisions"):
+        read_volume_decisions(unknown)
+    twice = tmp_path / "twice.csv"
+    twice.write_text(
+        "fruit_id,season,decision,note\n2526_A01,2526,keep,\n2526_A01,2526,keep,\n"
+    )
+    with pytest.raises(ValueError, match="more than once"):
+        read_volume_decisions(twice)

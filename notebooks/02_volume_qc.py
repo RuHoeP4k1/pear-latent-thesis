@@ -9,7 +9,11 @@ with app.setup:
     import polars as pl
 
     from pearlatent.config import load_config
-    from pearlatent.exclusions import apply_exclusions, build_exclusions
+    from pearlatent.exclusions import (
+        apply_exclusions,
+        build_exclusions,
+        read_volume_decisions,
+    )
     from pearlatent.labels import load_labels
     from pearlatent.runs import write_run_record
     from pearlatent.volume_qc import (
@@ -278,7 +282,20 @@ def _(cfg, qc_flagged, volumes):
         cfg.path("derived_dir") / "hugo_vae_split_2425" / "hugo_vae_split_2425.csv"
     )
     _hugo_split = pl.read_csv(_split_file)
-    exclusions = build_exclusions(labels, volumes, qc_flagged, _hugo_split)
+    # Ruben's decisions on faulty volumes (docs/outlier_rule.md, 23 October 2026). Until the
+    # file exists, no fruit is excluded for a faulty volume.
+    _decisions_file = cfg.path("derived_dir") / "volume_decisions.csv"
+    _decisions = (
+        read_volume_decisions(_decisions_file) if _decisions_file.exists() else None
+    )
+    print(
+        f"volume decisions: {_decisions.height} judged fruit"
+        if _decisions is not None
+        else "volume decisions: no file yet"
+    )
+    exclusions = build_exclusions(
+        labels, volumes, qc_flagged, _hugo_split, volume_decisions=_decisions
+    )
     exclusions.write_csv(cfg.path("derived_dir") / "exclusions.csv")
     return exclusions, labels
 
@@ -287,13 +304,14 @@ def _(cfg, qc_flagged, volumes):
 def _(exclusions, labels):
     _remaining = pl.DataFrame(
         {
-            "mode": ["none", "primary", "sensitivity"],
+            "mode": ["none", "primary", "sensitivity", "all_volumes"],
             "fruit_2425": [
                 _df.filter(pl.col("season") == "2425").height
                 for _df in (
                     labels,
                     apply_exclusions(labels, exclusions, "primary"),
                     apply_exclusions(labels, exclusions, "sensitivity"),
+                    apply_exclusions(labels, exclusions, "all_volumes"),
                 )
             ],
             "fruit_2526": [
@@ -302,6 +320,7 @@ def _(exclusions, labels):
                     labels,
                     apply_exclusions(labels, exclusions, "primary"),
                     apply_exclusions(labels, exclusions, "sensitivity"),
+                    apply_exclusions(labels, exclusions, "all_volumes"),
                 )
             ],
         }

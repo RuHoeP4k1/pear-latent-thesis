@@ -59,12 +59,34 @@ one box on both sides).
 2. Average PRESS over the 20 repeats for each h. This gives one RMSECV curve; the 20 single
    curves are plotted beside it to show their spread. RMSEC (fit on all 12 boxes, error on the
    same fruit) is plotted with it.
-3. Choose one number of LVs from the mean curve. Rule *(to settle once the curves are seen)*: a
-   clear minimum or elbow, or the F-test of Haaland and Thomas (1988, *Analytical Chemistry* 60,
-   1193–1202): the smallest h with PRESS(h) / PRESS(min) not significantly above 1 at α = 0.25,
-   F(N, N). Its limitation: it takes the N fruit as independent, while fruit of one box are not.
-   N is then too large, the test too strict, and it tends to keep more LVs than needed. The rule
-   is written down before the test set is opened.
+3. Choose one number of LVs with the randomisation test of van der Voet (1994, *Chemometrics
+   and Intelligent Laboratory Systems* 25, 313–323), with the **box** as the unit that is
+   randomised. *(Rule decided by Ruben on 23 October 2026, before any curve was computed;
+   closes open question 26. Chosen over the Haaland and Thomas F-test with a design-effect
+   correction, which was written down earlier the same day and then replaced.)*
+
+   a. h* is the number of LVs with the smallest mean PRESS (1 to 15).
+   b. For every fruit i and every h < h*: dᵢ(h) = eᵢ(h)² − eᵢ(h*)², with eᵢ the 0/1 label minus
+      the cross-validation prediction, averaged over the 20 repeats.
+   c. Per box b: D_b(h) = Σ dᵢ(h) over the fruit of that box. Test statistic T(h) = Σ D_b(h)
+      over the 12 boxes (positive when h predicts worse than h*).
+   d. Null hypothesis: h and h* predict equally well. Then the sign of each box's D_b(h) is as
+      likely positive as negative. All 2¹² = 4,096 combinations of signs are enumerated (exact,
+      no random draws, so no seed); p(h) is the share of combinations with a statistic at least
+      as large as the observed T(h). One-sided: only "h is worse" counts.
+   e. The chosen number is the smallest h ≤ h* with p(h) > 0.10 (the default cut-off of the
+      SAS PLS procedure for this test).
+   f. Reported with the curve: h*, T(h) and p(h) for every h < h*, and the chosen h; and, for
+      comparison only, the h the Haaland and Thomas F-test (α = 0.25, N fruit taken as
+      independent) would give.
+
+   Why the box is the unit: fruit of one box share an orchard and give correlated errors, so
+   flipping signs per fruit (the original test) would treat 346 fruit as independent and keep
+   more LVs than the data support. Flipping per box assumes only that boxes are independent,
+   the same assumption as the bootstrap over boxes (section 6). Limitation, stated in the
+   thesis: with 12 boxes the test has little power, so it leans towards fewer LVs; the smallest
+   possible p is 1 / 4,096.
+
 4. The score of the method is computed from the cross-validation predictions at that number of
    LVs (section 5: per repeat and on the per-fruit average of the 20).
 

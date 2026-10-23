@@ -8,10 +8,13 @@ Rule 10 of CHARTER.md (5 October 2026, flag reason updated 13 October 2026):
 - flag: any volume flagged by the quality check (`pearlatent.volume_qc.flag_volumes`);
 - exclude: the 528 2425 fruit Hugo's VAE was trained on (charter rule 2, 13 October 2026; the
   encoder has seen them). They are used only in the one Step 0 comparison of reconstruction
-  error, selected there on purpose through `HUGO_TRAINING_REASON`.
+  error, selected there on purpose through `HUGO_TRAINING_REASON`;
+- exclude: faulty volumes, decided by Ruben fruit by fruit under `docs/outlier_rule.md`
+  (23 October 2026) and read from `derived/volume_decisions.csv`.
 
-Mode "primary" drops excluded fruit; mode "sensitivity" also drops flagged fruit. A fruit may
-have several rows, one per reason.
+Mode "primary" drops excluded fruit; mode "sensitivity" also drops flagged fruit; mode
+"all_volumes" drops excluded fruit except the faulty volumes (the sensitivity row of
+`docs/outlier_rule.md`, section 5). A fruit may have several rows, one per reason.
 """
 
 from __future__ import annotations
@@ -25,8 +28,24 @@ EXCLUSION_SCHEMA = {
     "action": pl.String,
 }
 ACTIONS = ("exclude", "flag")
-MODES = {"primary": ("exclude",), "sensitivity": ("exclude", "flag")}
+MODES = {
+    "primary": ("exclude",),
+    "sensitivity": ("exclude", "flag"),
+    "all_volumes": ("exclude",),
+}
 HUGO_TRAINING_REASON = "Hugo VAE training fruit: Step 0 comparison only"
+
+# Faulty volumes (docs/outlier_rule.md). Every reason for such a row starts with this text, so
+# mode "all_volumes" can keep these fruit.
+FAULTY_VOLUME_PREFIX = "faulty volume: "
+VOLUME_DECISION_SCHEMA = {
+    "fruit_id": pl.String,
+    "season": pl.String,
+    "decision": pl.String,
+    "note": pl.String,
+}
+# missing_part and preprocessing exclude the fruit; keep records that a candidate was judged.
+VOLUME_DECISIONS = ("missing_part", "preprocessing", "keep")
 
 
 def build_exclusions(
@@ -34,6 +53,7 @@ def build_exclusions(
     volumes: pl.DataFrame,
     qc_flags: pl.DataFrame | None = None,
     hugo_split: pl.DataFrame | None = None,
+    volume_decisions: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
     """Build the exclusion table.
 
@@ -42,6 +62,8 @@ def build_exclusions(
     qc_flags: output of `flag_volumes` (needs fruit_id, season, qc_flag), or None.
     hugo_split: output of `pearlatent.hugo_split.hugo_vae_split_2425` (needs fruit_id,
         hugo_split), or None.
+    volume_decisions: output of `read_volume_decisions`, or None. Fruit with decision
+        missing_part or preprocessing get action "exclude"; "keep" adds no row.
     """
     parts = [
         labels.join(volumes.select("fruit_id"), on="fruit_id", how="anti")
@@ -83,6 +105,15 @@ def build_exclusions(
                 pl.lit("exclude").alias("action"),
             )
         )
+    if volume_decisions is not None:
+        parts.append(
+            volume_decisions.filter(pl.col("decision") != "keep").select(
+                "fruit_id",
+                "season",
+                (pl.lit(FAULTY_VOLUME_PREFIX) + pl.col("decision")).alias("reason"),
+                pl.lit("exclude").alias("action"),
+            )
+        )
     out = pl.concat(parts).cast(EXCLUSION_SCHEMA).sort("fruit_id", "action", "reason")
     _validate(out)
     return out
@@ -102,6 +133,29 @@ def read_exclusions(path) -> pl.DataFrame:
     return out
 
 
+def read_volume_decisions(path) -> pl.DataFrame:
+    """Read Ruben's decisions on candidate volumes (`docs/outlier_rule.md`, section 6).
+
+    In: a CSV with columns fruit_id, season, decision, note. Out: the same table, checked:
+    every decision is one of `VOLUME_DECISIONS` and every fruit occurs once.
+    """
+    out = pl.read_csv(path, schema=VOLUME_DECISION_SCHEMA).with_columns(
+        pl.col("note").fill_null("")
+    )
+    unknown = out.filter(~pl.col("decision").is_in(VOLUME_DECISIONS))
+    if unknown.height:
+        raise ValueError(
+            f"Unknown decisions {unknown['decision'].unique().to_list()};"
+            f" allowed: {VOLUME_DECISIONS}"
+        )
+    twice = out.filter(pl.col("fruit_id").is_duplicated())
+    if twice.height:
+        raise ValueError(
+            f"Fruit decided more than once: {twice['fruit_id'].unique().to_list()}"
+        )
+    return out
+
+
 def apply_exclusions(
     df: pl.DataFrame, exclusions: pl.DataFrame, mode: str
 ) -> pl.DataFrame:
@@ -109,13 +163,13 @@ def apply_exclusions(
 
     mode "primary": drop fruit with action "exclude".
     mode "sensitivity": also drop fruit with action "flag".
+    mode "all_volumes": drop fruit with action "exclude", but keep the faulty volumes.
     """
     if mode not in MODES:
         raise ValueError(f"mode must be one of {list(MODES)}, got {mode!r}")
     _validate(exclusions)
-    drop = (
-        exclusions.filter(pl.col("action").is_in(MODES[mode]))
-        .select("fruit_id")
-        .unique()
-    )
+    rows = exclusions.filter(pl.col("action").is_in(MODES[mode]))
+    if mode == "all_volumes":
+        rows = rows.filter(~pl.col("reason").str.starts_with(FAULTY_VOLUME_PREFIX))
+    drop = rows.select("fruit_id").unique()
     return df.join(drop, on="fruit_id", how="anti")

@@ -143,7 +143,11 @@ Step 0. `body_mask` is still used to measure height over the fruit body.
   and shape, not browning.
 - Number of PLS components (design A, Ruben, 21 October 2026): 20 repeats of the 4-fold box
   cross-validation on the 12 non-test boxes, PRESS averaged over the repeats, one choice from that
-  curve, one fit on all 12 boxes. No inner split. See `docs/cv_explained.md`, section 4.
+  curve, one fit on all 12 boxes. No inner split. The choice: van der Voet randomisation test
+  with signs flipped per box, smallest h with p > 0.10 (Ruben, 23 October 2026). See
+  `docs/cv_explained.md`, section 4.
+- Faulty volumes (missing part of the fruit, failed preprocessing) are excluded by
+  `docs/outlier_rule.md`; never because a fruit is defective.
 - Severity is ordinal: cumulative-link models (`statsmodels` `OrderedModel`); report quadratic
   weighted kappa or Spearman correlation, not plain accuracy.
 - Testing many cells needs false-discovery-rate control; prefer cluster-based permutation tests,
