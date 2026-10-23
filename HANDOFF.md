@@ -5,59 +5,74 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-21
-- **Phase:** data exploration on the saved latents (notebook 05). Evaluation design fixed
-  (design A, 20 repeats; see "Decided"). No model fitted on labels yet. Hugo confirmed his VAE
-  split (21 Oct) and gave the green light for plots of 2526 labels (B4, Ruben 21 Oct).
-- **Done this session (21 Oct, Mac):**
-  - Hugo's mail of 21 Oct: split file "exactly matches my implementation" (same indices with
-    PyTorch 2.7.1, 2.7.1+cuda and 2.14.1; same label file). B2 and open question 19 closed;
-    `UNVERIFIED` removed from CLAUDE.md section 3 and `hugo_split.py`. He described the CV as one
-    tuning fold per repeat and mean ± standard deviation of test accuracy across repeats.
-    Reply in `derived/mail_hugo_2026-10-21/mail_to_hugo.md` (outside git): design A in four
-    steps, test used once, test boxes kept as drawn, meeting Thursday 29 Oct 11:00 (moved from
-    10:00).
-  - Repeats raised from 5 to 20: rule amendment `docs/test_box_rule.md` section 6.4 item 5,
-    committed before the draw; `python -m pearlatent.extra_repeats` → `derived/outer_folds_20/`
-    (repeats 1 to 5 reproduced and kept; 15 more from the other 181 eligible partitions, seed
-    369). K and O share a fold in 13 of 20 repeats, D and N in 11; 55 of 66 box pairs share a
-    fold at least once. Use `derived/outer_folds_20/outer_folds.csv` from now on.
-  - Design A and dropping penalised logistic regression written into `docs/cv_explained.md`
-    (sections 4, 5, 8), `CHARTER.md` (Methods), `CLAUDE.md`, `docs/test_box_rule.md`.
-  - `notebooks/05_latent_sanity.py` (draft, runs as a script): per-fruit numbers per box; mean
-    and standard deviation per cell; PCA (50 components, exact solver, fitted on 2526 or all open
-    fruit, all fruit projected); score plot with filters on group, defective grade and cause,
-    colour and symbol choice; Plotly parallel coordinates with axis brushing (adds `plotly`);
-    view of one fruit (CT, latent, latent minus mean); Hotelling T² and Q residual screen with
-    95 % and 99 % limits.
-  - Bug fixed in notebook 05: the manifest column `row` is the row among all 1,093 volumes, not
-    the place in `latents.npy`. Notebooks must use the place in the file (notebook 05 adds
-    `position` with `with_row_index`). No other code used `row` that way (checked).
-- **Hugo's second answer (21 Oct):** agrees with design A ("makes sense to me and is even more
-  rigorous ... a solid plan"): cross-validation and the RMSECV curve choose the number of latent
-  variables; the test set is fixed and used only to report the final model, fitted on all 12
-  boxes; paired bootstrap confidence intervals reported. Meeting moved to Thursday 29 Oct, 11:00.
-  The reply Ruben sent (21 Oct, 14:06) says the number of latent variables is "chosen at the
-  minimum of the averaged curve"; `docs/cv_explained.md` section 4 still leaves the rule open
-  (minimum, elbow, or Haaland F-test). To settle (open question 26).
-- **Results seen (21 Oct):**
-  - PCA on the 346 open 2526 fruit: cumulative explained variance PC1 22 %, 2 PCs 31 %, 10 PCs
-    50 %, 50 PCs 74 %, 100 PCs 84 %, 200 PCs 94 %; no elbow after PC2 in the cumulative curve.
-    Ruben: elbow of the scree plot at about 13 PCs; many PCs needed, as expected for a latent
-    with KL weight 1e-6.
-  - Ruben: PC1 against PC2 shows a season difference; not all label colourings checked yet. The
-    parallel coordinates showed little.
-  - Edge band in the mean latent: background cells within one to three cells of the grid edge
-    differ from the inner background by about 0.5 to 1 unit (layer 0: −0.31, layer 1: +0.18,
-    inner background: −0.43; fruit cells about 10). Cause: zero padding (`padding=1`) in every
-    convolution of Hugo's encoder (`component/vae.py`, 183112f). The fruit touches the grid at
-    z = 0 and z = 31, so calyx and stalk cells mix fruit with this edge effect.
-  - Outlier screen, A = 13, PCA fitted on 2526, 99 % limits (computed by Claude, same code as the
-    notebook): 2526 beyond T² 5 and beyond Q 7 of 346; 2425 validation harvest Q 5 of 30,
-    suboptimal storage Q 14 of 31 and T² 1, optimal storage 0 of 5. Ruben inspected the
-    outliers: in 2526 `2526_N29`, `2526_K27`, `2526_L29` (2 with something wrong in the volume,
-    1 a very odd, "banana-like" shape; which is which not yet recorded); in the 2425 validation
-    fruit `2425_I44` and `2425_C24` (Ruben, 21 Oct).
+- **Date:** 2026-10-23
+- **Phase:** exploration and Step 0 on the saved latents (notebooks 05, 06, 07). Outlier rule
+  and rule for the number of PLS components fixed before any curve. No model fitted on labels
+  yet. Meeting with Hugo Thursday 29 Oct, 11:00.
+- **Decided this session (Ruben, 23 Oct):**
+  - No cropping of the latent grid to a smaller box: a 16 × 16 crop cuts fruit in 130 of 412
+    fruit, cells outside every fruit carry only 8 % of the variance, and InstanceNorm spreads
+    global intensity into every cell anyway. (Open question 24, a mask of body cells, was not
+    discussed further.)
+  - Faulty-volume rule approved in principle: `docs/outlier_rule.md`. Exclude when part of the
+    fruit is missing or the preprocessing failed, never because the fruit is defective; blind
+    to grades; same procedure for the sealed fruit; sensitivity row with all volumes. Per-fruit
+    decisions still to make (next step).
+  - Number of PLS components: van der Voet (1994) randomisation test with signs flipped per box
+    (all 4,096 combinations), smallest h with p > 0.10 (`docs/cv_explained.md` section 4,
+    `pearlatent.component_choice`). Replaces the Haaland F-test with a design-effect correction
+    that was written earlier the same day. Closes open question 26.
+  - Height-radius maps made for Step 0 as a figure; keep or drop after Ruben has seen them.
+  - PERMANOVA plan and assumptions written before running (`docs/exploration_plan.md`).
+  - Later the same day: a cut-off neck tip is a faulty measurement (`missing_part`); volumes that
+    are only darker or brighter stay in (2526_C03, I03, L03, N15). Decoding the 4 example fruit
+    approved and done (`derived/step0_examples/20261023T160600Z_examples/`; matches the saved
+    planes to 0.00024; took 23 minutes, 17 GB of memory).
+- **Done this session (23 Oct, Mac), commits 850f742 to 382c7e7:**
+  - Notebook 05: A defaults to 13; section 8 panel of the 30 fruit beyond either 99 % limit
+    (tagged T², Q or both; grades hidden by default); section 9 contact sheet of all 412 shown
+    fruit without labels (9 pages, `derived/figures/05_contact_sheet/`) plus a descriptor screen
+    (tissue intensity below 0.7 or more than 100 stray voxels).
+  - `pearlatent.descriptors` (stalk length, body voxels and length, widest diameter, diameter to
+    length, tissue intensity, cavity fraction, stray voxels), run on all 940 open fruit:
+    `derived/descriptors/20261023T151348Z_descriptors/`.
+  - `pearlatent.exclusions`: reads `derived/volume_decisions.csv` (decisions `missing_part`,
+    `preprocessing`, `keep`), mode `all_volumes`; notebook 02 reads the file when it exists.
+  - Notebook 06 (Step 0, from `planes.npy`, nothing re-decoded): error table, correlations with
+    descriptors, contrast retention per grade with box bootstrap, height-radius maps, one typical
+    example per grade (`pearlatent.step0`). Section 7 (3D slices, Plotly planes, GIF) waits for
+    `pearlatent.decode_examples`.
+  - Notebook 07: PC1 to PC10 against descriptors, t-SNE and UMAP (adds `umap-learn`),
+    PERMANOVA with PERMDISP (`pearlatent.permanova`, permutations within box), MDS of box-by-grade
+    centres.
+  - Checked: the 17 unscanned 2526 fruit are not in the manifest; every manifest fruit has a
+    label; labels join on `fruit_id`, so no shift between volumes and labels is possible.
+- **Results computed and read by Claude on 23 Oct (not yet reviewed by Ruben):**
+  - Reconstruction, median MAE in the core, 2526 by defective grade 0 to 3: 0.0120, 0.0147,
+    0.0197, 0.0211; median MAE over the body 0.0104 to 0.0174. Hugo's training sample and
+    validation fruit of the same storage group and grade are almost equal (harvest, body: 0.0141
+    against 0.0142), so no sign that the VAE reconstructs its training fruit better. 2526 bodies
+    are smaller in the grid (median stalk 16 voxels against 3 in 2425).
+  - Contrast retention of the mean core intensity (2526, against 152 grade 0 fruit): browning
+    only, grade 1, 2, 3: 0.89 (95 % box bootstrap 0.62 to 1.04), 1.02 (0.41 to 1.69), 0.95
+    (0.89 to 1.10); CT darkening of the core only 0.009 to 0.020 on a healthy core of 0.84. Any
+    cause grade 2 and 3: 0.94 (0.88 to 0.98), 0.93 (0.87 to 0.95). Cavity only: 3 fruit, too few.
+    The height-radius maps show the same darkening pattern in CT and reconstruction; the residual
+    has no pattern that grows with grade. The example fruit show that fine texture is smoothed.
+    Reading: the mean darkening at the scale of about 1 cm is kept; finer texture partly not.
+  - PC1 follows body size (Spearman 0.96 with body voxels, −0.81 with stalk length); PC3 tissue
+    intensity (−0.55); the largest correlation of a grade with PC1 to PC10 is 0.40 (PC10).
+  - PERMANOVA, Euclidean on the full grid, 9,999 permutations: box R² 0.100 (p 0.0001, PERMDISP
+    p 0.25); defective grade within box R² 0.023 (p 0.001) but PERMDISP F 14, p 0.0001, so
+    largely a difference in spread; cause R² 0.024 (PERMDISP p 0.0001); stalk class R² 0.143;
+    season R² 0.037 (descriptive). t-SNE and UMAP sort the fruit mainly by stalk length.
+  - Faulty volumes, first pass by Claude: `docs/outlier_rule.md` sections 7 and 8 (straight
+    cuts, clustered in 2526 boxes I and L; dark fruit 2425_A36, 2526_C03, I03, L03; stray objects
+    2526_K13, A30, K02, 2425_H53). 2526_K27 is not a preprocessing failure: a 36-voxel stalk.
+- **Results seen 21 Oct (kept):** PCA on 346 2526 fruit: PC1 22 %, 10 PCs 50 %, 50 PCs 74 %;
+  Ruben: scree elbow about 13. Edge band in the mean latent from zero padding in Hugo's encoder.
+  Outlier screen A = 13 at 99 %: 30 of 412 shown fruit beyond a limit (now in notebook 05 §8).
+  Hugo agreed with design A on 21 Oct.
 - **Encoding done (13–15 Oct, checked 17 Oct):** full run with Hugo's weights is
   `20261013T171306Z_hugo_vae` (two sessions: 13 Oct 19:13 to 14 Oct 03:19, stopped by the time
   limit; resumed 15 Oct, finished). Open part `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/`:
@@ -88,13 +103,54 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
   in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
   fruit); the full run will be newer.
-- **Next step:** record which of the 3 2526 outliers is the odd shape and what is wrong with the
-  other two (open question 22), then write the outlier rule
-  in `docs/` before removing anything: number of PCA components (about 13), which limit (99 %),
-  T² or Q or both, what counts as "something wrong" (checked by eye in the CT view of notebook
-  05), and whether an odd but real shape stays in. Then the reconstruction tests (Step 0,
-  charter question 1) as notebook 06 on `reconstruction.parquet` of run
-  `20261013T171306Z_hugo_vae`.
+- **Flat-face screen (23 Oct):** `pearlatent.descriptors` now also gives `flat_face_share`
+  (largest flat patch of the surface, RANSAC) and `stalk_present` (stalk ≥ 10 voxels); run
+  `derived/descriptors/20261023T155219Z_descriptors/` (notebooks 05, 06, 07 use it; the run
+  151348Z is the older one without these columns). On the 412 contact-sheet fruit: median 0.075,
+  95th percentile 0.119; the tail holds the cuts read by eye (2526_I13 0.29, N29, A10, A13, I10,
+  L16, L29, I07, L26, I28, I25; 2425_I45, I44, C59) and new candidates (2526_A07, I01, L07, G30,
+  E13, E07). 2526_A07 is the browning-3 example fruit of notebook 06; the examples change once
+  faulty volumes are dropped. Neck-tip cuts are not separated by this number (by eye only).
+- **Next step:** Ruben chooses the flat-face cut-off on the histogram in notebook 05 section 9
+  (no labels shown) and writes it into `docs/outlier_rule.md` section 2; then judges every
+  candidate (screen, contact sheet, flat face, neck tips by eye) and writes
+  `derived/volume_decisions.csv` (`fruit_id,season,decision,note`). Then rerun notebook 02 (new
+  `exclusions.csv`) and notebooks 06 and 07. Then prepare the material for Hugo on 29 Oct.
+- **Decided by Ruben later on 23 Oct:** (1) test boxes F, J, M and the 20 partitions stay as
+  drawn after the exclusions; the balance after exclusion is reported. (2) Size and stalk:
+  preferred route is to fix it in the preprocessing (stalk removed before the rescaling to 128
+  voxels, then re-encode), to discuss with Hugo on 29 Oct; if that is not possible, (a) a
+  sensitivity row with stalk length and body size regressed out inside each training fold
+  and/or (b) a check that the score separates grades within stalk classes. Final choice after
+  the meeting, before any PLS-DA curve. (3) `stalk_present` = stalk ≥ 10 voxels; orchard-check
+  covariates stalk length, body voxels, diameter to length. (4) The flat-face screen only
+  proposes candidates; Ruben sees what it found before anything is excluded.
+- **Why size matters (for the meeting):** Ho et al. 2008 (PLoS Computational Biology 4, e1000023;
+  MeBioS) model gas exchange in pear: fruit size changes internal O₂ and CO₂, and low core O₂
+  leads to browning; a logistic-regression study on Conference pears found heavier fruit more
+  likely to develop brownheart (to find and read: probably Lammertyn et al., 2000s). Our
+  volumes are rescaled to 128 voxels in length, so `body_voxels` measures shape and stalk share,
+  not size; Hugo's original lengths (open question 18) are needed to separate them. The encoder
+  was trained on 2425 volumes, which have almost no stalk (median 3 voxels against 16 in
+  2526), so the 2526 inputs differ from the training data in how much of the grid the body
+  fills.
+- **Pipeline built, not run on real labels (23 Oct, commit 4265761):** `pearlatent.plsda`
+  (design A: predictions for every repeat, fold and number of latent variables from one fit;
+  PRESS; AUC, recall per grade, precision at 0.5; box bootstrap) and `pearlatent.feature_sets`
+  (`hugo_vae`, `random_init`, `ct_32`; removes sealed fruit, which the CT-32 run of 5 Oct still
+  holds). One fit of 15 components on 260 × 32,768 takes about 0.1 s, so a full design A run is
+  seconds. It runs on real labels only after the exclusions and the size/stalk route are
+  final, so that neither is chosen after seeing a score.
+- **Flat-face panel (notebook 05 §9, `derived/figures/05_flat_face_candidates.png`):** at 0.11,
+  the straight red edge of a real cut is seen on 2526_A07, A10, A13, E07, E13, G29, G30, I01,
+  I04, I07, I10, I13, I25, I28, L07, L16, L26, L29, N29 and 2425_C59, I44, I45 (Claude's reading);
+  curved red lines (no cut) on 2526_O19, O25 and 2425_J27, C24. So no cut-off separates
+  perfectly: G29 and I04 (0.110) are cuts, O19 (0.113) and J27 (0.114) are not. Proposal: a
+  generous cut-off (about 0.10) for the screen, the eye decides.
+- **Meeting preparation:** `docs/meeting_2026-10-29.md` (Ruben's check list, what to show Hugo,
+  the decisions needed before modelling, and the methods text on how each descriptor is
+  measured, section D, which Ruben asked to keep). Until the meeting: no new analyses; Ruben
+  checks the outputs first.
 - **Blocked on:** nothing.
 - **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
   3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
@@ -239,7 +295,9 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 
 Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
-confirmed). Answered and removed on 13 Oct (meeting):
+confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
+`docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
+32 (PLS-DA centres only, no scaling; CLAUDE.md section 7). Answered and removed on 13 Oct (meeting):
 1 (weights received; seed 369 per Hugo; checkpoint read in B1), 3 (rot not really a problem in
 2526), 6 (stalks not a problem), 7 (we reproduce the split ourselves, B2), 8 (test-box rule,
 charter rule 3), 10 (item 2 dropped with the self-supervised extension). Numbers are kept so
@@ -265,23 +323,35 @@ earlier references stay valid.
     validation set (Table D.1), with the same SSIM and PSNR. Which numbers belong to which set?
 
 For Ruben, added 21 Oct:
-22. Of the 2526 outliers `2526_N29`, `2526_K27`, `2526_L29` (notebook 05, A = 13): which is
-    the odd shape, and what is wrong with the other two volumes? Why `2425_I44` and `2425_C24`
-    stand out.
-23. Outlier rule (see next step): components, limit, T² and/or Q, and what to do with a real
-    but odd shape.
+22. Of the 2526 outliers `2526_N29`, `2526_K27`, `2526_L29`: which is the odd shape?
+    Claude's reading (23 Oct, not Ruben's): N29 and L29 have a straight cut through the body,
+    K27 has a 36-voxel stalk; the banana-like shape is probably `2526_O19`. To confirm by Ruben.
 24. Fit PCA and PLS on all 32,768 cells or only on cells inside the fruit (body masks in
     `masks.npy`, for example cells inside the body of at least half the fruit)? Would remove
     the background and the edge band.
-25. The season difference on PC1 against PC2: check whether it follows storage or browning
-    (colour by browning within the 2425 validation groups).
-
-26. Rule for the number of latent variables: the plain minimum of the averaged RMSECV curve (as
-    written to Hugo on 21 Oct) or a rule that prefers fewer (Haaland F-test, α = 0.25)? Decide
-    before the curves are seen and write it in `docs/cv_explained.md` section 4.
+25. The season difference on PC1 against PC2. Computed 23 Oct (notebook 07): PC1 follows body
+    size in the grid (Spearman 0.96 with body voxels, −0.81 with stalk length), and 2425
+    volumes have short stalks (median 3 voxels against 16), so the season split on PC1 is at
+    least partly the stalk convention. To review by Ruben.
 27. Bootstrap on the test set: the 3 test boxes are too few for a bootstrap over boxes, so the
     test interval resamples fruit (`docs/cv_explained.md` section 8). Hugo's mail speaks of
     paired bootstrap intervals in general; state this difference at the meeting.
+
+For Ruben, added 23 Oct:
+28. Flat-face cut-off (see "Next step").
+
+For Hugo (meeting 29 Oct), added 23 Oct:
+30. Volumes with a straight, often oblique cut through the fruit (2526 boxes I and L most;
+    2425_I44, I45, C59): field of view of the scanner, made oblique by the alignment rotation?
+    Known to him? Dark volumes (2425_A36; 2526_C03, I03, L03, all three number 03 of their box):
+    a scanning-position effect or a bright object setting the min-max scaling?
+31. Stray objects above the intensity threshold beside the fruit (2526_K13: 607 voxels): holder
+    or label in the scan?
+33. Reprocessing the 2526 volumes without the stalk before the rescaling to 128 voxels (his
+    MATLAB pipeline, from the original scans), so the body fills the grid as in his 2425
+    training data; then re-encode (about 1.5 hours) and re-decode what Step 0 needs. Possible?
+    And the original length of every fruit (open question 18), because size is a known cause of
+    browning (Ho et al. 2008) and is not in the rescaled volumes.
 
 For Ruben (not Hugo), added 10 Oct:
 
@@ -347,6 +417,11 @@ For Ruben, added 13 Oct:
 - 13 Oct (Ruben): a model fitted on Hugo's 2425 validation fruit is not evaluated on his 2425 test
   fruit (same ten orchards). Main models are fitted on 2526.
 
+- 23 Oct (Ruben): no cropping of the latent grid. Faulty-volume rule approved in principle
+  (`docs/outlier_rule.md`). Number of PLS components by the van der Voet randomisation test with
+  signs flipped per box, p > 0.10 (`docs/cv_explained.md` section 4), chosen before any curve.
+  PERMANOVA assumptions written before running (`docs/exploration_plan.md`).
+
 ## Unverified assumptions in code
 
 | Where | Assumption | Verify against |
@@ -363,6 +438,15 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-10-23 — outlier rule, component rule, Step 0, exploration notebook
+- Decided (Ruben): no cropping; faulty-volume rule (missing part or failed preprocessing, never
+  the defect); van der Voet test per box for the number of PLS components; PERMANOVA plan first.
+- Notebook 05 outlier panel and contact sheet; `pearlatent.descriptors` on all open fruit.
+- Notebook 06 (Step 0): mean core darkening kept in the reconstruction (retention about 0.9 to
+  1), fine texture smoothed; Hugo's training fruit not reconstructed better than unseen fruit.
+- Notebook 07: PC1 is body size and stalk; box R² 0.10, grade R² 0.02 (mostly spread).
+- Faulty volumes cluster in 2526 boxes I and L; per-fruit decisions pending (Ruben).
 
 ### 2026-10-21 — Hugo confirms the split; design A; notebook 05
 - Decided (Ruben): design A (repeated box cross-validation, one choice of components from the
