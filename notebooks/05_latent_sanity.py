@@ -45,7 +45,11 @@ def _():
     run_dir = (
         cfg.path("derived_dir") / "latents" / "hugo_vae" / "20261013T171306Z_hugo_vae"
     )
-    return cfg, run_dir
+    # Shape, stalk and intensity per fruit (python -m pearlatent.descriptors).
+    descriptor_dir = (
+        cfg.path("derived_dir") / "descriptors" / "20261023T155219Z_descriptors"
+    )
+    return cfg, descriptor_dir, run_dir
 
 
 @app.cell(hide_code=True)
@@ -60,8 +64,8 @@ def _():
     return
 
 
-@app.cell
-def _(cfg, run_dir):
+@app.cell(hide_code=True)
+def _(cfg, descriptor_dir, run_dir):
     latents = np.load(run_dir / "latents.npy")
     # The n-th row of the manifest belongs to the n-th latent. That place is stored as
     # `position`. (The manifest's own column `row` is the row in the list of all 1,093
@@ -70,10 +74,16 @@ def _(cfg, run_dir):
 
     labels = load_labels(cfg).select("fruit_id", "browning", "cavity")
 
-    # Attach the grades to every fruit. validate="1:1" stops if a fruit occurs twice.
-    fruit = manifest.join(
-        labels, on="fruit_id", how="left", validate="1:1"
-    ).with_columns(defective=pl.max_horizontal("browning", "cavity"))
+    # Shape, stalk and intensity of every fruit (definitions in pearlatent.descriptors).
+    descriptors = pl.read_parquet(descriptor_dir / "descriptors.parquet")
+
+    # Attach the grades and the descriptors to every fruit. validate="1:1" stops if a fruit
+    # occurs twice.
+    fruit = (
+        manifest.join(labels, on="fruit_id", how="left", validate="1:1")
+        .join(descriptors, on="fruit_id", how="left", validate="1:1")
+        .with_columns(defective=pl.max_horizontal("browning", "cavity"))
+    )
 
     # One readable group name per fruit, to filter and colour the plots.
     # 2526: all fruit were scanned after storage. 2425: Hugo's split and the storage group,
@@ -98,7 +108,11 @@ def _(cfg, run_dir):
     print(f"latents: {latents.shape[0]} fruit, grid {latents.shape[1:]}")
     print(f"manifest: {manifest.height} fruit; after the join: {fruit.height} fruit")
     print(f"fruit without a grade: {fruit['browning'].null_count()}")
-    return fruit, latents
+    print(
+        f"descriptors from {descriptor_dir.name}; fruit without them: "
+        f"{fruit['body_voxels'].null_count()}"
+    )
+    return descriptors, fruit, latents
 
 
 @app.cell
@@ -122,7 +136,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit, latents):
     # One row of 32,768 numbers per fruit.
     flat = latents.reshape(latents.shape[0], -1)
@@ -173,7 +187,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(latents):
     mean_per_cell = latents.mean(axis=0)
     sd_per_cell = latents.std(axis=0)
@@ -220,7 +234,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     pca_fruit_choice = mo.ui.dropdown(
         options=["2025-26 fruit", "all open fruit"],
@@ -231,7 +245,7 @@ def _():
     return (pca_fruit_choice,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(flat, fruit, pca_fruit_choice):
     if pca_fruit_choice.value == "2025-26 fruit":
         keep = (fruit["season"] == "2526").to_numpy()
@@ -254,7 +268,7 @@ def _(flat, fruit, pca_fruit_choice):
     return keep, pc_names, pca, scores, scores_df
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(pca):
     # Scree plot: bars for each component, line for the running total.
     explained = pl.DataFrame(
@@ -301,7 +315,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit, pc_names):
     all_groups = sorted(fruit["group"].unique().to_list())
     # Default: everything except Hugo's 528 training fruit, which the encoder has seen.
@@ -329,9 +343,20 @@ def _(fruit, pc_names):
         "cause",
         "browning",
         "cavity",
+        "stalk_present",
+    ]
+    # Measured numbers, drawn with a continuous colour scale (pearlatent.descriptors).
+    continuous_columns = [
+        "body_voxels",
+        "body_length",
+        "stalk_length",
+        "diameter_to_length",
+        "tissue_intensity_median",
+        "cavity_fraction",
+        "flat_face_share",
     ]
     colour_choice = mo.ui.dropdown(
-        options=_label_columns, value="group", label="Colour by"
+        options=_label_columns + continuous_columns, value="group", label="Colour by"
     )
     shape_choice = mo.ui.dropdown(
         options=["nothing", *_label_columns], value="defective", label="Symbol by"
@@ -350,6 +375,7 @@ def _(fruit, pc_names):
     return (
         cause_choice,
         colour_choice,
+        continuous_columns,
         grade_choice,
         group_choice,
         shape_choice,
@@ -358,7 +384,7 @@ def _(fruit, pc_names):
     )
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cause_choice, grade_choice, group_choice, scores_df):
     # The grades are chosen as text in the multiselect; turn them back into numbers.
     _grades = [int(g) for g in grade_choice.value]
@@ -372,12 +398,26 @@ def _(cause_choice, grade_choice, group_choice, scores_df):
     return (shown_df,)
 
 
-@app.cell
-def _(colour_choice, shape_choice, shown_df, x_choice, y_choice):
+@app.cell(hide_code=True)
+def _(
+    colour_choice,
+    continuous_columns,
+    shape_choice,
+    shown_df,
+    x_choice,
+    y_choice,
+):
+    # A measured number gets a continuous scale (viridis), a label one colour per value.
+    if colour_choice.value in continuous_columns:
+        _colour = alt.Color(
+            f"{colour_choice.value}:Q", scale=alt.Scale(scheme="viridis")
+        )
+    else:
+        _colour = alt.Color(f"{colour_choice.value}:N")
     _encodings = dict(
         x=alt.X(f"{x_choice.value}:Q"),
         y=alt.Y(f"{y_choice.value}:Q"),
-        color=alt.Color(f"{colour_choice.value}:N"),
+        color=_colour,
         tooltip=[
             "fruit_id",
             "group",
@@ -386,6 +426,8 @@ def _(colour_choice, shape_choice, shown_df, x_choice, y_choice):
             "cause",
             "browning",
             "cavity",
+            "stalk_length",
+            "body_voxels",
         ],
     )
     if shape_choice.value != "nothing":
@@ -409,8 +451,8 @@ def _(score_plot):
     return (selected_ids,)
 
 
-@app.cell
-def _(colour_choice, pc_names, selected_ids, shown_df):
+@app.cell(hide_code=True)
+def _(colour_choice, continuous_columns, pc_names, selected_ids, shown_df):
     def as_codes(values: pl.Series) -> tuple[list[int], list[str]]:
         """Turn a column of categories into numbers 0, 1, 2, ... for plotting.
 
@@ -444,6 +486,11 @@ def _(colour_choice, pc_names, selected_ids, shown_df):
         _colour_codes = shown_df["fruit_id"].is_in(selected_ids).cast(pl.Int8).to_list()
         _colour_names = ["not selected", "selected"]
         _colourscale = [[0, "lightgrey"], [1, "crimson"]]
+    elif colour_choice.value in continuous_columns:
+        # A measured number: the line colour is the number itself.
+        _colour_codes = shown_df[colour_choice.value].to_list()
+        _colour_names = None
+        _colourscale = "Viridis"
     else:
         _colour_codes, _colour_names = as_codes(shown_df[colour_choice.value])
         _colourscale = "Turbo"
@@ -455,7 +502,9 @@ def _(colour_choice, pc_names, selected_ids, shown_df):
                 color=_colour_codes,
                 colorscale=_colourscale,
                 showscale=True,
-                colorbar=dict(
+                colorbar=dict(title=colour_choice.value)
+                if _colour_names is None
+                else dict(
                     tickvals=list(range(len(_colour_names))), ticktext=_colour_names
                 ),
             ),
@@ -466,7 +515,7 @@ def _(colour_choice, pc_names, selected_ids, shown_df):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(scores_df, selected_ids):
     # The selected fruit as a table, to look them up.
     scores_df.filter(pl.col("fruit_id").is_in(selected_ids)).select(
@@ -496,7 +545,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(selected_ids, shown_df):
     if selected_ids:
         offered_ids = selected_ids
@@ -514,7 +563,7 @@ def _(selected_ids, shown_df):
     return (fruit_picker,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit_picker, per_fruit, scores_df):
     picked_id = fruit_picker.value
 
@@ -546,7 +595,7 @@ def _(fruit_picker, per_fruit, scores_df):
     return (picked_row,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, latents, mean_per_cell, middle, picked_row):
     _season = picked_row["season"][0]
     _file = cfg.path(f"ct_dir_{_season}") / f"{picked_row['file_stem'][0]}.nii"
@@ -636,7 +685,7 @@ def _():
     return (n_model_components,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(flat, keep, n_model_components, pca, scores, shown_df):
     _A = n_model_components.value
     _n = int(keep.sum())  # fruit the PCA was fitted on
@@ -705,7 +754,7 @@ def _(flat, keep, n_model_components, pca, scores, shown_df):
     return limits, outlier_df
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(colour_choice, limits, outlier_df):
     _colour = (
         colour_choice.value if colour_choice.value in outlier_df.columns else "group"
@@ -810,7 +859,9 @@ def _(cfg, fruit, outlier_df, run_dir):
         _body = body_voxel_mask(_scaled, np.asarray(_body_cells[row["position"]]))
         return central_planes(_scaled, body_centre(_body))
 
-    flagged_planes = {row["fruit_id"]: ct_planes(row) for row in flagged.iter_rows(named=True)}
+    flagged_planes = {
+        row["fruit_id"]: ct_planes(row) for row in flagged.iter_rows(named=True)
+    }
     print(f"flagged fruit (beyond either 99 % limit): {flagged.height}")
     return flagged, flagged_planes
 
@@ -824,7 +875,7 @@ def _():
     return (show_grades,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(flagged, flagged_planes, n_model_components, show_grades):
     # Two fruit per row, three slices per fruit.
     _per_row = 2
@@ -915,15 +966,14 @@ def _():
 
 
 @app.cell
-def _(cfg, run_dir):
-    # Descriptors of all 940 open fruit (python -m pearlatent.descriptors, 23 October 2026).
-    _descriptor_run = cfg.path("derived_dir") / "descriptors" / "20261023T151348Z_descriptors"
-    descriptors = pl.read_parquet(_descriptor_run / "descriptors.parquet")
+def _(descriptors, run_dir):
     # Planes through the body centre, in the order of `recon_row` of the manifest:
     # (fruit, original or reconstruction, plane, 128, 128).
     planes = np.load(run_dir / "planes.npy", mmap_mode="r")
-    print(f"descriptors: {descriptors.height} fruit; planes: {planes.shape[0]} decoded fruit")
-    return descriptors, planes
+    print(
+        f"descriptors: {descriptors.height} fruit; planes: {planes.shape[0]} decoded fruit"
+    )
+    return (planes,)
 
 
 @app.cell
@@ -1013,6 +1063,63 @@ def _(sheet_fruit):
         "descriptor_flag",
         "tissue_intensity_median",
         "stray_voxels",
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ### Flat-face screen (`docs/outlier_rule.md`, section 2, route 3)
+
+    The largest flat patch of the fruit surface as a share of the whole surface, for every
+    fruit of the contact sheet. No labels are shown. Choose the cut-off on this histogram
+    before judging the candidates; the fruit at or above it are listed below and judged by eye.
+    The chosen value is written into `docs/outlier_rule.md`.
+    """)
+    return
+
+
+@app.cell
+def _():
+    flat_face_cutoff = mo.ui.slider(
+        start=0.08,
+        stop=0.20,
+        step=0.005,
+        value=0.11,
+        label="Flat-face cut-off",
+        show_value=True,
+    )
+    flat_face_cutoff
+    return (flat_face_cutoff,)
+
+
+@app.cell
+def _(flat_face_cutoff, sheet_fruit):
+    _histogram = (
+        alt.Chart(sheet_fruit)
+        .mark_bar()
+        .encode(
+            x=alt.X(
+                "flat_face_share:Q",
+                bin=alt.Bin(step=0.005),
+                title="largest flat face / surface",
+            ),
+            y=alt.Y("count():Q", title="fruit"),
+        )
+    )
+    _cutoff_line = (
+        alt.Chart().mark_rule(color="red").encode(x=alt.datum(flat_face_cutoff.value))
+    )
+    _above = sheet_fruit.filter(
+        pl.col("flat_face_share") >= flat_face_cutoff.value
+    ).sort("flat_face_share", descending=True)
+    mo.vstack(
+        [
+            alt.layer(_histogram, _cutoff_line).properties(width=600, height=220),
+            mo.md(f"**{_above.height} fruit at or above {flat_face_cutoff.value}**"),
+            _above.select("fruit_id", "group", "flat_face_share", "flat_face_voxels"),
+        ]
     )
     return
 

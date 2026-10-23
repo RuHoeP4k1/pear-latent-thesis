@@ -38,7 +38,7 @@ def _():
     decoded fruit: errors over the whole volume, the body and the core),
     `planes.npy` (CT and reconstruction in the three planes through the body centre),
     `masks.npy` (32³ body cells), `manifest.parquet`; both label files; the fruit descriptors
-    `derived/descriptors/20261023T151348Z_descriptors/`; `derived/volume_decisions.csv` when
+    `derived/descriptors/20261023T155219Z_descriptors/`; `derived/volume_decisions.csv` when
     it exists (faulty volumes, `docs/outlier_rule.md`).
 
     **Fruit.** 478 decoded fruit: the 346 open 2526 fruit, Hugo's 66 validation fruit and a
@@ -64,7 +64,7 @@ def _():
         cfg.path("derived_dir") / "latents" / "hugo_vae" / "20261013T171306Z_hugo_vae"
     )
     descriptor_dir = (
-        cfg.path("derived_dir") / "descriptors" / "20261023T151348Z_descriptors"
+        cfg.path("derived_dir") / "descriptors" / "20261023T155219Z_descriptors"
     )
     return cfg, descriptor_dir, run_dir
 

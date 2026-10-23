@@ -12,6 +12,21 @@ enclosed holes, count voxels. The threshold is `MASK_THRESHOLD` (0.1 of the min-
 intensity), the same as for the latent body masks, so the body here is the body the latent
 features use.
 
+Flat face (23 October 2026): a fruit whose volume misses a part has a flat face where the
+field of view or the preprocessing cut it (`docs/outlier_rule.md`). Natural pear skin is curved
+everywhere. `largest_flat_face` finds the plane that contains the most surface voxels of the
+fruit (random sample consensus, RANSAC: planes through 3 random surface voxels, 3,000 planes,
+seed 369, a voxel counts when it lies within 1 voxel of the plane) and keeps the largest
+connected patch of those voxels. `flat_face_share` is that patch over all surface voxels.
+Checked on 23 October on 22 fruit read by eye: cuts through the body 0.13 to 0.29, normal fruit
+0.07 to 0.09 (the curved 2526_O19: 0.11). A cut off only at the tip of the neck is not
+separated from normal fruit by this number (0.05 to 0.08) and is judged by eye.
+
+Stalk present (23 October 2026): `stalk_length` of at least `STALK_PRESENT_VOXELS`. Shorter
+values are the narrow tip of the neck, which `body_mask` also leaves out of the body (slices
+with fewer than 4 latent cells): 38 of the 66 2425 validation fruit, which have no stalk, have
+1 to 4 voxels, and only 1 of them has 10 or more.
+
 Run for all open fruit of an encoding run (writes `derived/descriptors/<run_id>/`):
 
     uv run python -m pearlatent.descriptors
@@ -25,6 +40,13 @@ from pearlatent.pooling import MASK_THRESHOLD, body_mask, fruit_mask
 from pearlatent.reconstruction import body_voxel_mask
 
 ENCODING_RUN = "20261013T171306Z_hugo_vae"
+
+# Flat-face search (module docstring): planes tried, distance to the plane in voxels, seed.
+FLAT_FACE_PLANES = 3000
+FLAT_FACE_TOLERANCE = 1.0
+FLAT_FACE_SEED = 369
+# Stalk counted as present from this many slices beyond the body (module docstring).
+STALK_PRESENT_VOXELS = 10
 
 
 def largest_part(solid: np.ndarray) -> np.ndarray:
@@ -51,6 +73,49 @@ def slice_extent(mask: np.ndarray) -> tuple[int, int]:
     return int(occupied[0]), int(occupied[-1])
 
 
+def largest_flat_face(
+    solid: np.ndarray,
+    n_planes: int = FLAT_FACE_PLANES,
+    tolerance: float = FLAT_FACE_TOLERANCE,
+    seed: int = FLAT_FACE_SEED,
+) -> tuple[int, int]:
+    """Size of the largest flat patch of the surface of `solid`, and the number of surface voxels.
+
+    In: a boolean volume (the fruit). Out: (voxels of the largest flat patch, surface voxels).
+    Surface voxels are voxels of `solid` with a neighbour outside it. Planes are tried in
+    batches of 200 for speed; the same seed gives the same planes.
+    """
+    from scipy import ndimage
+
+    surface = solid & ~ndimage.binary_erosion(solid)
+    points = np.argwhere(surface).astype(float)
+    if len(points) < 3:
+        return 0, len(points)
+    rng = np.random.default_rng(seed)
+    best_count, best_plane = -1, None
+    for _ in range(max(1, n_planes // 200)):
+        index = rng.integers(0, len(points), size=(200, 3))
+        a, b, c = points[index[:, 0]], points[index[:, 1]], points[index[:, 2]]
+        normals = np.cross(b - a, c - a)
+        lengths = np.linalg.norm(normals, axis=1)
+        usable = lengths > 1e-6  # three points on a line define no plane
+        normals = normals[usable] / lengths[usable, None]
+        offsets = (normals * a[usable]).sum(axis=1)
+        counts = (np.abs(points @ normals.T - offsets) <= tolerance).sum(axis=0)
+        k = int(counts.argmax())
+        if counts[k] > best_count:
+            best_count, best_plane = int(counts[k]), (normals[k], offsets[k])
+    normal, offset = best_plane
+    near = np.abs(points @ normal - offset) <= tolerance
+    # Only the largest connected patch counts: a plane through a curved surface also touches
+    # it along a thin curve elsewhere.
+    on_plane = np.zeros_like(surface)
+    on_plane[tuple(points[near].astype(int).T)] = True
+    labels, n = ndimage.label(on_plane, structure=np.ones((3, 3, 3)))
+    patch = int(np.bincount(labels.ravel())[1:].max()) if n else 0
+    return patch, len(points)
+
+
 def fruit_descriptors(scaled: np.ndarray) -> dict:
     """Numbers that describe one fruit.
 
@@ -69,7 +134,10 @@ def fruit_descriptors(scaled: np.ndarray) -> dict:
     - `tissue_intensity_mean` and `tissue_intensity_median`: scaled intensity of the body
       voxels above the threshold, so cavities do not pull it down. Relative to the brightest
       voxel of the volume (min-max scaling), so a bright speck lowers it for the whole fruit.
-    - `cavity_fraction`: share of the body below the threshold (enclosed air).
+    - `cavity_fraction`: share of the body below the threshold (enclosed air);
+    - `stalk_present`: `stalk_length` ≥ `STALK_PRESENT_VOXELS`;
+    - `flat_face_voxels`, `surface_voxels`, `flat_face_share`: the largest flat patch of the
+      fruit surface (`largest_flat_face`), a sign that part of the fruit is cut off.
     """
     solid = np.asarray(scaled) > MASK_THRESHOLD
     fruit = largest_part(solid)
@@ -83,6 +151,8 @@ def fruit_descriptors(scaled: np.ndarray) -> dict:
     widest_diameter = 2 * float(np.sqrt(largest_slice_area / np.pi))
     body_count = int(body.sum())
     tissue_values = np.asarray(scaled)[tissue]
+    flat_face, surface = largest_flat_face(fruit)
+    stalk_length = int(max(fruit_high - body_high, 0)) if body_low >= 0 else 0
 
     return {
         "fruit_voxels": int(fruit.sum()),
@@ -90,7 +160,8 @@ def fruit_descriptors(scaled: np.ndarray) -> dict:
         "body_voxels": body_count,
         "body_length": int(body_length),
         # The stalk is at the high end of the third axis (calyx at the low end, notebook 02).
-        "stalk_length": int(max(fruit_high - body_high, 0)) if body_low >= 0 else 0,
+        "stalk_length": stalk_length,
+        "stalk_present": stalk_length >= STALK_PRESENT_VOXELS,
         "widest_diameter": widest_diameter,
         "diameter_to_length": widest_diameter / body_length if body_length else np.nan,
         "tissue_intensity_mean": float(tissue_values.mean())
@@ -102,6 +173,9 @@ def fruit_descriptors(scaled: np.ndarray) -> dict:
         "cavity_fraction": float(1 - tissue.sum() / body_count)
         if body_count
         else np.nan,
+        "flat_face_voxels": flat_face,
+        "surface_voxels": surface,
+        "flat_face_share": flat_face / surface if surface else np.nan,
     }
 
 
@@ -137,6 +211,10 @@ def main() -> None:
             "encoding_run": ENCODING_RUN,
             "fruit": table.height,
             "mask_threshold": MASK_THRESHOLD,
+            "flat_face_planes": FLAT_FACE_PLANES,
+            "flat_face_tolerance": FLAT_FACE_TOLERANCE,
+            "flat_face_seed": FLAT_FACE_SEED,
+            "stalk_present_voxels": STALK_PRESENT_VOXELS,
         },
     )
     print(f"wrote {table.height} fruit to {out_dir}")

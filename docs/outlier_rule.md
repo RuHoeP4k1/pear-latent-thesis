@@ -14,7 +14,7 @@ Excluded (judged by eye on the CT slices):
 
 | Code | Meaning | How it looks |
 |---|---|---|
-| `missing_part` | Part of the fruit is not in the volume | a straight, often oblique, cut through the fruit; a half-disc cross-section |
+| `missing_part` | Part of the fruit is not in the volume, anywhere, including only the tip of the neck (Ruben, 23 October 2026: a cut-off neck is a faulty measurement too) | a straight, often oblique, cut through the fruit; a half-disc cross-section; a flat end of the neck where the fruit should taper towards the stalk |
 | `preprocessing` | The preprocessing (alignment, rescaling to 128 voxels, intensity scaling) went wrong | the fruit fills a clearly smaller part of the grid than other fruit because a stray object was counted in its length; or the whole fruit is clearly darker or brighter than the others because one bright voxel outside the fruit set the maximum of the min-max scaling |
 
 Not excluded:
@@ -22,11 +22,15 @@ Not excluded:
 - an odd but real shape (curved, banana-like, very long or very round);
 - internal browning or cavities of any size (in 2425 the suboptimal-storage fruit are flagged
   by the screen of section 2 because of their large cavities; they stay in);
-- a fruit that is only far from the others in a score plot, with nothing visibly wrong.
+- a fruit that is only far from the others in a score plot, with nothing visibly wrong;
+- a volume that is darker or brighter than the others while the fruit itself looks normal
+  (Ruben, 23 October 2026: 2526_C03, I03, L03 and N15 stay in). Intensity alone is therefore
+  not a reason to exclude; `preprocessing` is used only for a failure that changes the fruit in
+  the grid.
 
 ## 2. How candidates are found
 
-Two routes, so that a fault is not missed because the screen happens not to flag it.
+Three routes, so that a fault is not missed because the screen happens not to flag it.
 
 1. **Screen** (notebook 05, sections 7 and 8). Principal component analysis (PCA) of the latent,
    all 32,768 cells, mean-centred, not scaled, exact solver, fitted on the 346 open 2526 fruit
@@ -38,7 +42,17 @@ Two routes, so that a fault is not missed because the screen happens not to flag
    **every** open fruit (the 346 open 2526 fruit and Hugo's 66 validation fruit), shown without
    any label, in a fixed order (by fruit identifier). Ruben looks through all of them once.
 
-Every candidate from either route is judged with the codes of section 1.
+3. **Flat-face screen** (added 23 October 2026). `flat_face_share` of `pearlatent.descriptors`:
+   the largest flat patch of the fruit surface as a share of all surface voxels (RANSAC plane
+   search, 3,000 planes, tolerance 1 voxel, seed 369). Natural skin is curved; a cut leaves a
+   flat face. On 22 fruit read by eye (23 October): cuts through the body 0.13 to 0.29, normal
+   fruit 0.07 to 0.09, the curved 2526_O19 0.11. The cut-off value is chosen by Ruben from the
+   distribution of all open fruit (histogram, no labels shown) before the decisions are made,
+   and written here. The measure does not separate a cut-off neck tip (0.05 to 0.08), so neck
+   tips are found by eye on the contact sheet only.
+
+Every candidate from any route is judged by eye with the codes of section 1; the screens only
+propose candidates.
 
 ## 3. Blind to the grades
 
@@ -112,7 +126,8 @@ object on top of the neck that is connected to the fruit (counted as stalk).
 **Pattern:** the cuts cluster in boxes I and L of 2526. If cuts depend on the box (scan
 session), excluding them removes fruit unevenly over boxes; to report.
 
-**Open for Ruben (amendment to section 1):** the rule says a volume with a missing part is
+**Decided by Ruben on 23 October 2026:** a cut-off neck tip is a faulty measurement and is
+excluded as `missing_part` (section 1). Previously open: the rule says a volume with a missing part is
 excluded. About 12 fruit miss only the tip of the neck, far from the core where browning
 develops. Proposal: `missing_part` only when the cut reaches the body (cross-section through
 the body centre not complete, or the cut is below the widest part of the neck); a cut neck tip

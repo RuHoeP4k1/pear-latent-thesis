@@ -33,7 +33,7 @@ def _():
     (charter, "Do not"); the numbers come from PERMANOVA with PERMDISP.
 
     **Inputs.** Encoding run `20261013T171306Z_hugo_vae` (`latents.npy`, `manifest.parquet`,
-    `reconstruction.parquet`), both label files, `derived/descriptors/20261023T151348Z_descriptors/`,
+    `reconstruction.parquet`), both label files, `derived/descriptors/20261023T155219Z_descriptors/`,
     `derived/volume_decisions.csv` when it exists.
 
     **Fruit.** The 346 open 2526 fruit; Hugo's 66 2425 validation fruit for the season
@@ -53,7 +53,7 @@ def _():
         cfg.path("derived_dir") / "latents" / "hugo_vae" / "20261013T171306Z_hugo_vae"
     )
     descriptor_dir = (
-        cfg.path("derived_dir") / "descriptors" / "20261023T151348Z_descriptors"
+        cfg.path("derived_dir") / "descriptors" / "20261023T155219Z_descriptors"
     )
     # One seed for t-SNE, UMAP, MDS and the permutations (the project seed).
     SEED = 369
@@ -148,6 +148,7 @@ def _(fruit, is_2526, pc_scores):
         "diameter_to_length",
         "tissue_intensity_median",
         "cavity_fraction",
+        "flat_face_share",
         "mae_core",
         "browning",
         "cavity",
@@ -216,12 +217,14 @@ def _():
         "cause",
         "browning",
         "cavity",
+        "stalk_present",
     ]
     _continuous = [
         "stalk_length",
         "body_voxels",
         "diameter_to_length",
         "tissue_intensity_median",
+        "flat_face_share",
         "mae_core",
     ]
     embedding_colour = mo.ui.dropdown(

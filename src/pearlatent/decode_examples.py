@@ -1,7 +1,8 @@
 """Decode a few fruit in full, for the 3D slice viewer and the GIF of notebook 06 (section 7).
 
 `planes.npy` keeps only three planes per fruit; scrolling through a whole fruit needs the full
-reconstruction. Decoding takes about 56 s per fruit on the laptop CPU (13 October 2026), so
+reconstruction. Decoding takes about 56 s per fruit on the laptop CPU (13 October 2026) and about
+6 minutes per fruit on the Mac CPU (23 October 2026, 17 GB of memory in use), so
 only a handful of example fruit are decoded. The latent is the saved `mu` of the encoding run
 (not re-encoded), decoded with `vae.decode(mu)`, the same call as the run itself.
 
@@ -50,7 +51,8 @@ def main(fruit_ids: list[str]) -> None:
         print(f"decoding {fruit['fruit_id']} ...", flush=True)
         path = cfg.path(f"ct_dir_{fruit['season']}") / f"{fruit['file_stem']}.nii"
         ct_volumes.append(scale_minmax(np.asarray(nib.load(path).dataobj)))
-        mu = torch.from_numpy(np.ascontiguousarray(latents[fruit["position"]]))
+        # np.array copies the memory-mapped (read-only) latent into a writable array.
+        mu = torch.from_numpy(np.array(latents[fruit["position"]], dtype=np.float32))
         with torch.inference_mode():
             x_hat = vae.decode(mu.reshape(1, 1, 32, 32, 32).to(device)).float().cpu()
         reconstructions.append(x_hat[0, 0].numpy())
