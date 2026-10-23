@@ -16,7 +16,8 @@ with app.setup:
 
     from pearlatent.config import load_config
     from pearlatent.labels import load_labels
-    from pearlatent.pooling import scale_minmax
+    from pearlatent.descriptors import flat_face_patch, largest_part
+    from pearlatent.pooling import MASK_THRESHOLD, scale_minmax
     from pearlatent.reconstruction import body_centre, body_voxel_mask, central_planes
 
 
@@ -1121,6 +1122,115 @@ def _(flat_face_cutoff, sheet_fruit):
             _above.select("fruit_id", "group", "flat_face_share", "flat_face_voxels"),
         ]
     )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    **What the flat-face screen found.** For every fruit at or above the cut-off, and for three
+    fruit with a typical value (closest to the median, as a reference): the patch that the
+    plane search found, in red. Three CT slices through the centre of the patch (red: patch
+    voxels within 2 voxels of the slice), and the outline of the whole fruit seen along the
+    first array axis with the patch projected onto it. A real cut shows as a straight red edge;
+    a curved red line on a normal fruit is the largest flat-looking piece of an ordinary skin.
+    Nothing is excluded here.
+    """)
+    return
+
+
+@app.cell
+def _(cfg, flat_face_cutoff, fruit, sheet_fruit):
+    _above = sheet_fruit.filter(
+        pl.col("flat_face_share") >= flat_face_cutoff.value
+    ).sort("flat_face_share", descending=True)
+    _median = sheet_fruit["flat_face_share"].median()
+    _typical = (
+        sheet_fruit.with_columns(_distance=(pl.col("flat_face_share") - _median).abs())
+        .sort("_distance", "fruit_id")
+        .head(3)
+        .drop("_distance")
+    )
+    # `kind` and `order` are set before the join, because a join does not keep the row order.
+    flat_face_shown = (
+        pl.concat(
+            [
+                _typical.with_columns(kind=pl.lit("typical")),
+                _above.with_columns(kind=pl.lit("above cut-off")),
+            ]
+        )
+        .with_row_index("order")
+        .join(
+            fruit.select("fruit_id", "season", "file_stem"),
+            on="fruit_id",
+            validate="m:1",
+        )
+        .sort("order")
+    )
+
+    def patch_views(row: dict) -> tuple[list, list]:
+        """Four pictures of one fruit: CT slices x, y, z through the patch centre and the
+        outline along the first axis; and the red patch overlay for each (same order)."""
+        _file = cfg.path(f"ct_dir_{row['season']}") / f"{row['file_stem']}.nii"
+        _scaled = scale_minmax(np.asarray(nib.load(_file).dataobj))
+        _fruit = largest_part(_scaled > MASK_THRESHOLD)
+        _patch, _ = flat_face_patch(_fruit)
+        _i, _j, _k = (int(round(c.mean())) for c in np.nonzero(_patch))
+        # Patch voxels within 2 voxels of each slice.
+        _near_x = _patch[max(_i - 2, 0) : _i + 3].any(axis=0)
+        _near_y = _patch[:, max(_j - 2, 0) : _j + 3].any(axis=1)
+        _near_z = _patch[:, :, max(_k - 2, 0) : _k + 3].any(axis=2)
+        pictures = [
+            _scaled[_i].T,
+            _scaled[:, _j].T,
+            _scaled[:, :, _k],
+            _fruit.sum(axis=0).T > 0,
+        ]
+        overlays = [_near_x.T, _near_y.T, _near_z, _patch.any(axis=0).T]
+        return pictures, overlays
+
+    _n = flat_face_shown.height
+    _fig, _axes = plt.subplots(_n, 4, figsize=(9, 2.4 * _n), squeeze=False)
+    _titles = ["slice x", "slice y", "cross-section z", "outline along x"]
+    for _r, _row in enumerate(flat_face_shown.iter_rows(named=True)):
+        _pictures, _overlays = patch_views(_row)
+        for _c in range(4):
+            _ax = _axes[_r, _c]
+            _ax.imshow(_pictures[_c], origin="lower", cmap="gray", vmin=0, vmax=1)
+            # Red where the patch is; transparent elsewhere.
+            _red = np.zeros((*_overlays[_c].shape, 4))
+            _red[_overlays[_c]] = (1, 0, 0, 0.8)
+            _ax.imshow(_red, origin="lower")
+            _ax.set_xticks([])
+            _ax.set_yticks([])
+            if _r == 0:
+                _ax.set_title(_titles[_c], fontsize=9)
+        _axes[_r, 0].set_ylabel(
+            f"{_row['fruit_id']}\n{_row['flat_face_share']:.3f} ({_row['kind']})",
+            fontsize=8,
+        )
+    _fig.tight_layout()
+    flat_face_figure = _fig
+    flat_face_figure
+    return (flat_face_figure,)
+
+
+@app.cell
+def _():
+    save_flat_face = mo.ui.run_button(
+        label="Save the flat-face panel to derived/figures/"
+    )
+    save_flat_face
+    return (save_flat_face,)
+
+
+@app.cell
+def _(cfg, flat_face_figure, save_flat_face):
+    # Saved under derived/ (outside git).
+    mo.stop(mo.running_in_notebook() and not save_flat_face.value)
+    _out = cfg.path("derived_dir") / "figures" / "05_flat_face_candidates.png"
+    flat_face_figure.savefig(_out, dpi=110, bbox_inches="tight")
+    print(f"saved {_out}")
     return
 
 

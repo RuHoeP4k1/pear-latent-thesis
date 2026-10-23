@@ -73,24 +73,27 @@ def slice_extent(mask: np.ndarray) -> tuple[int, int]:
     return int(occupied[0]), int(occupied[-1])
 
 
-def largest_flat_face(
+def flat_face_patch(
     solid: np.ndarray,
     n_planes: int = FLAT_FACE_PLANES,
     tolerance: float = FLAT_FACE_TOLERANCE,
     seed: int = FLAT_FACE_SEED,
-) -> tuple[int, int]:
-    """Size of the largest flat patch of the surface of `solid`, and the number of surface voxels.
+) -> tuple[np.ndarray, int]:
+    """The largest flat patch of the surface of `solid`, as a voxel mask, and the surface size.
 
-    In: a boolean volume (the fruit). Out: (voxels of the largest flat patch, surface voxels).
-    Surface voxels are voxels of `solid` with a neighbour outside it. Planes are tried in
-    batches of 200 for speed; the same seed gives the same planes.
+    In: a boolean volume (the fruit). Out: (boolean mask of the patch, number of surface
+    voxels). Surface voxels are voxels of `solid` with a neighbour outside it. Random sample
+    consensus (RANSAC): a plane through 3 random surface voxels, the surface voxels within
+    `tolerance` of it counted, repeated `n_planes` times (in batches of 200 for speed); the
+    plane with the most voxels wins. The same seed gives the same planes.
     """
     from scipy import ndimage
 
     surface = solid & ~ndimage.binary_erosion(solid)
     points = np.argwhere(surface).astype(float)
+    patch = np.zeros_like(surface, dtype=bool)
     if len(points) < 3:
-        return 0, len(points)
+        return patch, len(points)
     rng = np.random.default_rng(seed)
     best_count, best_plane = -1, None
     for _ in range(max(1, n_planes // 200)):
@@ -109,11 +112,25 @@ def largest_flat_face(
     near = np.abs(points @ normal - offset) <= tolerance
     # Only the largest connected patch counts: a plane through a curved surface also touches
     # it along a thin curve elsewhere.
-    on_plane = np.zeros_like(surface)
+    on_plane = np.zeros_like(surface, dtype=bool)
     on_plane[tuple(points[near].astype(int).T)] = True
     labels, n = ndimage.label(on_plane, structure=np.ones((3, 3, 3)))
-    patch = int(np.bincount(labels.ravel())[1:].max()) if n else 0
+    if n:
+        sizes = np.bincount(labels.ravel())
+        sizes[0] = 0  # label 0 is everything off the plane
+        patch = labels == sizes.argmax()
     return patch, len(points)
+
+
+def largest_flat_face(
+    solid: np.ndarray,
+    n_planes: int = FLAT_FACE_PLANES,
+    tolerance: float = FLAT_FACE_TOLERANCE,
+    seed: int = FLAT_FACE_SEED,
+) -> tuple[int, int]:
+    """Size of the largest flat patch of the surface (`flat_face_patch`) and of the surface."""
+    patch, surface = flat_face_patch(solid, n_planes, tolerance, seed)
+    return int(patch.sum()), surface
 
 
 def fruit_descriptors(scaled: np.ndarray) -> dict:
