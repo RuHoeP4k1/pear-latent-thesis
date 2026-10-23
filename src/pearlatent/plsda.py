@@ -20,10 +20,11 @@ property that its first h columns equal the rotation of the h-component model (P
 triangular). So one fit with `max_components` gives the predictions for every h
 (`predict_each_h`, checked against refitting in the tests).
 
-Whether the cells are scaled to unit variance (`scale`) has no default on purpose: it is a
-choice of the analysis plan (CLAUDE.md section 7 says "standardise inside the training fold";
-notebook 05 did not scale for the PCA because background cells hardly vary). Scaling, when
-used, is computed by `PLSRegression` from the training fruit only (charter rule 9).
+Scaling (`scale`): decided by Ruben on 23 October 2026, centre only, no scaling to unit
+variance (`scale=False`; CLAUDE.md section 7), because background cells hardly vary and
+scaling would raise their noise to the weight of fruit cells. The argument still has no
+default, so every call states it. The centring is computed by `PLSRegression` from the
+training fruit only (charter rule 9).
 """
 
 from __future__ import annotations

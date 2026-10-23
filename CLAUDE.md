@@ -138,7 +138,9 @@ Step 0. `body_mask` is still used to measure height over the fruit body.
 
 ## 7. Statistics
 
-- p ≫ n throughout (32,768 cells, a few hundred fruit). Standardise inside the training fold.
+- p ≫ n throughout (32,768 cells, a few hundred fruit). Centre inside the training fold; do not
+  scale cells to unit variance (Ruben, 23 October 2026: background cells hardly vary, scaling
+  would raise their noise to the weight of fruit cells). `PLSRegression(scale=False)`.
 - Prefer PLS over principal component regression: components chosen by variance describe pear size
   and shape, not browning.
 - Number of PLS components (design A, Ruben, 21 October 2026): 20 repeats of the 4-fold box
