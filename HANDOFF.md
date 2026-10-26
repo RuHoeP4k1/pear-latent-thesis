@@ -288,6 +288,11 @@ For Hugo (meeting 29 Oct), added 26 Oct:
 35. Contrast retention uses only the two central long sections per fruit. Does he think the
     full 3D core is needed (all 2526 fruit decoded again, about 5.5 hours)?
 
+For Hugo (meeting 29 Oct), added 26 Oct (second session):
+37. May Ruben work forward from his 3D ResNet design as the reference classifier, with his own
+    training objective (binary_23, one output), box splits, augmentation and no pseudo-labels?
+    Full list in `docs/meeting_2026-10-29.md`, Part 2 item 4.
+
 For Ruben, added 26 Oct:
 36. Put the grading rubric table (Tier 1) in the repository or in `data/` (outside git), so
     the grade definitions (for example browning 1 = light discoloration of the kernel
