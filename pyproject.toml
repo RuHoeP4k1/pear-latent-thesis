@@ -24,7 +24,6 @@ dependencies = [
     # plotting for the thesis document
     "matplotlib>=3.9",
     "plotly>=7.1.0",
-    "umap-learn>=0.5.12",
 ]
 
 [dependency-groups]

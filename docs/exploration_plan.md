@@ -13,6 +13,11 @@ notebook is used to choose a setting of the main models.
 
 ## 2. Pictures (qualitative only)
 
+**Removed on 26 October 2026 (Ruben):** t-SNE, UMAP and the MDS map of group centres (code
+deleted from notebook 07, `umap-learn` removed). They sorted the fruit by stalk length, which
+the PC correlations already show. Only the Spearman correlations of PC1 to PC10 remain
+(notebook 07 section 1). The text below is kept as a record of what was planned.
+
 Charter, "Do not": no quantitative conclusion from a 2D embedding. t-SNE and UMAP distances
 between clusters, cluster sizes and densities have no fixed meaning; only "which fruit lie near
 which" is read from them.
@@ -29,9 +34,11 @@ which" is read from them.
 
 ## 3. PERMANOVA (quantitative)
 
-**Dropped from the analysis (Ruben, 26 October 2026).** Not shown to Hugo and not used in the
-thesis. The code (`pearlatent.permanova`, notebook 07 section 3) and the section below are
-kept as a record of what was tried until Ruben decides whether to delete them.
+**Removed on 26 October 2026 (Ruben).** Not shown to Hugo and not used in the thesis. The
+code (`pearlatent.permanova`, its tests, notebook 07 sections 3 and 4) is deleted; it stays
+in git history (commit 43d131b and earlier). The text below is kept as a record of what was
+planned. The last results, for the record (377 fruit after the exclusions): box R² 0.094,
+grade within box 0.023 (mostly a difference in spread), stalk class 0.132.
 
 Permutational multivariate analysis of variance (Anderson 2001, Austral Ecology 26, 32-46):
 does a grouping explain more of the distances between fruit than chance?
@@ -86,4 +93,4 @@ the quantitative counterpart is section 3.
 
 The nuisance check of CLAUDE.md section 7 (does the latent predict box or storage better than
 the defect?) fits classifiers on labels and so belongs with the main models, under the same box
-splits. The PERMANOVA R² of box against grade gives the first, exploratory answer.
+splits.
