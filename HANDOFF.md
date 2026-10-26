@@ -5,165 +5,100 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-23
-- **Phase:** exploration and Step 0 on the saved latents (notebooks 05, 06, 07). Outlier rule
-  and rule for the number of PLS components fixed before any curve. No model fitted on labels
-  yet. Meeting with Hugo Thursday 29 Oct, 11:00.
-- **Decided this session (Ruben, 23 Oct):**
-  - No cropping of the latent grid to a smaller box: a 16 × 16 crop cuts fruit in 130 of 412
-    fruit, cells outside every fruit carry only 8 % of the variance, and InstanceNorm spreads
-    global intensity into every cell anyway. (Open question 24, a mask of body cells, was not
-    discussed further.)
-  - Faulty-volume rule approved in principle: `docs/outlier_rule.md`. Exclude when part of the
-    fruit is missing or the preprocessing failed, never because the fruit is defective; blind
-    to grades; same procedure for the sealed fruit; sensitivity row with all volumes. Per-fruit
-    decisions still to make (next step).
-  - Number of PLS components: van der Voet (1994) randomisation test with signs flipped per box
-    (all 4,096 combinations), smallest h with p > 0.10 (`docs/cv_explained.md` section 4,
-    `pearlatent.component_choice`). Replaces the Haaland F-test with a design-effect correction
-    that was written earlier the same day. Closes open question 26.
-  - Height-radius maps made for Step 0 as a figure; keep or drop after Ruben has seen them.
-  - PERMANOVA plan and assumptions written before running (`docs/exploration_plan.md`).
-  - Later the same day: a cut-off neck tip is a faulty measurement (`missing_part`); volumes that
-    are only darker or brighter stay in (2526_C03, I03, L03, N15). Decoding the 4 example fruit
-    approved and done (`derived/step0_examples/20261023T160600Z_examples/`; matches the saved
-    planes to 0.00024; took 23 minutes, 17 GB of memory).
-- **Done this session (23 Oct, Mac), commits 850f742 to 382c7e7:**
-  - Notebook 05: A defaults to 13; section 8 panel of the 30 fruit beyond either 99 % limit
-    (tagged T², Q or both; grades hidden by default); section 9 contact sheet of all 412 shown
-    fruit without labels (9 pages, `derived/figures/05_contact_sheet/`) plus a descriptor screen
-    (tissue intensity below 0.7 or more than 100 stray voxels).
-  - `pearlatent.descriptors` (stalk length, body voxels and length, widest diameter, diameter to
-    length, tissue intensity, cavity fraction, stray voxels), run on all 940 open fruit:
-    `derived/descriptors/20261023T151348Z_descriptors/`.
-  - `pearlatent.exclusions`: reads `derived/volume_decisions.csv` (decisions `missing_part`,
-    `preprocessing`, `keep`), mode `all_volumes`; notebook 02 reads the file when it exists.
-  - Notebook 06 (Step 0, from `planes.npy`, nothing re-decoded): error table, correlations with
-    descriptors, contrast retention per grade with box bootstrap, height-radius maps, one typical
-    example per grade (`pearlatent.step0`). Section 7 (3D slices, Plotly planes, GIF) waits for
-    `pearlatent.decode_examples`.
-  - Notebook 07: PC1 to PC10 against descriptors, t-SNE and UMAP (adds `umap-learn`),
-    PERMANOVA with PERMDISP (`pearlatent.permanova`, permutations within box), MDS of box-by-grade
-    centres.
-  - Checked: the 17 unscanned 2526 fruit are not in the manifest; every manifest fruit has a
-    label; labels join on `fruit_id`, so no shift between volumes and labels is possible.
-- **Results computed and read by Claude on 23 Oct (not yet reviewed by Ruben):**
-  - Reconstruction, median MAE in the core, 2526 by defective grade 0 to 3: 0.0120, 0.0147,
-    0.0197, 0.0211; median MAE over the body 0.0104 to 0.0174. Hugo's training sample and
-    validation fruit of the same storage group and grade are almost equal (harvest, body: 0.0141
-    against 0.0142), so no sign that the VAE reconstructs its training fruit better. 2526 bodies
-    are smaller in the grid (median stalk 16 voxels against 3 in 2425).
-  - Contrast retention of the mean core intensity (2526, against 152 grade 0 fruit): browning
-    only, grade 1, 2, 3: 0.89 (95 % box bootstrap 0.62 to 1.04), 1.02 (0.41 to 1.69), 0.95
-    (0.89 to 1.10); CT darkening of the core only 0.009 to 0.020 on a healthy core of 0.84. Any
-    cause grade 2 and 3: 0.94 (0.88 to 0.98), 0.93 (0.87 to 0.95). Cavity only: 3 fruit, too few.
-    The height-radius maps show the same darkening pattern in CT and reconstruction; the residual
-    has no pattern that grows with grade. The example fruit show that fine texture is smoothed.
-    Reading: the mean darkening at the scale of about 1 cm is kept; finer texture partly not.
-  - PC1 follows body size (Spearman 0.96 with body voxels, −0.81 with stalk length); PC3 tissue
-    intensity (−0.55); the largest correlation of a grade with PC1 to PC10 is 0.40 (PC10).
-  - PERMANOVA, Euclidean on the full grid, 9,999 permutations: box R² 0.100 (p 0.0001, PERMDISP
-    p 0.25); defective grade within box R² 0.023 (p 0.001) but PERMDISP F 14, p 0.0001, so
-    largely a difference in spread; cause R² 0.024 (PERMDISP p 0.0001); stalk class R² 0.143;
-    season R² 0.037 (descriptive). t-SNE and UMAP sort the fruit mainly by stalk length.
-  - Faulty volumes, first pass by Claude: `docs/outlier_rule.md` sections 7 and 8 (straight
-    cuts, clustered in 2526 boxes I and L; dark fruit 2425_A36, 2526_C03, I03, L03; stray objects
-    2526_K13, A30, K02, 2425_H53). 2526_K27 is not a preprocessing failure: a 36-voxel stalk.
-- **Results seen 21 Oct (kept):** PCA on 346 2526 fruit: PC1 22 %, 10 PCs 50 %, 50 PCs 74 %;
-  Ruben: scree elbow about 13. Edge band in the mean latent from zero padding in Hugo's encoder.
-  Outlier screen A = 13 at 99 %: 30 of 412 shown fruit beyond a limit (now in notebook 05 §8).
-  Hugo agreed with design A on 21 Oct.
-- **Encoding done (13–15 Oct, checked 17 Oct):** full run with Hugo's weights is
-  `20261013T171306Z_hugo_vae` (two sessions: 13 Oct 19:13 to 14 Oct 03:19, stopped by the time
-  limit; resumed 15 Oct, finished). Open part `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/`:
-  940 fruit (346 of 2526, 594 of 2425), latents 940 × 32³ all finite, 478 rows in
-  `reconstruction.parquet` (346 + 66 + 66 decoded, as planned). Sealed part
-  `derived/sealed/latents/hugo_vae/20261013T171306Z_hugo_vae/`: 153 fruit, encoded only.
-  `run.json` says `dirty: true` because the untracked `HANDOFF_claude-code_2026-10-13.md` was in
-  the folder; the code was commit 0c9052f.
-  **Random encoder done (20 Oct, Mac, CPU):** run `20261020T120336Z_random_init`, seed 0, code
-  54101c4 (clean), 14:03 to 14:31 (about 1.5 s per fruit on the Mac CPU). Open part 940 fruit
-  (346 of 2526, 594 of 2425), sealed part 153 (87 + 66), all finite, nothing decoded (no trained
-  decoder); same fruit in the same order as the Hugo run, both parts. The empty attempt of
-  15 Oct was deleted; the 2-fruit test `20261005T142117Z_random_init` is kept.
-- **Results of the draw (13 Oct):** season totals over 433 scanned fruit: non-consumable 179,
-  browning ≥ 2 without cavity 73, browning 3 100, any cavity 115. Eligible sets: 120 at ±30 %
-  (222 at ±40 %, 296 at ±50 %); every box occurs in 18 to 31 eligible sets. Drawn test boxes
-  **F, J, M** (87 fruit; counts 35 / 18 / 19 / 22 against expected 36.0 / 14.7 / 20.1 / 23.1).
-  Fold partitions of the 12 other boxes: 186 eligible of 15,400 at ±30 %. Repeats: 1 ABI CGN DEO
-  HKL; 2 ACE BGL DIN HKO; 3 AEH BGL CKO DIN; 4 AHN BDL CEI GKO; 5 AGK BCI DNO EHL. Repeats 2 and 3
-  share two folds (BGL, DIN); BL, DN and KO share a fold in 3 of 5 repeats.
-- **B5 (13 Oct):** decoding takes about 56 s per fruit on the laptop CPU (encoding about 4 s;
-  the decoder runs 3D convolutions with 128 channels at 128³), so all 1,093 would take about
-  18 hours. Ruben (13 Oct): decode only what is needed now, over two nights, with batch saves.
-  Decoded: the 346 open 2526 fruit, Hugo's 66 validation fruit, a sample of 66 of his 528
-  training fruit (`hugo_training_sample`, seed 369); encoded only: the other 462 training fruit
-  and the 153 sealed fruit (decoded at the final test). Work saved in chunks of 20 fruit
-  (`src/pearlatent/encode_run.py`). Smoke test on 25 fruit with Hugo's weights, stopped and
-  resumed: complete, all numbers finite, 464 s for 8 decoded + 12 encoded fruit. Test runs left
-  in `derived/latents/hugo_vae/` (20261013T140149Z: 4 fruit, old format; 20261013T141619Z: 25
-  fruit); the full run will be newer.
-- **Flat-face screen (23 Oct):** `pearlatent.descriptors` now also gives `flat_face_share`
-  (largest flat patch of the surface, RANSAC) and `stalk_present` (stalk ≥ 10 voxels); run
-  `derived/descriptors/20261023T155219Z_descriptors/` (notebooks 05, 06, 07 use it; the run
-  151348Z is the older one without these columns). On the 412 contact-sheet fruit: median 0.075,
-  95th percentile 0.119; the tail holds the cuts read by eye (2526_I13 0.29, N29, A10, A13, I10,
-  L16, L29, I07, L26, I28, I25; 2425_I45, I44, C59) and new candidates (2526_A07, I01, L07, G30,
-  E13, E07). 2526_A07 is the browning-3 example fruit of notebook 06; the examples change once
-  faulty volumes are dropped. Neck-tip cuts are not separated by this number (by eye only).
-- **Next step:** Ruben chooses the flat-face cut-off on the histogram in notebook 05 section 9
-  (no labels shown) and writes it into `docs/outlier_rule.md` section 2; then judges every
-  candidate (screen, contact sheet, flat face, neck tips by eye) and writes
-  `derived/volume_decisions.csv` (`fruit_id,season,decision,note`). Then rerun notebook 02 (new
-  `exclusions.csv`) and notebooks 06 and 07. Then prepare the material for Hugo on 29 Oct.
-- **Decided by Ruben later on 23 Oct:** (1) test boxes F, J, M and the 20 partitions stay as
-  drawn after the exclusions; the balance after exclusion is reported. (2) Size and stalk:
-  preferred route is to fix it in the preprocessing (stalk removed before the rescaling to 128
-  voxels, then re-encode), to discuss with Hugo on 29 Oct; if that is not possible, (a) a
-  sensitivity row with stalk length and body size regressed out inside each training fold
-  and/or (b) a check that the score separates grades within stalk classes. Final choice after
-  the meeting, before any PLS-DA curve. (3) `stalk_present` = stalk ≥ 10 voxels; orchard-check
-  covariates stalk length, body voxels, diameter to length. (4) The flat-face screen only
-  proposes candidates; Ruben sees what it found before anything is excluded.
-- **Why size matters (for the meeting):** Ho et al. 2008 (PLoS Computational Biology 4, e1000023;
-  MeBioS) model gas exchange in pear: fruit size changes internal O₂ and CO₂, and low core O₂
-  leads to browning; a logistic-regression study on Conference pears found heavier fruit more
-  likely to develop brownheart (to find and read: probably Lammertyn et al., 2000s). Our
-  volumes are rescaled to 128 voxels in length, so `body_voxels` measures shape and stalk share,
-  not size; Hugo's original lengths (open question 18) are needed to separate them. The encoder
-  was trained on 2425 volumes, which have almost no stalk (median 3 voxels against 16 in
-  2526), so the 2526 inputs differ from the training data in how much of the grid the body
-  fills.
-- **Pipeline built, not run on real labels (23 Oct, commit 4265761):** `pearlatent.plsda`
-  (design A: predictions for every repeat, fold and number of latent variables from one fit;
-  PRESS; AUC, recall per grade, precision at 0.5; box bootstrap) and `pearlatent.feature_sets`
-  (`hugo_vae`, `random_init`, `ct_32`; removes sealed fruit, which the CT-32 run of 5 Oct still
-  holds). One fit of 15 components on 260 × 32,768 takes about 0.1 s, so a full design A run is
-  seconds. It runs on real labels only after the exclusions and the size/stalk route are
-  final, so that neither is chosen after seeing a score.
-- **Flat-face panel (notebook 05 §9, `derived/figures/05_flat_face_candidates.png`):** at 0.11,
-  the straight red edge of a real cut is seen on 2526_A07, A10, A13, E07, E13, G29, G30, I01,
-  I04, I07, I10, I13, I25, I28, L07, L16, L26, L29, N29 and 2425_C59, I44, I45 (Claude's reading);
-  curved red lines (no cut) on 2526_O19, O25 and 2425_J27, C24. So no cut-off separates
-  perfectly: G29 and I04 (0.110) are cuts, O19 (0.113) and J27 (0.114) are not. Proposal: a
-  generous cut-off (about 0.10) for the screen, the eye decides.
-- **Meeting preparation:** `docs/meeting_2026-10-29.md` (Ruben's check list, what to show Hugo,
-  the decisions needed before modelling, and the methods text on how each descriptor is
-  measured, section D, which Ruben asked to keep). Until the meeting: no new analyses; Ruben
-  checks the outputs first.
-- **Blocked on:** nothing.
-- **Mac (main machine from 20 Oct):** `/Users/rubenhoeven/code/pear-latent-thesis`, Python
-  3.12.15, torch 2.14.1 (MPS available, not used: `device = "cpu"` in `config/local.toml`),
-  marimo 0.25.1; data in `~/data/pear-thesis` (433 volumes 2526, 660 volumes 2425, both label
-  files). Weights in `data/weights/hugo_vae/` as on the laptop. Hugo's
-  repository cloned at `../Synthetic_CT_pear`, commit 183112f. Checked 20 Oct: `uv run pytest`
-  62 passed (Hugo split tests included), notebook 00 runs, both latent arrays of run
-  `20261013T171306Z_hugo_vae` load (940 and 153 fruit, finite, 478 reconstruction rows).
-  Encoding ran on the Windows laptop (CPU, about 5 seconds per fruit, decided 5 Oct); the
-  workstation is only for the ResNet-18 baseline and is not set up.
-  School PC not set up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
-  `notebooks/00_environment_check.py`. For pairing on a live notebook also run
-  `npx skills add marimo-team/marimo-pair` (not in git) and put `jq` and `curl` on the PATH.
+- **Date:** 2026-10-26
+- **Phase:** preparation of the meeting with Hugo (Thursday 29 Oct, 11:00) is finished. Faulty
+  volumes decided; exploration and Step 0 rerun on the remaining fruit. No model fitted on
+  labels yet. Everything to show and ask Hugo is in `docs/meeting_2026-10-29.md` (status
+  table and figure list at the top).
+- **Decided this session (Ruben, 26 Oct):**
+  - Faulty volumes: visual inspection decides; the flat-face number only chose fruit for a
+    second look (no numeric cut-off). Neck tip cuts are excluded too, also the very minor
+    ones. "Deformed volume" counts as `preprocessing`. 35 volumes excluded (31 of 346 open
+    2526 fruit, 4 of Hugo's 66 validation fruit); 17 judged and kept. All in
+    `derived/volume_decisions.csv` and `docs/outlier_rule.md` section 9.
+  - PERMANOVA, PERMDISP, t-SNE, UMAP and the MDS map are removed from the analysis and the
+    code (`pearlatent.permanova`, its tests, `umap-learn`). Last numbers kept in
+    `docs/exploration_plan.md` section 3 for the record.
+  - Step 0 decodes `mu` (`vae.decode(mu)`), not `vae(x)`: the latent analysed is `mu`. No
+    comparison with sampled z (see "Decided", 26 Oct).
+  - Browning grade 1 = light discoloration of the kernel membranes (grading rubric, as stated
+    by Ruben; the rubric table is not in the repository). Explains the dark seed-cavity spot
+    of browning 1 in the height-radius maps.
+- **Done this session (26 Oct, Mac), commits c1b4f7d to 22dfd84 plus the uncommitted
+  changes listed at the end of the session:**
+  - `derived/volume_decisions.csv` (52 rows); notebook 02 rebuilt `exclusions.csv` (35 new
+    rows, nothing else changed); notebooks 06 and 07 rerun on 377 fruit (315 2526, 62 2425
+    validation).
+  - Notebook 05 section 10: figure and list of the 35 excluded volumes
+    (`derived/figures/05_excluded_fruit.png`, `.csv`) and the grades of the excluded fruit.
+  - Notebook 06 section 5: height-radius maps reworked (empty grade 0 panels dropped,
+    residual row on its own scale ±0.02, a bin drawn only when at least half of the fruit
+    reach it) and a latent view (`pearlatent.step0.latent_map_sums`, all body cells of `mu`;
+    dropdown "Map of"); check table of the browning 1 seed-cavity spot.
+  - Notebook 06 section 7 (uncommitted): combines all decoding runs in
+    `derived/step0_examples/` and offers only the current example fruit of section 6; the GIF
+    can scroll through long sections (default) or cross-sections. Decoding of the new
+    examples 2526_N14 and O11 was started at the end of the session (about 6 minutes per
+    fruit on the Mac); check that a new folder in `derived/step0_examples/` holds both.
+  - Notebook 07 section 2: PC1 against PC2 in four colourings
+    (`derived/figures/07_pc1_pc2_panels.png`).
+  - `docs/meeting_2026-10-29.md`: what to tell Hugo per item, with the numbers after the
+    exclusions.
+- **Results (after the exclusions; seen by Ruben on 26 Oct unless marked):**
+  - Exclusions uneven over grades (2526): grade 0 5 %, 1 18 %, 2 4 %, 3 14 % excluded;
+    chi-squared with the exclusion shuffled within box, p = 0.006 (9,999 permutations). Not
+    a reason to change a decision; the sensitivity row with all volumes is needed.
+  - Of the body cuts, only 6 of 18 (and 1 of 11 neck cuts) lie beyond a 99 % T² or Q limit:
+    the PCA screen alone misses most cuts.
+  - Step 0 (2526): median core MAE grade 0 to 3: 0.0120, 0.0147, 0.0198, 0.0213 (3D, whole
+    volume; the error table itself not yet looked at by Ruben). Contrast retention (two long
+    sections, bootstrap over boxes), browning only 1, 2, 3: 0.86 (0.44 to 0.99), 1.04 (0.26
+    to 1.84), 0.95 (0.89 to 1.05); any cause 2, 3: 0.94 (0.87 to 0.98), 0.93 (0.88 to 0.96).
+    Residual row: a few percent of the darkening is "repaired" in browning 3 and cavity.
+  - Overall scores on Hugo's 66 validation fruit: ours MAE 0.0028, SSIM 0.9895, PSNR 35.51
+    (mean over fruit) against his 0.0025, 0.9915, 36.92 (not directly comparable).
+  - Latent maps: browning 2, 3 and cavity give a smooth lower-value region where the CT
+    darkens; browning 1 is hardly visible in the latent.
+  - PC1: Spearman 0.97 with body voxels, −0.78 with stalk length; scores form an arch
+    (horseshoe); 2425 fruit on the large-body, short-stalk side; grades mixed.
+- **Next step:** the meeting with Hugo on 29 Oct (Ruben), with `docs/meeting_2026-10-29.md`.
+  Before it, in a new session, Ruben wants to start designing the ResNet-18 baseline: read
+  `CHARTER.md` (Methods, ResNet-18), load the `workstation-run` skill, read Hugo's
+  `train_clf_3d.py` and `classification/` at commit 183112f, and settle input (128³ or
+  downsampled), target (`binary_23` first), augmentation and how it uses our box folds
+  (`derived/outer_folds_20/`, test boxes F, J, M sealed). Design only: nothing is trained
+  on labels until the exclusions and the stalk/size route (Part 3 of the meeting document)
+  are final. Width (16 or 64 base channels) is open question 16 for Hugo.
+- **Blocked on:** nothing for the design; modelling on labels waits for the meeting (stalk
+  reprocessing, original fruit lengths).
+- **Reference, still valid (from earlier sessions):**
+  - Encoding run `20261013T171306Z_hugo_vae` (code 0c9052f; `dirty: true` only because of an
+    untracked handoff file): open part `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/`,
+    940 fruit (346 2526, 594 2425), 478 decoded (346 2526, Hugo's 66 validation, 66 of his
+    training fruit, seed 369); sealed part `derived/sealed/latents/...`, 153 fruit, encoded
+    only. Random encoder run `20261020T120336Z_random_init` (seed 0, same fruit and order).
+  - Descriptors run `derived/descriptors/20261023T155219Z_descriptors/` (with
+    `flat_face_share`, `stalk_present`).
+  - Test boxes drawn 13 Oct: **F, J, M** (87 fruit). Fold partitions of the 12 other boxes,
+    repeats: 1 ABI CGN DEO HKL; 2 ACE BGL DIN HKO; 3 AEH BGL CKO DIN; 4 AHN BDL CEI GKO;
+    5 AGK BCI DNO EHL. They stay as drawn after the exclusions (Ruben, 23 Oct); the balance
+    after exclusion is reported.
+  - Decoding: about 6 minutes per fruit on the Mac CPU (17 GB of memory), 56 s on the laptop.
+  - `pearlatent.plsda` and `pearlatent.feature_sets` (commit 4265761) are built and tested,
+    not run on real labels. One fit of 15 components on 260 × 32,768 takes about 0.1 s.
+  - Size and stalk (Ruben, 23 Oct): preferred route is reprocessing 2526 without the stalk
+    before the rescaling (question 33); otherwise a sensitivity row with stalk length and body
+    size regressed out inside each training fold and/or a check within stalk classes. Why it
+    matters: Ho et al. 2008 (PLoS Computational Biology 4, e1000023): fruit size changes
+    internal O₂ and CO₂, and low core O₂ leads to browning.
+  - Mac (main machine from 20 Oct): `/Users/rubenhoeven/code/pear-latent-thesis`, Python
+    3.12.15, torch 2.14.1 (`device = "cpu"` in `config/local.toml`), marimo 0.25.1; data in
+    `~/data/pear-thesis`; weights in `data/weights/hugo_vae/`; Hugo's repository at
+    `../Synthetic_CT_pear`, commit 183112f. `uv run pytest`: 93 passed on 26 Oct.
+    The workstation is only for the ResNet-18 baseline and is not set up. School PC not set
+    up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
+    `notebooks/00_environment_check.py`; for live pairing also
+    `npx skills add marimo-team/marimo-pair` and `jq`, `curl` on the PATH.
 
 ## Setting up the Mac (written 17 Oct, on the Windows laptop)
 
@@ -297,7 +232,10 @@ Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit 
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
 confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
 `docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
-32 (PLS-DA centres only, no scaling; CLAUDE.md section 7). Answered and removed on 13 Oct (meeting):
+32 (PLS-DA centres only, no scaling; CLAUDE.md section 7). Answered and removed on 26 Oct
+(Ruben): 22 (2526_N29 and L29 are deformed volumes, excluded; K27 a long stalk, kept; O19 a
+real odd shape, kept), 25 (season split on PC1 is mostly the stalk; PC panels in notebook 07),
+28 (no flat-face cut-off; visual inspection decides). Answered and removed on 13 Oct (meeting):
 1 (weights received; seed 369 per Hugo; checkpoint read in B1), 3 (rot not really a problem in
 2526), 6 (stalks not a problem), 7 (we reproduce the split ourselves, B2), 8 (test-box rule,
 charter rule 3), 10 (item 2 dropped with the self-supervised extension). Numbers are kept so
@@ -323,22 +261,12 @@ earlier references stay valid.
     validation set (Table D.1), with the same SSIM and PSNR. Which numbers belong to which set?
 
 For Ruben, added 21 Oct:
-22. Of the 2526 outliers `2526_N29`, `2526_K27`, `2526_L29`: which is the odd shape?
-    Claude's reading (23 Oct, not Ruben's): N29 and L29 have a straight cut through the body,
-    K27 has a 36-voxel stalk; the banana-like shape is probably `2526_O19`. To confirm by Ruben.
 24. Fit PCA and PLS on all 32,768 cells or only on cells inside the fruit (body masks in
     `masks.npy`, for example cells inside the body of at least half the fruit)? Would remove
     the background and the edge band.
-25. The season difference on PC1 against PC2. Computed 23 Oct (notebook 07): PC1 follows body
-    size in the grid (Spearman 0.96 with body voxels, −0.81 with stalk length), and 2425
-    volumes have short stalks (median 3 voxels against 16), so the season split on PC1 is at
-    least partly the stalk convention. To review by Ruben.
 27. Bootstrap on the test set: the 3 test boxes are too few for a bootstrap over boxes, so the
     test interval resamples fruit (`docs/cv_explained.md` section 8). Hugo's mail speaks of
     paired bootstrap intervals in general; state this difference at the meeting.
-
-For Ruben, added 23 Oct:
-28. Flat-face cut-off (see "Next step").
 
 For Hugo (meeting 29 Oct), added 23 Oct:
 30. Volumes with a straight, often oblique cut through the fruit (2526 boxes I and L most;
@@ -352,6 +280,18 @@ For Hugo (meeting 29 Oct), added 23 Oct:
     training data; then re-encode (about 1.5 hours) and re-decode what Step 0 needs. Possible?
     And the original length of every fruit (open question 18), because size is a known cause of
     browning (Ho et al. 2008) and is not in the rescaled volumes.
+
+For Hugo (meeting 29 Oct), added 26 Oct:
+34. The cut volumes are uneven over the grades (2526 grade 1 18 %, grade 3 14 %, grade 0 5 %,
+    grade 2 4 % excluded; p = 0.006 within box). Larger fruit sticking out of the field of
+    view? Needs question 18.
+35. Contrast retention uses only the two central long sections per fruit. Does he think the
+    full 3D core is needed (all 2526 fruit decoded again, about 5.5 hours)?
+
+For Ruben, added 26 Oct:
+36. Put the grading rubric table (Tier 1) in the repository or in `data/` (outside git), so
+    the grade definitions (for example browning 1 = light discoloration of the kernel
+    membranes) can be cited from it.
 
 For Ruben (not Hugo), added 10 Oct:
 
@@ -446,6 +386,15 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-10-26 — faulty volumes decided, Step 0 explained, meeting material ready
+- Decided (Ruben): visual inspection decides exclusions, neck cuts out, 35 volumes excluded;
+  PERMANOVA, t-SNE, UMAP and MDS removed; Step 0 decodes `mu`; browning 1 = kernel membranes.
+- Exclusions uneven over grades (p = 0.006 within box); the PCA screen alone misses most cuts.
+- Notebooks 05, 06, 07 rerun on 377 fruit; Step 0 numbers barely changed; residual shows a
+  few percent of the darkening repaired; latent maps show browning 2, 3, not 1.
+- New: excluded-fruit figure, PC1-PC2 panels, latent height-radius view; meeting document
+  complete. Next session: ResNet-18 baseline design.
 
 ### 2026-10-23 — outlier rule, component rule, Step 0, exploration notebook
 - Decided (Ruben): no cropping; faulty-volume rule (missing part or failed preprocessing, never

@@ -15,7 +15,6 @@ with app.setup:
     from pearlatent.config import load_config
     from pearlatent.exclusions import read_volume_decisions
     from pearlatent.labels import load_labels
-    from pearlatent.runs import latest_run_dir
     from pearlatent.step0 import (
         MAX_RADIUS,
         N_HEIGHT_BINS,
@@ -835,25 +834,36 @@ def _():
 
 @app.cell(hide_code=True)
 def _(cfg, examples):
-    _example_dir = latest_run_dir(
-        cfg.path("derived_dir") / "step0_examples", "examples"
+    # Every decoding run writes its own folder. Combine all of them, newest first, so fruit
+    # decoded on different days are all available; keep only the current example fruit of
+    # section 6 (so a fruit that was an example before the exclusions, such as the cut
+    # 2526_A07, is not offered).
+    _wanted = examples["fruit_id"].to_list()
+    _runs = sorted(
+        (cfg.path("derived_dir") / "step0_examples").glob("*_examples/volumes.npz"),
+        reverse=True,
     )
-    _command = "uv run python -m pearlatent.decode_examples " + " ".join(
-        examples["fruit_id"].to_list()
-    )
+    example_volumes = {}
+    for _file in _runs:
+        _saved = np.load(_file)
+        for _k, _id in enumerate(_saved["fruit_id"]):
+            _id = str(_id)
+            if _id in _wanted and _id not in example_volumes:
+                example_volumes[_id] = (
+                    _saved["ct"][_k].astype(np.float32),
+                    _saved["reconstruction"][_k].astype(np.float32),
+                )
+    _missing = [f for f in _wanted if f not in example_volumes]
     mo.stop(
-        _example_dir is None,
-        mo.md(f"_No decoded examples yet. After approval, run:_\n\n`{_command}`"),
+        not example_volumes,
+        mo.md(
+            "_No decoded examples yet. After approval, run:_\n\n"
+            f"`uv run python -m pearlatent.decode_examples {' '.join(_wanted)}`"
+        ),
     )
-    _saved = np.load(_example_dir / "volumes.npz")
-    example_volumes = {
-        str(_id): (
-            _saved["ct"][_k].astype(np.float32),
-            _saved["reconstruction"][_k].astype(np.float32),
-        )
-        for _k, _id in enumerate(_saved["fruit_id"])
-    }
-    print(f"decoded examples from {_example_dir.name}: {list(example_volumes)}")
+    # Keep the order of section 6 (grade 0 first).
+    example_volumes = {f: example_volumes[f] for f in _wanted if f in example_volumes}
+    print(f"decoded examples: {list(example_volumes)}; not decoded yet: {_missing}")
     return (example_volumes,)
 
 
@@ -901,7 +911,7 @@ def _(example_volumes, volume_choice, x_slice, y_slice, z_slice):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(example_volumes, volume_choice, x_slice, y_slice, z_slice):
     _ct, _ = example_volumes[volume_choice.value]
     # Every second voxel, so the 3D view stays fast (64 × 64 points per plane).
@@ -941,15 +951,29 @@ def _(example_volumes, volume_choice, x_slice, y_slice, z_slice):
 
 @app.cell
 def _():
-    save_gif = mo.ui.run_button(label="Save a GIF scrolling along z (derived/figures/)")
-    save_gif
-    return (save_gif,)
+    # Long sections (first axis) show the pear shape and the core over its whole height;
+    # cross-sections (third axis) go from the calyx to the stalk.
+    gif_direction = mo.ui.dropdown(
+        options=["long sections (through x)", "cross-sections (through z)"],
+        value="long sections (through x)",
+        label="Scroll through",
+    )
+    save_gif = mo.ui.run_button(label="Save a GIF (derived/figures/)")
+    mo.hstack([gif_direction, save_gif], justify="start")
+    return gif_direction, save_gif
 
 
-@app.cell
-def _(cfg, example_volumes, save_gif, volume_choice):
+@app.cell(hide_code=True)
+def _(cfg, example_volumes, gif_direction, save_gif, volume_choice):
     mo.stop(not save_gif.value)
     _ct, _rec = example_volumes[volume_choice.value]
+    _long = gif_direction.value.startswith("long")
+
+    def section(volume: np.ndarray, index: int) -> np.ndarray:
+        """Long section at x = index (transposed: stem-calyx axis vertical, calyx at the
+        bottom), or cross-section at z = index."""
+        return volume[index, :, :].T if _long else volume[:, :, index]
+
     _fig, _axes = plt.subplots(1, 3, figsize=(9, 3.4))
     _images = []
     for _ax, (_volume, _name, _cmap, _lim) in zip(
@@ -963,7 +987,7 @@ def _(cfg, example_volumes, save_gif, volume_choice):
         _images.append(
             (
                 _ax.imshow(
-                    _volume[:, :, 0],
+                    section(_volume, 0),
                     cmap=_cmap,
                     vmin=_lim[0],
                     vmax=_lim[1],
@@ -977,16 +1001,21 @@ def _(cfg, example_volumes, save_gif, volume_choice):
         _ax.set_yticks([])
     _label = _fig.suptitle("")
 
-    def draw(z: int):
-        """Show cross-section z in the three panels."""
+    def draw(index: int):
+        """Show section `index` in the three panels."""
         for _image, _volume in _images:
-            _image.set_data(_volume[:, :, z])
-        _label.set_text(f"{volume_choice.value}, z = {z} (calyx 0, stalk 127)")
+            _image.set_data(section(_volume, index))
+        _where = f"x = {index}" if _long else f"z = {index} (calyx 0, stalk 127)"
+        _label.set_text(f"{volume_choice.value}, {_where}")
         return [_image for _image, _ in _images]
 
     # Every second slice, 12 frames per second: about 5 seconds per fruit.
     _animation = FuncAnimation(_fig, draw, frames=range(0, 128, 2))
-    _out = cfg.path("derived_dir") / "figures" / f"06_{volume_choice.value}_scroll.gif"
+    _out = (
+        cfg.path("derived_dir")
+        / "figures"
+        / f"06_{volume_choice.value}_scroll_{'x' if _long else 'z'}.gif"
+    )
     _out.parent.mkdir(parents=True, exist_ok=True)
     _animation.save(_out, writer=PillowWriter(fps=12))
     plt.close(_fig)

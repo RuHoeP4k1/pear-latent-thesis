@@ -42,7 +42,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     cfg = load_config()
     run_dir = (
@@ -54,7 +54,7 @@ def _():
     return cfg, descriptor_dir, run_dir
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, descriptor_dir, run_dir):
     _manifest = pl.read_parquet(run_dir / "manifest.parquet").with_row_index("position")
     _labels = load_labels(cfg).select("fruit_id", "browning", "cavity")
@@ -104,7 +104,7 @@ def _(cfg, descriptor_dir, run_dir):
     return (fruit,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit, run_dir):
     # Rows of latents.npy in the order of `fruit`, flattened to 32,768 numbers per fruit.
     _latents = np.load(run_dir / "latents.npy", mmap_mode="r")
@@ -133,7 +133,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit, is_2526, pc_scores):
     _properties = [
         "stalk_length",

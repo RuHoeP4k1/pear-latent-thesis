@@ -835,7 +835,7 @@ def _(fruit, outlier_df):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, fruit, outlier_df, run_dir):
     flagged = (
         outlier_df.filter(pl.col("beyond_99"))
@@ -934,7 +934,7 @@ def _():
     return (save_outlier_figure,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, outlier_figure, save_outlier_figure):
     # Saved under derived/ (outside git): CT images stay off GitHub until Hugo agrees.
     mo.stop(mo.running_in_notebook() and not save_outlier_figure.value)
@@ -977,7 +977,7 @@ def _(descriptors, run_dir):
     return (planes,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(descriptors, fruit, shown_df):
     # Thresholds of the third route (see the text above), fixed on 23 October 2026.
     DARK_TISSUE = 0.7
@@ -1012,7 +1012,7 @@ def _(descriptors, fruit, shown_df):
     return FRUIT_PER_PAGE, n_pages, page_choice, sheet_fruit
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(FRUIT_PER_PAGE, planes, sheet_fruit):
     def contact_page(page: int):
         """One page of the contact sheet: 6 rows of 8 fruit, two slices per fruit.
@@ -1095,7 +1095,7 @@ def _():
     return (flat_face_cutoff,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(flat_face_cutoff, sheet_fruit):
     _histogram = (
         alt.Chart(sheet_fruit)
@@ -1139,7 +1139,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, flat_face_cutoff, fruit, sheet_fruit):
     _above = sheet_fruit.filter(
         pl.col("flat_face_share") >= flat_face_cutoff.value
@@ -1274,7 +1274,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, fruit):
     _decisions = pl.read_csv(
         cfg.path("derived_dir") / "volume_decisions.csv",
@@ -1306,7 +1306,7 @@ def _(cfg, fruit):
     return (excluded_fruit,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, excluded_fruit):
     def excluded_views(row: dict) -> list:
         """Four pictures of one fruit from its CT volume (min-max scaled to [0, 1]): long
@@ -1396,7 +1396,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(excluded_fruit, fruit, shown_df):
     _shown = (
         fruit.select("fruit_id", "group", "defective")
