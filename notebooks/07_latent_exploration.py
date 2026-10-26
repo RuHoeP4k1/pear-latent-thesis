@@ -172,5 +172,84 @@ def _(fruit, is_2526, pc_scores):
     return
 
 
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 2. Score plot PC1 against PC2, four colourings side by side
+
+    The same PCA as in section 1 (fitted on the 2526 fruit after the exclusions). Panels 1 to 3:
+    2526 fruit only, coloured by stalk length, body voxels (both in grid voxels, so relative to
+    the 128-voxel length of each fruit) and defective grade. Panel 4: Hugo's 2425 validation
+    fruit projected onto the same components, coloured by season. For the meeting with Hugo
+    (`docs/meeting_2026-10-29.md`, Part 2 item 2): if the colour runs along PC1 in panels 1
+    and 2 but not in panel 3, the first component describes the fruit shape in the grid,
+    not the defect.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(fruit, is_2526, pc_scores):
+    _x, _y = pc_scores[:, 0], pc_scores[:, 1]
+    _fig, _axes = plt.subplots(1, 4, figsize=(20, 4.8), constrained_layout=True)
+    _continuous = [
+        ("stalk_length", "stalk length (voxels)"),
+        ("body_voxels", "body voxels"),
+    ]
+    for _ax, (_column, _label) in zip(_axes[:2], _continuous):
+        _points = _ax.scatter(
+            _x[is_2526],
+            _y[is_2526],
+            c=fruit.filter(pl.Series(is_2526))[_column].to_numpy(),
+            cmap="viridis",
+            s=12,
+        )
+        _fig.colorbar(_points, ax=_ax, label=_label)
+        _ax.set_title(f"2526, coloured by {_label}")
+    # Defective grade: one colour per grade, light to dark.
+    _grade = fruit.filter(pl.Series(is_2526))["defective"].to_numpy()
+    for _g, _colour in zip(range(4), ["#c6dbef", "#6baed6", "#2171b5", "#08306b"]):
+        _axes[2].scatter(
+            _x[is_2526][_grade == _g],
+            _y[is_2526][_grade == _g],
+            color=_colour,
+            s=12,
+            label=f"grade {_g}",
+        )
+    _axes[2].legend(fontsize=8)
+    _axes[2].set_title("2526, coloured by defective grade")
+    for _season, _colour in [("2526", "lightgrey"), ("2425", "darkorange")]:
+        _in = (fruit["season"] == _season).to_numpy()
+        _axes[3].scatter(_x[_in], _y[_in], color=_colour, s=12, label=_season)
+    _axes[3].legend(fontsize=8)
+    _axes[3].set_title("season (2425: Hugo's validation fruit, projected)")
+    for _ax in _axes:
+        _ax.set_xlabel("PC1")
+        _ax.set_ylabel("PC2")
+    _fig.suptitle(
+        f"PCA of the latent, fitted on {int(is_2526.sum())} 2526 fruit after the exclusions"
+    )
+    pc_panel_figure = _fig
+    pc_panel_figure
+    return (pc_panel_figure,)
+
+
+@app.cell(hide_code=True)
+def _():
+    save_pc_panel = mo.ui.run_button(label="Save the score plots to derived/figures/")
+    save_pc_panel
+    return (save_pc_panel,)
+
+
+@app.cell(hide_code=True)
+def _(cfg, pc_panel_figure, save_pc_panel):
+    # Saved under derived/ (outside git).
+    mo.stop(mo.running_in_notebook() and not save_pc_panel.value)
+    _out = cfg.path("derived_dir") / "figures" / "07_pc1_pc2_panels.png"
+    pc_panel_figure.savefig(_out, dpi=120, bbox_inches="tight")
+    print(f"saved {_out}")
+    return
+
+
 if __name__ == "__main__":
     app.run()

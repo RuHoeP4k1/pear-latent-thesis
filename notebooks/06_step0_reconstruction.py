@@ -670,6 +670,12 @@ def _():
     fruit, the mean CT in that region (from the two long sections), for grade 0 and browning
     1 only. If a few browning 1 fruit are far darker than the rest, they make the spot; look
     at them in section 7 or in notebook 05.
+
+    Result (26 October 2026): not a few fruit; the whole browning 1 group is darker there
+    (median 0.724 against 0.789 for grade 0). Explained by the grading rubric as stated by
+    Ruben (the rubric table itself is not in the repository): browning grade 1 is a light
+    discoloration of the kernel membranes, which line the seed cavity. Grades 2 and 3 spread
+    further from the core.
     """)
     return
 
@@ -711,7 +717,7 @@ def _(map_sums, measured):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     mo.md(r"""
     ## 6. One example fruit per grade
@@ -793,7 +799,7 @@ def _():
     return (save_step0_figures,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, example_figure, hr_figure, latent_figure, save_step0_figures):
     # Saved under derived/ (outside git): CT images stay off GitHub until Hugo agrees.
     mo.stop(mo.running_in_notebook() and not save_step0_figures.value)
@@ -827,7 +833,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, examples):
     _example_dir = latest_run_dir(
         cfg.path("derived_dir") / "step0_examples", "examples"
@@ -863,7 +869,7 @@ def _(example_volumes):
     return volume_choice, x_slice, y_slice, z_slice
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(example_volumes, volume_choice, x_slice, y_slice, z_slice):
     _ct, _rec = example_volumes[volume_choice.value]
     _residual = _rec - _ct
