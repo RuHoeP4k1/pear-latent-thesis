@@ -2,7 +2,7 @@
 
 Written 23 October 2026. Status: **principle approved by Ruben on 23 October 2026**, as written
 below. The decision per fruit is Ruben's and is recorded in `derived/volume_decisions.csv`
-(outside git, section 6). Nothing has been removed yet.
+(outside git, section 6). Decisions on the open fruit made on 26 October 2026 (section 9).
 
 ## 1. What is excluded, and what is not
 
@@ -15,7 +15,7 @@ Excluded (judged by eye on the CT slices):
 | Code | Meaning | How it looks |
 |---|---|---|
 | `missing_part` | Part of the fruit is not in the volume, anywhere, including only the tip of the neck (Ruben, 23 October 2026: a cut-off neck is a faulty measurement too) | a straight, often oblique, cut through the fruit; a half-disc cross-section; a flat end of the neck where the fruit should taper towards the stalk |
-| `preprocessing` | The preprocessing (alignment, rescaling to 128 voxels, intensity scaling) went wrong | the fruit fills a clearly smaller part of the grid than other fruit because a stray object was counted in its length; or the whole fruit is clearly darker or brighter than the others because one bright voxel outside the fruit set the maximum of the min-max scaling |
+| `preprocessing` | The measurement or the preprocessing (alignment, rescaling to 128 voxels, intensity scaling) went wrong | the fruit is deformed in a way a real pear is not (Ruben, 26 October 2026: 2526_L26, L29, N29); the fruit fills a clearly smaller part of the grid than other fruit because a stray object was counted in its length; or the whole fruit is clearly darker or brighter than the others because one bright voxel outside the fruit set the maximum of the min-max scaling |
 
 Not excluded:
 
@@ -46,10 +46,12 @@ Three routes, so that a fault is not missed because the screen happens not to fl
    the largest flat patch of the fruit surface as a share of all surface voxels (RANSAC plane
    search, 3,000 planes, tolerance 1 voxel, seed 369). Natural skin is curved; a cut leaves a
    flat face. On 22 fruit read by eye (23 October): cuts through the body 0.13 to 0.29, normal
-   fruit 0.07 to 0.09, the curved 2526_O19 0.11. The cut-off value is chosen by Ruben from the
-   distribution of all open fruit (histogram, no labels shown) before the decisions are made,
-   and written here. The measure does not separate a cut-off neck tip (0.05 to 0.08), so neck
-   tips are found by eye on the contact sheet only.
+   fruit 0.07 to 0.09, the curved 2526_O19 0.11. No cut-off separates cuts from real shapes
+   (2526_G29 and I04 at 0.110 are cuts, 2526_O19 at 0.113 and 2425_J27 at 0.114 are not), so
+   the number decides nothing (Ruben, 26 October 2026): every fruit at 0.10 or above was shown
+   with its flat patch in red for a second look, and the eye decided. The measure does not
+   separate a cut-off neck tip (0.05 to 0.08), so neck tips are found by eye on the contact
+   sheet only.
 
 Every candidate from any route is judged by eye with the codes of section 1; the screens only
 propose candidates.
@@ -127,8 +129,28 @@ object on top of the neck that is connected to the fruit (counted as stalk).
 session), excluding them removes fruit unevenly over boxes; to report.
 
 **Decided by Ruben on 23 October 2026:** a cut-off neck tip is a faulty measurement and is
-excluded as `missing_part` (section 1). Previously open: the rule says a volume with a missing part is
-excluded. About 12 fruit miss only the tip of the neck, far from the core where browning
-develops. Proposal: `missing_part` only when the cut reaches the body (cross-section through
-the body centre not complete, or the cut is below the widest part of the neck); a cut neck tip
-is kept with the note `neck tip cut`, and dropped in the sensitivity row.
+excluded as `missing_part` (section 1). Confirmed on 26 October 2026, including the very minor
+neck cuts; the sensitivity row with all volumes (section 5) shows whether they matter. (An
+earlier proposal to keep cut neck tips was not adopted.)
+
+## 9. Decisions of 26 October 2026 (Ruben, open fruit)
+
+Ruben looked through the contact sheet blind first, then compared his list with section 8 and
+the flat-face panel, and looked at the fruit where the routes disagreed (10 slices per fruit
+for 2526_E04, H01, I19). All decisions are in `derived/volume_decisions.csv` (52 rows).
+
+| Decision | Fruit |
+|---|---|
+| `missing_part`, cut through the body (20) | 2425_C59, I44, I45; 2526_A07, A10, A13, D21 (calyx end), E07, E13, G29, G30, I01, I04, I07, I10, I13, I25, I28, L07, L16 |
+| `missing_part`, neck or top cut (12) | 2425_F59; 2526_D06, D10, D12, D27, E27, E28, G27, I11, I12, L22, L28 |
+| `preprocessing`, deformed volume (3) | 2526_L26, L29, N29 |
+| `keep` (17) | intensity only: 2425_A36, 2526_C03, I03, L03, N15; stray object not touching the fruit: 2526_K13, A30, K02, 2425_H53; real odd shape: 2526_E04, O19, O25, 2425_J27, C24; fine: 2526_I19, H01; long stalk: 2526_K27 |
+
+35 volumes excluded: 31 of the 346 open 2526 fruit and 4 of Hugo's 66 validation fruit. Per
+2526 box: I 9 (of 29), L 6, D 5, E 4, A 3, G 3, N 1, others 0. The test boxes F, J, M are not
+inspected yet (section 4), so their 0 means "not looked at".
+
+Seen on the PCA of notebook 05 (fit on the 346 open 2526 fruit, A = 13, 99 % limits; no
+grades): only 6 of the 18 body cuts then on the list and 1 of the 11 neck cuts lie beyond a
+T² or Q limit, so the screen of route 1 alone would have missed most cuts. The dark volumes
+stand out on PC3. Position in the PCA did not enter any decision.
