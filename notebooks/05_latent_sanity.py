@@ -1257,5 +1257,164 @@ def _(cfg, contact_page, n_pages, save_contact_sheet):
     return
 
 
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 10. The excluded fruit
+
+    The faulty volumes Ruben excluded on 26 October 2026 (`derived/volume_decisions.csv`,
+    decisions `missing_part` and `preprocessing`; `docs/outlier_rule.md`, section 9). Four
+    pictures per fruit, read straight from the CT volume: a long section through the centre of
+    the fruit along each of the first two axes, and the outline of the fruit seen along the same
+    two axes (every voxel of the fruit projected onto one plane). A cut shows as a straight edge
+    in the outline even when it misses the central slices. Stem–calyx axis vertical, calyx at
+    the bottom. No grades in the figure; the grades follow in the table below it (rule of
+    `docs/outlier_rule.md`, section 3: listed after the decisions were made).
+    """)
+    return
+
+
+@app.cell
+def _(cfg, fruit):
+    _decisions = pl.read_csv(
+        cfg.path("derived_dir") / "volume_decisions.csv",
+        schema_overrides={"season": pl.String},
+    )
+    excluded_fruit = (
+        _decisions.filter(pl.col("decision") != "keep")
+        .join(
+            fruit.select("fruit_id", "file_stem", "box", "group"),
+            on="fruit_id",
+            how="left",
+            validate="1:1",
+        )
+        # Order of the figure: body cuts, then neck and top cuts, then deformed volumes.
+        .with_columns(
+            kind=pl.when(pl.col("decision") == "preprocessing")
+            .then(pl.lit("3 deformed volume"))
+            .when(pl.col("note").str.contains("neck|top cut"))
+            .then(pl.lit("2 neck or top cut"))
+            .otherwise(pl.lit("1 cut through the body"))
+        )
+        .sort("kind", "fruit_id")
+    )
+    print(
+        f"judged fruit: {_decisions.height}; excluded: {excluded_fruit.height};"
+        f" not found in the manifest: {excluded_fruit['file_stem'].null_count()}"
+    )
+    excluded_fruit.group_by("kind").len().sort("kind")
+    return (excluded_fruit,)
+
+
+@app.cell
+def _(cfg, excluded_fruit):
+    def excluded_views(row: dict) -> list:
+        """Four pictures of one fruit from its CT volume (min-max scaled to [0, 1]): long
+        sections through the centre of the fruit along axis 0 and axis 1, and the outline of
+        the fruit (largest connected part above the mask threshold) projected along the same
+        two axes. Transposed so the stem-calyx axis (third array axis) is vertical."""
+        _file = cfg.path(f"ct_dir_{row['season']}") / f"{row['file_stem']}.nii"
+        _scaled = scale_minmax(np.asarray(nib.load(_file).dataobj))
+        _fruit = largest_part(_scaled > MASK_THRESHOLD)
+        # Centre of the fruit = mean position of its voxels.
+        _i, _j, _ = (int(round(c.mean())) for c in np.nonzero(_fruit))
+        return [
+            _scaled[_i].T,
+            _scaled[:, _j].T,
+            _fruit.any(axis=0).T,
+            _fruit.any(axis=1).T,
+        ]
+
+    # Two fruit per row, four pictures each.
+    _per_row = 2
+    _n_rows = -(-excluded_fruit.height // _per_row)  # rounded up
+    _fig, _axes = plt.subplots(
+        _n_rows, 4 * _per_row, figsize=(14, 2.1 * _n_rows), squeeze=False
+    )
+    for _ax in _axes.flat:
+        _ax.axis("off")
+    for _k, _row in enumerate(excluded_fruit.iter_rows(named=True)):
+        _r, _c = divmod(_k, _per_row)
+        for _p, _picture in enumerate(excluded_views(_row)):
+            _ax = _axes[_r, 4 * _c + _p]
+            _ax.imshow(_picture, origin="lower", cmap="gray", vmin=0, vmax=1)
+        _axes[_r, 4 * _c].text(
+            0,
+            1.02,
+            f"{_row['fruit_id']}  ({_row['kind'][2:]})",
+            transform=_axes[_r, 4 * _c].transAxes,
+            fontsize=8,
+            va="bottom",
+        )
+    _fig.suptitle(
+        f"{excluded_fruit.height} excluded volumes. Per fruit: long section through the"
+        " centre along axis 0 and axis 1, then the outline along axis 0 and axis 1."
+        " Calyx at the bottom.",
+        fontsize=9,
+    )
+    _fig.subplots_adjust(
+        left=0.005, right=0.995, top=0.975, bottom=0.005, wspace=0.03, hspace=0.35
+    )
+    excluded_figure = _fig
+    excluded_figure
+    return (excluded_figure,)
+
+
+@app.cell
+def _():
+    save_excluded = mo.ui.run_button(
+        label="Save the excluded fruit to derived/figures/"
+    )
+    save_excluded
+    return (save_excluded,)
+
+
+@app.cell
+def _(cfg, excluded_figure, excluded_fruit, save_excluded):
+    # Saved under derived/ (outside git): the figure and the list, for the meeting with Hugo.
+    mo.stop(mo.running_in_notebook() and not save_excluded.value)
+    _folder = cfg.path("derived_dir") / "figures"
+    excluded_figure.savefig(_folder / "05_excluded_fruit.png", dpi=110)
+    excluded_fruit.select("fruit_id", "box", "kind", "decision", "note").write_csv(
+        _folder / "05_excluded_fruit.csv"
+    )
+    print(f"saved 05_excluded_fruit.png and 05_excluded_fruit.csv to {_folder}")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    **Grades of the excluded fruit against all fruit of the same group.** Shown only after
+    the decisions (section 3 of the rule). On 26 October 2026 (computed by Claude, outside
+    this notebook) the 2526 exclusions were uneven over the grades: 18 % of grade 1 and 14 %
+    of grade 3 against 5 % of grade 0 and 4 % of grade 2; chi-squared with the exclusion
+    shuffled within each box, p = 0.006 (9,999 permutations). Not a reason to change a
+    decision (each was made on the volume alone), but a reason for the sensitivity row with
+    all volumes.
+    """)
+    return
+
+
+@app.cell
+def _(excluded_fruit, fruit, shown_df):
+    _shown = (
+        fruit.select("fruit_id", "group", "defective")
+        .join(shown_df.select("fruit_id"), on="fruit_id", validate="1:1")
+        .with_columns(
+            excluded=pl.col("fruit_id").is_in(excluded_fruit["fruit_id"].implode())
+        )
+    )
+    (
+        _shown.group_by("group", "defective")
+        .agg(all_fruit=pl.len(), excluded=pl.col("excluded").sum())
+        .with_columns(
+            excluded_percent=(100 * pl.col("excluded") / pl.col("all_fruit")).round(1)
+        )
+        .sort("group", "defective")
+    )
+    return
+
+
 if __name__ == "__main__":
     app.run()

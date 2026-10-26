@@ -29,6 +29,10 @@ which" is read from them.
 
 ## 3. PERMANOVA (quantitative)
 
+**Dropped from the analysis (Ruben, 26 October 2026).** Not shown to Hugo and not used in the
+thesis. The code (`pearlatent.permanova`, notebook 07 section 3) and the section below are
+kept as a record of what was tried until Ruben decides whether to delete them.
+
 Permutational multivariate analysis of variance (Anderson 2001, Austral Ecology 26, 32-46):
 does a grouping explain more of the distances between fruit than chance?
 
