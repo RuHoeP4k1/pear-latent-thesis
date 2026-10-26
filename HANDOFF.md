@@ -368,6 +368,14 @@ For Ruben, added 13 Oct:
 
 ## Decided
 
+- 26 Oct (Ruben): Step 0 reconstructs with `vae.decode(mu)`, not `vae(x)`, because the latent
+  analysed downstream is `mu`, so Step 0 must test whether `mu` keeps the browning; `vae(x)`
+  adds noise to z and gives a different output every run. No comparison with sampled z is run.
+  Thesis wording: our overall scores (`decode(mu)`, unaugmented volumes, `best.pth`) are not
+  directly comparable with Hugo's (`vae(x)`, augmented volumes, model at the end of training);
+  on his 66 validation fruit, ours are mean MAE 0.0028, SSIM 0.9895, PSNR 35.51 against his
+  0.0025 (Table D.1), 0.9915, 36.92. Contrast retention per grade is our own measure; Hugo has
+  only whole-volume scores and the qualitative `scripts/difference_map.py`.
 - 6 Oct (plan review): Med3D is the one external model (no 3DINO, no DINOv3); attention pooling and
   the 512-channel layer are dropped; the two-feature support vector machine of Van De Looverbosch
   2020 is literature context only; Ideas 4, 5 and 6 are not proposed; order: core study, then own
