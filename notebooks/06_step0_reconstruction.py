@@ -21,6 +21,7 @@ with app.setup:
         N_HEIGHT_BINS,
         N_RADIUS_BINS,
         contrast_retention,
+        latent_map_sums,
         plane_measures,
     )
 
@@ -57,7 +58,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     cfg = load_config()
     run_dir = (
@@ -81,7 +82,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, descriptor_dir, run_dir):
     manifest = pl.read_parquet(run_dir / "manifest.parquet").with_row_index("position")
     reconstruction = pl.read_parquet(run_dir / "reconstruction.parquet")
@@ -161,14 +162,14 @@ def _():
     similarity (SSIM) and peak signal-to-noise ratio (PSNR) over the whole volume are comparable
     with the preprint (section 3.1.1: MAE 0.0022, SSIM 0.9915, PSNR 36.9; Table D.1: MAE
     0.0025), but only roughly: Hugo's numbers were computed on augmented volumes with `vae(x)`
-    and PSNR averaged per batch of 4 (HANDOFF, "Weights, received 13 October"). The whole
+    and PSNR averaged per batch of 4 . The whole
     volume is mostly background, which is easy to reconstruct, so MAE over the body and over the
     core say more about the fruit.
     """)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit):
     def quartiles(column: str) -> pl.Expr:
         """'median (25 % to 75 %)' of a column, as text, 4 significant digits."""
@@ -221,7 +222,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit):
     _descriptors = [
         "body_voxels",
@@ -262,7 +263,7 @@ def _(fruit):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit):
     # Core error per fruit, by grade and cause; every point is one fruit.
     _points = (
@@ -300,7 +301,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(fruit, run_dir):
     _planes = np.load(run_dir / "planes.npy", mmap_mode="r")
     _cells = np.load(run_dir / "masks.npy", mmap_mode="r")
@@ -324,7 +325,7 @@ def _(fruit, run_dir):
     return map_sums, measured
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(measured):
     # The comparison groups of 2526. Grade 0 is the reference in every row.
     RETENTION_GROUPS = {
@@ -412,7 +413,7 @@ def _(measured):
         f" mean core reconstruction {_core_rec[_reference].mean():.4f}"
     )
     retention_table
-    return in_2526, retention_table
+    return (in_2526,)
 
 
 @app.cell(hide_code=True)
@@ -420,23 +421,36 @@ def _():
     mo.md(r"""
     ## 5. Height-radius maps per grade
 
-    Every cell of a map is a group mean over all body voxels of the two long sections that fall
-    in that height and radius bin (height 0 = calyx end of the body, 1 = stalk end; radius in
-    units of the widest radius). Rows: mean CT, mean reconstruction, mean signed residual
-    (reconstruction minus CT; red = reconstruction brighter than the CT). If the decoder
-    "repairs" browning, the residual is red near the axis (left edge) and grows with grade.
-    Rows 2 and 3 show the difference from the grade 0 fruit, in the CT and in the
-    reconstruction: where the two look alike, the reconstruction keeps the darkening (contrast
-    retention, section 4, drawn in space). Columns: grade 0 (defective 0) and browning-only
-    grades 1 to 3, 2526 fruit; the last column cavity 2 or 3 with any browning (cavity only has
-    3 fruit in the open boxes).
+    Every fruit is folded onto one half long section: **height** runs from 0 at the calyx end of
+    the body to 1 at the stalk end (stalk removed), **radius** is the distance to the stem-calyx
+    axis divided by the fruit's widest radius (0 = on the axis, about 1 = skin at the widest
+    point). Both sides of the axis land on the same side. A bin shows the mean over all
+    voxels (or latent cells) of all fruit of the column that fall in it. A bin is drawn only
+    when at least half of the fruit of the column reach it: bins near the skin that only some
+    fruit reach show differences in fruit shape, not in tissue.
+
+    Columns: grade 0 (defective 0) and browning-only grades 1 to 3, 2526 fruit; the last
+    column cavity 2 or 3 with any browning (cavity only has 3 fruit in the open boxes).
+
+    **View "CT and reconstruction"** (two long sections per fruit, `planes.npy`). Row 1: mean
+    CT. Rows 2 and 3: difference from the grade 0 fruit, in the CT and in the reconstruction
+    (blue = darker than healthy); where the two look alike, the reconstruction keeps the
+    darkening (contrast retention, section 4, drawn in space). Row 4: residual,
+    reconstruction minus CT, on its own tighter scale (red = reconstruction brighter). If the
+    decoder "repaired" browning, row 4 would turn red near the axis with rising grade.
+
+    **View "latent"** (all body cells of the 32³ latent `mu`, so the full rotation, not two
+    sections). Row 1: CT minus grade 0 CT as in the other view, for reference. Row 2: mean
+    latent value. Row 3: latent minus the grade 0 latent. A latent value is not an intensity:
+    red means a higher latent value, not a brighter tissue. Each latent cell sees about 31
+    voxels around it (about 19 mm), so the latent map is smoother than the CT map.
     """)
     return
 
 
-@app.cell
-def _(map_sums, measured):
-    # Columns of the figure: (title, condition on the rows of `measured`). Cavity only has 3
+@app.cell(hide_code=True)
+def _(measured):
+    # Columns of both maps: (title, condition on the rows of `measured`). Cavity only has 3
     # fruit in the open 2526 boxes, too few for a map; the last column shows cavity 2 or 3
     # with any browning instead.
     MAP_COLUMNS = [
@@ -446,52 +460,85 @@ def _(map_sums, measured):
         ("browning 3 only", (pl.col("browning") == 3) & (pl.col("cavity") == 0)),
         ("cavity 2-3, any browning", (pl.col("cavity") >= 2)),
     ]
-    # Bins with fewer voxels than this over all fruit of a group are left empty (too noisy).
-    MIN_VOXELS_PER_BIN = 50
+    # A bin is drawn only when at least this share of the fruit of the column reach it.
+    MIN_FRUIT_SHARE_PER_BIN = 0.5
     _is_2526 = (measured["group"] == "2526").to_numpy()
 
-    def group_map(condition: pl.Expr) -> tuple[np.ndarray, int]:
-        """Mean CT, reconstruction and residual per bin (3, height, radius), and the fruit count."""
-        _mask = measured.select(condition).to_series().to_numpy() & _is_2526
-        _total = map_sums[_mask].sum(axis=0)
-        _count = _total[0]
-        with np.errstate(invalid="ignore", divide="ignore"):
-            _means = np.where(_count >= MIN_VOXELS_PER_BIN, _total[1:] / _count, np.nan)
-        return _means, int(_mask.sum())
+    def column_fruit(condition: pl.Expr) -> np.ndarray:
+        """Boolean over the rows of `measured`: 2526 fruit that meet `condition`."""
+        return measured.select(condition).to_series().to_numpy() & _is_2526
 
-    _healthy, _ = group_map(MAP_COLUMNS[0][1])
-    # Rows: (name, picture from the group means, colour map, colour limits).
-    _rows = [
-        ("CT", lambda m: m[0], "gray", (0.5, 1.0)),
-        ("CT minus\ngrade 0 CT", lambda m: m[0] - _healthy[0], "RdBu_r", (-0.06, 0.06)),
-        (
-            "reconstruction minus\ngrade 0 reconstruction",
-            lambda m: m[1] - _healthy[1],
-            "RdBu_r",
-            (-0.06, 0.06),
-        ),
-        (
-            "residual\n(reconstruction minus CT)",
-            lambda m: m[2],
-            "RdBu_r",
-            (-0.06, 0.06),
-        ),
-    ]
+    def group_means(
+        counts: np.ndarray, sums: np.ndarray, selected: np.ndarray
+    ) -> np.ndarray:
+        """Group mean per bin, NaN where fewer than MIN_FRUIT_SHARE_PER_BIN of the fruit
+        reach the bin.
+
+        In: per-fruit counts (fruit, height, radius), per-fruit sums (fruit, k, height,
+        radius) and the selected fruit. Out: means (k, height, radius).
+        """
+        _counts = counts[selected]
+        _fruit_reaching = (_counts > 0).sum(axis=0)
+        _enough = _fruit_reaching >= MIN_FRUIT_SHARE_PER_BIN * selected.sum()
+        _total = _counts.sum(axis=0)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            _means = sums[selected].sum(axis=0) / _total
+        return np.where(_enough, _means, np.nan)
+
+    return MAP_COLUMNS, column_fruit, group_means
+
+
+@app.cell(hide_code=True)
+def _(measured, run_dir):
+    # Latent height-radius sums of every measured fruit, in the row order of `measured`.
+    # `position` is the row of the fruit in latents.npy and masks.npy.
+    _latents = np.load(run_dir / "latents.npy", mmap_mode="r")
+    _cells = np.load(run_dir / "masks.npy", mmap_mode="r")
+    _counts, _sums = [], []
+    for _position in measured["position"].to_list():
+        _c, _s = latent_map_sums(
+            np.asarray(_latents[_position]), np.asarray(_cells[_position])
+        )
+        _counts.append(_c)
+        _sums.append(_s)
+    latent_counts = np.stack(_counts)
+    latent_sums = np.stack(_sums)[:, None]  # (fruit, 1, height, radius)
+    print(
+        f"latent maps of {latent_counts.shape[0]} fruit, bins {latent_counts.shape[1:]}"
+    )
+    return latent_counts, latent_sums
+
+
+@app.function(hide_code=True)
+def draw_maps(columns, rows, title):
+    """One figure: a panel per (row, column), one colour bar per row.
+
+    `columns`: list of (title, n fruit, means). `rows`: list of (name, picture function
+    of (means, column index) returning an array or None for an empty panel, colour map,
+    colour limits). Radius on the horizontal axis, height vertical.
+    """
     _fig, _axes = plt.subplots(
-        len(_rows),
-        len(MAP_COLUMNS),
-        figsize=(2.9 * len(MAP_COLUMNS) + 1.2, 2.6 * len(_rows)),
+        len(rows),
+        len(columns),
+        figsize=(2.9 * len(columns) + 1.2, 2.6 * len(rows)),
         squeeze=False,
         constrained_layout=True,
     )
-    _extent = [0, MAX_RADIUS, 0, 1]  # radius on the horizontal axis, height vertical
+    _extent = [0, MAX_RADIUS, 0, 1]
     _images = {}
-    for _c, (_title, _condition) in enumerate(MAP_COLUMNS):
-        _means, _n = group_map(_condition)
-        for _r, (_name, _picture, _cmap, _limits) in enumerate(_rows):
+    for _c, (_title, _n, _means) in enumerate(columns):
+        for _r, (_name, _picture, _cmap, _limits) in enumerate(rows):
             _ax = _axes[_r, _c]
+            _array = _picture(_means, _c)
+            if _r == 0:
+                _ax.set_title(f"{_title}\n(n = {_n})", fontsize=10)
+            if _array is None:
+                # Grade 0 minus grade 0 is zero by definition: no panel.
+                _ax.axis("off")
+                _ax.text(0.5, 0.5, "reference\n(grade 0)", ha="center", va="center")
+                continue
             _images[_r] = _ax.imshow(
-                _picture(_means),
+                _array,
                 origin="lower",
                 extent=_extent,
                 aspect="auto",
@@ -499,24 +546,172 @@ def _(map_sums, measured):
                 vmin=_limits[0],
                 vmax=_limits[1],
             )
-            if _r == 0:
-                _ax.set_title(f"{_title}\n(n = {_n})", fontsize=10)
-            if _c == 0:
+            if _c == 0 or (_c == 1 and _axes[_r, 0].axison is False):
                 _ax.set_ylabel(f"{_name}\n\nheight (calyx 0, stalk 1)", fontsize=9)
-            if _r == len(_rows) - 1:
+            if _r == len(rows) - 1:
                 _ax.set_xlabel("radius / widest radius")
-    # One colour bar per row, at the right.
-    for _r, (_name, *_rest) in enumerate(_rows):
+    for _r in _images:
         _fig.colorbar(_images[_r], ax=_axes[_r, :].tolist(), shrink=0.9)
-    _fig.suptitle(
-        "2526 fruit, two long sections per fruit; red = brighter, blue = darker"
+    _fig.suptitle(title)
+    return _fig
+
+
+@app.cell(hide_code=True)
+def _(MAP_COLUMNS, column_fruit, group_means, map_sums):
+    # Voxel maps from the two long sections: map_sums is (fruit, 4, height, radius) with
+    # counts, CT sums, reconstruction sums and residual sums.
+    _columns = []
+    for _title, _condition in MAP_COLUMNS:
+        _selected = column_fruit(_condition)
+        _means = group_means(map_sums[:, 0], map_sums[:, 1:], _selected)
+        _columns.append((_title, int(_selected.sum()), _means))
+    _healthy = _columns[0][2]
+
+    def _difference(index):
+        return lambda m, c: None if c == 0 else m[index] - _healthy[index]
+
+    hr_figure = draw_maps(
+        _columns,
+        [
+            ("CT", lambda m, c: m[0], "gray", (0.5, 1.0)),
+            ("CT minus\ngrade 0 CT", _difference(0), "RdBu_r", (-0.06, 0.06)),
+            (
+                "reconstruction minus\ngrade 0 reconstruction",
+                _difference(1),
+                "RdBu_r",
+                (-0.06, 0.06),
+            ),
+            # Own scale: the residual is about ten times smaller than the differences above.
+            (
+                "residual\n(reconstruction minus CT)",
+                lambda m, c: m[2],
+                "RdBu_r",
+                (-0.02, 0.02),
+            ),
+        ],
+        "2526 fruit, two long sections per fruit; red = brighter, blue = darker",
     )
-    hr_figure = _fig
-    hr_figure
     return (hr_figure,)
 
 
 @app.cell(hide_code=True)
+def _(
+    MAP_COLUMNS,
+    column_fruit,
+    group_means,
+    latent_counts,
+    latent_sums,
+    map_sums,
+):
+    _columns = []
+    for _title, _condition in MAP_COLUMNS:
+        _selected = column_fruit(_condition)
+        _voxel = group_means(map_sums[:, 0], map_sums[:, 1:2], _selected)[0]
+        _latent = group_means(latent_counts, latent_sums, _selected)[0]
+        _columns.append((_title, int(_selected.sum()), (_voxel, _latent)))
+    _healthy_ct, _healthy_latent = _columns[0][2]
+
+    # Colour limits of the latent rows from the data (latent values have no fixed range):
+    # the 1st to 99th percentile of the mean latent, and a symmetric limit at the 99th
+    # percentile of the absolute differences from grade 0.
+    _mean_values = np.concatenate([c[2][1].ravel() for c in _columns])
+    _mean_limits = tuple(np.nanpercentile(_mean_values, [1, 99]))
+    _differences = np.concatenate(
+        [(c[2][1] - _healthy_latent).ravel() for c in _columns[1:]]
+    )
+    _d = float(np.nanpercentile(np.abs(_differences), 99))
+
+    latent_figure = draw_maps(
+        _columns,
+        [
+            (
+                "CT minus\ngrade 0 CT",
+                lambda m, c: None if c == 0 else m[0] - _healthy_ct,
+                "RdBu_r",
+                (-0.06, 0.06),
+            ),
+            ("mean latent", lambda m, c: m[1], "viridis", _mean_limits),
+            (
+                "latent minus\ngrade 0 latent",
+                lambda m, c: None if c == 0 else m[1] - _healthy_latent,
+                "RdBu_r",
+                (-_d, _d),
+            ),
+        ],
+        "2526 fruit; row 1 from two CT long sections, rows 2 and 3 from all body cells of"
+        " the latent; red = higher value",
+    )
+    return (latent_figure,)
+
+
+@app.cell(hide_code=True)
+def _():
+    map_view = mo.ui.dropdown(
+        options=["CT and reconstruction", "latent"],
+        value="CT and reconstruction",
+        label="Map of",
+    )
+    map_view
+    return (map_view,)
+
+
+@app.cell(hide_code=True)
+def _(hr_figure, latent_figure, map_view):
+    hr_figure if map_view.value == "CT and reconstruction" else latent_figure
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    **Check of one oddity (26 October 2026).** In row 2 of the CT view, browning 1 is darker
+    than grade 0 at the seed cavity (height about 0.2 to 0.35, radius below 0.25), more than
+    browning 2. Before reading anything into it: which fruit cause it? The table gives, per
+    fruit, the mean CT in that region (from the two long sections), for grade 0 and browning
+    1 only. If a few browning 1 fruit are far darker than the rest, they make the spot; look
+    at them in section 7 or in notebook 05.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(map_sums, measured):
+    # The region of the spot, in bins of the voxel map: height 0.2 to 0.35, radius 0 to 0.25.
+    _h = slice(int(0.2 * N_HEIGHT_BINS), int(0.35 * N_HEIGHT_BINS) + 1)
+    _r = slice(0, int(0.25 / MAX_RADIUS * N_RADIUS_BINS) + 1)
+    _count = map_sums[:, 0, _h, _r].sum(axis=(1, 2))
+    _ct = map_sums[:, 1, _h, _r].sum(axis=(1, 2))
+    _with_region = measured.select(
+        "fruit_id", "box", "group", "browning", "cavity", "defective"
+    ).with_columns(
+        seed_region_ct=pl.Series(
+            np.where(_count > 0, _ct / np.maximum(_count, 1), np.nan)
+        )
+    )
+    _grade_0 = _with_region.filter(
+        (pl.col("group") == "2526") & (pl.col("defective") == 0)
+    )
+    _browning_1 = _with_region.filter(
+        (pl.col("group") == "2526")
+        & (pl.col("browning") == 1)
+        & (pl.col("cavity") == 0)
+    )
+    print(
+        "mean CT in the seed-cavity region, median (25 % to 75 %):"
+        f" grade 0 {_grade_0['seed_region_ct'].median():.3f}"
+        f" ({_grade_0['seed_region_ct'].quantile(0.25):.3f} to"
+        f" {_grade_0['seed_region_ct'].quantile(0.75):.3f});"
+        f" browning 1 {_browning_1['seed_region_ct'].median():.3f}"
+        f" ({_browning_1['seed_region_ct'].quantile(0.25):.3f} to"
+        f" {_browning_1['seed_region_ct'].quantile(0.75):.3f})"
+    )
+    _browning_1.sort("seed_region_ct").select("fruit_id", "box", "seed_region_ct").head(
+        10
+    )
+    return
+
+
+@app.cell
 def _():
     mo.md(r"""
     ## 6. One example fruit per grade
@@ -528,7 +723,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(in_2526, run_dir):
     EXAMPLE_GROUPS = [
         ("grade 0", (pl.col("defective") == 0)),
@@ -599,7 +794,7 @@ def _():
 
 
 @app.cell
-def _(cfg, example_figure, hr_figure, save_step0_figures):
+def _(cfg, example_figure, hr_figure, latent_figure, save_step0_figures):
     # Saved under derived/ (outside git): CT images stay off GitHub until Hugo agrees.
     mo.stop(mo.running_in_notebook() and not save_step0_figures.value)
     _folder = cfg.path("derived_dir") / "figures"
@@ -607,8 +802,14 @@ def _(cfg, example_figure, hr_figure, save_step0_figures):
     hr_figure.savefig(
         _folder / "06_height_radius_maps.png", dpi=130, bbox_inches="tight"
     )
+    latent_figure.savefig(
+        _folder / "06_height_radius_maps_latent.png", dpi=130, bbox_inches="tight"
+    )
     example_figure.savefig(_folder / "06_examples.png", dpi=130, bbox_inches="tight")
-    print(f"saved 06_height_radius_maps.png and 06_examples.png to {_folder}")
+    print(
+        "saved 06_height_radius_maps.png, 06_height_radius_maps_latent.png and"
+        f" 06_examples.png to {_folder}"
+    )
     return
 
 

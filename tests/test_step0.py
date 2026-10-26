@@ -79,3 +79,33 @@ def test_contrast_retention_half():
     assert result["ct_difference"] < 0
     # The reconstruction keeps half of the darkening (0.15 of 0.3 in the inner core).
     assert result["retention"] == pytest.approx(0.5, abs=0.01)
+
+
+def test_latent_map_sums_places_cells_by_height_and_radius():
+    from pearlatent.step0 import (
+        N_LATENT_HEIGHT_BINS,
+        N_LATENT_RADIUS_BINS,
+        latent_map_sums,
+    )
+
+    # Body: cylinder of radius 6 cells around (16, 16), slices 4 to 27 (24 slices).
+    gx, gy = np.meshgrid(np.arange(32), np.arange(32), indexing="ij")
+    distance = np.sqrt((gx - 16) ** 2 + (gy - 16) ** 2)
+    body = np.zeros((32, 32, 32), dtype=bool)
+    body[:, :, 4:28] = (distance <= 6)[:, :, None]
+    # Latent: 5 on the axis column, 1 elsewhere in the body, -100 outside (must be ignored).
+    latent = np.where(body, 1.0, -100.0)
+    latent[16, 16, :] = np.where(body[16, 16, :], 5.0, -100.0)
+
+    counts, sums = latent_map_sums(latent, body)
+    assert counts.shape == (N_LATENT_HEIGHT_BINS, N_LATENT_RADIUS_BINS)
+    # Every body cell is counted once (all lie within 1.2 widest radii).
+    assert counts.sum() == body.sum()
+    # Every height bin is covered.
+    assert (counts.sum(axis=1) > 0).all()
+    mean = sums / np.maximum(counts, 1)
+    # The axis column lands in radius bin 0, mixed with the cells closest to the axis.
+    assert mean[:, 0].min() > 1.0
+    # Away from the axis only the value 1 remains; the outside value never enters.
+    covered = counts[:, 3:] > 0
+    np.testing.assert_allclose(mean[:, 3:][covered], 1.0)

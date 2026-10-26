@@ -126,3 +126,44 @@ def contrast_retention(
         "reconstruction_difference": float(rec_difference),
         "retention": float(rec_difference / ct_difference),
     }
+
+
+# Bins of the latent height-radius map. The latent has 32 cells along each axis (one cell =
+# 4 voxels) and the body spans about 21 to 32 of them, so the voxel bins (32 × 24) would leave
+# empty rows; half as many bins in each direction.
+N_LATENT_HEIGHT_BINS = 16
+N_LATENT_RADIUS_BINS = 12
+
+
+def latent_map_sums(
+    latent: np.ndarray, body_cells: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """Height-radius sums of one fruit's latent `mu`, over every body cell of the 3D grid.
+
+    In: the latent (32³) and the fruit's 32³ body cells. Out: (counts, sums), each
+    (N_LATENT_HEIGHT_BINS, N_LATENT_RADIUS_BINS): number of body cells per bin and the sum of
+    their latent values. Height and radius as for the voxel map, in cells: height 0 at the
+    calyx end of the body, 1 at the stalk end; radius = distance to the stem-calyx axis (the
+    line along the third axis through the mean x and y of the body cells) divided by the
+    widest radius, sqrt(largest slice area / pi). Unlike the voxel map, which only has the two
+    saved long sections, this uses all body cells, so it averages over the full rotation.
+    """
+    body = np.asarray(body_cells, dtype=bool)
+    occupied = np.flatnonzero(body.any(axis=(0, 1)))
+    low, high = int(occupied[0]), int(occupied[-1])
+    xs, ys, _ = np.nonzero(body)
+    axis_x, axis_y = xs.mean(), ys.mean()
+    widest_radius = np.sqrt(body.sum(axis=(0, 1)).max() / np.pi)
+
+    gx, gy, gz = np.meshgrid(*(np.arange(n) for n in body.shape), indexing="ij")
+    height = (gz - low) / (high - low + 1)
+    radius = np.sqrt((gx - axis_x) ** 2 + (gy - axis_y) ** 2) / widest_radius
+    inside = body & (height >= 0) & (height < 1) & (radius < MAX_RADIUS)
+    h_bin = (height[inside] * N_LATENT_HEIGHT_BINS).astype(int)
+    r_bin = (radius[inside] / MAX_RADIUS * N_LATENT_RADIUS_BINS).astype(int)
+
+    counts = np.zeros((N_LATENT_HEIGHT_BINS, N_LATENT_RADIUS_BINS))
+    sums = np.zeros((N_LATENT_HEIGHT_BINS, N_LATENT_RADIUS_BINS))
+    np.add.at(counts, (h_bin, r_bin), 1)
+    np.add.at(sums, (h_bin, r_bin), np.asarray(latent, dtype=float)[inside])
+    return counts, sums
