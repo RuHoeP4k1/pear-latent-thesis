@@ -5,72 +5,48 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-26
-- **Phase:** preparation of the meeting with Hugo (Thursday 29 Oct, 11:00) is finished. Faulty
-  volumes decided; exploration and Step 0 rerun on the remaining fruit. No model fitted on
-  labels yet. Everything to show and ask Hugo is in `docs/meeting_2026-10-29.md` (status
-  table and figure list at the top).
-- **Decided this session (Ruben, 26 Oct):**
-  - Faulty volumes: visual inspection decides; the flat-face number only chose fruit for a
-    second look (no numeric cut-off). Neck tip cuts are excluded too, also the very minor
-    ones. "Deformed volume" counts as `preprocessing`. 35 volumes excluded (31 of 346 open
-    2526 fruit, 4 of Hugo's 66 validation fruit); 17 judged and kept. All in
-    `derived/volume_decisions.csv` and `docs/outlier_rule.md` section 9.
-  - PERMANOVA, PERMDISP, t-SNE, UMAP and the MDS map are removed from the analysis and the
-    code (`pearlatent.permanova`, its tests, `umap-learn`). Last numbers kept in
-    `docs/exploration_plan.md` section 3 for the record.
-  - Step 0 decodes `mu` (`vae.decode(mu)`), not `vae(x)`: the latent analysed is `mu`. No
-    comparison with sampled z (see "Decided", 26 Oct).
-  - Browning grade 1 = light discoloration of the kernel membranes (grading rubric, as stated
-    by Ruben; the rubric table is not in the repository). Explains the dark seed-cavity spot
-    of browning 1 in the height-radius maps.
-- **Done this session (26 Oct, Mac), commits c1b4f7d to 22dfd84 plus the uncommitted
-  changes listed at the end of the session:**
-  - `derived/volume_decisions.csv` (52 rows); notebook 02 rebuilt `exclusions.csv` (35 new
-    rows, nothing else changed); notebooks 06 and 07 rerun on 377 fruit (315 2526, 62 2425
-    validation).
-  - Notebook 05 section 10: figure and list of the 35 excluded volumes
-    (`derived/figures/05_excluded_fruit.png`, `.csv`) and the grades of the excluded fruit.
-  - Notebook 06 section 5: height-radius maps reworked (empty grade 0 panels dropped,
-    residual row on its own scale ±0.02, a bin drawn only when at least half of the fruit
-    reach it) and a latent view (`pearlatent.step0.latent_map_sums`, all body cells of `mu`;
-    dropdown "Map of"); check table of the browning 1 seed-cavity spot.
-  - Notebook 06 section 7 (uncommitted): combines all decoding runs in
-    `derived/step0_examples/` and offers only the current example fruit of section 6; the GIF
-    can scroll through long sections (default) or cross-sections. Decoding of the new
-    examples 2526_N14 and O11 was started at the end of the session (about 6 minutes per
-    fruit on the Mac); check that a new folder in `derived/step0_examples/` holds both.
-  - Notebook 07 section 2: PC1 against PC2 in four colourings
-    (`derived/figures/07_pc1_pc2_panels.png`).
-  - `docs/meeting_2026-10-29.md`: what to tell Hugo per item, with the numbers after the
-    exclusions.
-- **Results (after the exclusions; seen by Ruben on 26 Oct unless marked):**
-  - Exclusions uneven over grades (2526): grade 0 5 %, 1 18 %, 2 4 %, 3 14 % excluded;
-    chi-squared with the exclusion shuffled within box, p = 0.006 (9,999 permutations). Not
-    a reason to change a decision; the sensitivity row with all volumes is needed.
-  - Of the body cuts, only 6 of 18 (and 1 of 11 neck cuts) lie beyond a 99 % T² or Q limit:
-    the PCA screen alone misses most cuts.
-  - Step 0 (2526): median core MAE grade 0 to 3: 0.0120, 0.0147, 0.0198, 0.0213 (3D, whole
-    volume; the error table itself not yet looked at by Ruben). Contrast retention (two long
-    sections, bootstrap over boxes), browning only 1, 2, 3: 0.86 (0.44 to 0.99), 1.04 (0.26
-    to 1.84), 0.95 (0.89 to 1.05); any cause 2, 3: 0.94 (0.87 to 0.98), 0.93 (0.88 to 0.96).
-    Residual row: a few percent of the darkening is "repaired" in browning 3 and cavity.
-  - Overall scores on Hugo's 66 validation fruit: ours MAE 0.0028, SSIM 0.9895, PSNR 35.51
-    (mean over fruit) against his 0.0025, 0.9915, 36.92 (not directly comparable).
-  - Latent maps: browning 2, 3 and cavity give a smooth lower-value region where the CT
-    darkens; browning 1 is hardly visible in the latent.
-  - PC1: Spearman 0.97 with body voxels, −0.78 with stalk length; scores form an arch
-    (horseshoe); 2425 fruit on the large-body, short-stalk side; grades mixed.
-- **Next step:** the meeting with Hugo on 29 Oct (Ruben), with `docs/meeting_2026-10-29.md`.
-  Before it, in a new session, Ruben wants to start designing the ResNet-18 baseline: read
-  `CHARTER.md` (Methods, ResNet-18), load the `workstation-run` skill, read Hugo's
-  `train_clf_3d.py` and `classification/` at commit 183112f, and settle input (128³ or
-  downsampled), target (`binary_23` first), augmentation and how it uses our box folds
-  (`derived/outer_folds_20/`, test boxes F, J, M sealed). Design only: nothing is trained
-  on labels until the exclusions and the stalk/size route (Part 3 of the meeting document)
-  are final. Width (16 or 64 base channels) is open question 16 for Hugo.
-- **Blocked on:** nothing for the design; modelling on labels waits for the meeting (stalk
-  reprocessing, original fruit lengths).
+- **Date:** 2026-10-27
+- **Phase:** preparation of the meeting with Hugo (Thursday 29 Oct, 11:00). Height-radius
+  maps made consistent and extended with latent spectra for exploration. No model fitted on
+  labels yet. Everything to show and ask Hugo is in `docs/meeting_2026-10-29.md` ("Update
+  27 October" at the top, walkthrough of notebooks 06 and 07 at the end).
+- **Decided this session (Ruben, 27 Oct):**
+  - Height-radius maps, one rule everywhere: radius = distance to the axis divided by the
+    outermost body voxel or cell (0 axis, 1 skin); group mean with every fruit counting
+    once; a bin only where at least half of the group's fruit reach it (also for the grade
+    0 reference). Latent maps 20 × 8 bins, CT maps 32 × 24.
+  - Two latent radius methods kept side by side: one radius per fruit, a radius per slice.
+  - The 13 October core definition (one third of sqrt(largest slice area / pi)) stays; its
+    edge lies at 0.32 on the map radius (median, 346 open 2526 fruit).
+  - In the models, a grade 0 correction subtracts the grade 0 mean of the training boxes
+    only (a held-out box cannot use its own grade 0 fruit).
+  - Deep learning (ResNet-18) waits; the statistical models on the latent come first.
+  - Models on the height-radius bins or on the full flattened latent: another day, after the
+    meeting.
+  - Every method rule goes, dated, into `docs/methods_step0_and_maps.md` (new) for writing.
+- **Done this session (27 Oct, Mac), commits f572fcb and f407e67:**
+  - `pearlatent.step0`: `latent_map_sums(radius_method="fruit"|"slice")`, `radius_bin`,
+    `fruit_bin_means`, `group_bin_summary`, `MIN_FRUIT_SHARE_PER_BIN`; plane maps use the
+    outermost-voxel radius. Tests: 98 passed.
+  - Notebook 06: section 2 explains that the error numbers come from the full reconstruction
+    in memory during the encoding run; section 5 shows both latent views (dropdown) and saves
+    `06_height_radius_maps_latent_fruit.png` and `_slice.png`. Seed-cavity check: browning 1
+    median 0.727 (was 0.724), grade 0 0.789.
+  - Notebook 07 section 3 (new): comparison of the two radius methods
+    (`07_hr_radius_methods.png`); map and spectra in one chart, drag selection linked both
+    ways; corrections none / minus grade 0 / divided by grade 0 SD / minus grade 0 of the
+    same box; 3D surfaces (`07_hr_surfaces_<method>_<correction>.png`); PCA with scree plot
+    on the bins selected by both drags (tested live: marimo passes `map_box` and
+    `spectrum_range` back in `hr_linked.selections`).
+  - Found: the map groups differ in stalk and body size and in box (question 38).
+- **Next step:** the meeting with Hugo on 29 Oct (Ruben). Before it, Ruben looks at the
+  27 October maps (notebook 06 section 5, notebook 07 section 3; the 26 October versions are
+  outdated) and reads the walkthrough at the end of `docs/meeting_2026-10-29.md`. After the
+  meeting: settle the stalk route (questions 33, 18, 38), then the first PLS-DA on
+  `binary_23` with Hugo's full flattened latent (`pearlatent.plsda`, box folds in
+  `derived/outer_folds_20/`, test boxes F, J, M sealed).
+- **Blocked on:** modelling on labels waits for the meeting (stalk reprocessing, original
+  fruit lengths, size and stalk in the maps).
 - **Reference, still valid (from earlier sessions):**
   - Encoding run `20261013T171306Z_hugo_vae` (code 0c9052f; `dirty: true` only because of an
     untracked handoff file): open part `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/`,
@@ -94,7 +70,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   - Mac (main machine from 20 Oct): `/Users/rubenhoeven/code/pear-latent-thesis`, Python
     3.12.15, torch 2.14.1 (`device = "cpu"` in `config/local.toml`), marimo 0.25.1; data in
     `~/data/pear-thesis`; weights in `data/weights/hugo_vae/`; Hugo's repository at
-    `../Synthetic_CT_pear`, commit 183112f. `uv run pytest`: 93 passed on 26 Oct.
+    `../Synthetic_CT_pear`, commit 183112f. `uv run pytest`: 98 passed on 27 Oct.
     The workstation is only for the ResNet-18 baseline and is not set up. School PC not set
     up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
     `notebooks/00_environment_check.py`; for live pairing also
@@ -293,12 +269,19 @@ For Hugo (meeting 29 Oct), added 26 Oct (second session):
     training objective (binary_23, one output), box splits, augmentation and no pseudo-labels?
     Full list in `docs/meeting_2026-10-29.md`, Part 2 item 4.
 
-For Ruben, added 26 Oct:
+For Hugo (meeting 29 Oct), added 27 Oct:
 38. The height-radius map groups differ in stalk and body size, not only in grade (27 Oct,
     315 open 2526 fruit: median stalk 20, 19, 13.5, 12 voxels and median body 142,600,
     150,900, 174,300, 182,500 voxels for grade 0 and browning only 1, 2, 3; browning 3 mostly
     in boxes O and A). Ruben discusses with Hugo how to separate browning from size and stalk
     in the maps (linked to questions 18 and 33).
+
+For Ruben, added 27 Oct:
+39. After the meeting: fit the models on the height-radius bins, on the full flattened
+    latent, or both? A height-radius row reopens the decision of 10 October that dropped the
+    cylindrical bins (and item 20, removing the old cylindrical code in `pooling.py`).
+
+For Ruben, added 26 Oct:
 36. Put the grading rubric table (Tier 1) in the repository or in `data/` (outside git), so
     the grade definitions (for example browning 1 = light discoloration of the kernel
     membranes) can be cited from it.
@@ -396,6 +379,15 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-10-27 — one height-radius rule, latent spectra, methods record
+- Decided (Ruben): radius divided by the outermost voxel or cell; every fruit counts once in
+  a group mean; two latent radius methods; training-box grade 0 mean as the correction in
+  the models; deep learning waits; methods kept in `docs/methods_step0_and_maps.md`.
+- Notebook 07 section 3: spectra with linked drag selection, corrections, 3D surfaces, PCA
+  and scree plot on the selected bins; notebook 06 shows both latent views.
+- Found: map groups differ in stalk, body size and box (question 38).
+- Meeting document: update of 27 October and walkthrough of notebooks 06 and 07.
 
 ### 2026-10-26 — faulty volumes decided, Step 0 explained, meeting material ready
 - Decided (Ruben): visual inspection decides exclusions, neck cuts out, 35 volumes excluded;
