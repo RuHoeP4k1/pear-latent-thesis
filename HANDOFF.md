@@ -294,6 +294,11 @@ For Hugo (meeting 29 Oct), added 26 Oct (second session):
     Full list in `docs/meeting_2026-10-29.md`, Part 2 item 4.
 
 For Ruben, added 26 Oct:
+38. The height-radius map groups differ in stalk and body size, not only in grade (27 Oct,
+    315 open 2526 fruit: median stalk 20, 19, 13.5, 12 voxels and median body 142,600,
+    150,900, 174,300, 182,500 voxels for grade 0 and browning only 1, 2, 3; browning 3 mostly
+    in boxes O and A). Ruben discusses with Hugo how to separate browning from size and stalk
+    in the maps (linked to questions 18 and 33).
 36. Put the grading rubric table (Tier 1) in the repository or in `data/` (outside git), so
     the grade definitions (for example browning 1 = light discoloration of the kernel
     membranes) can be cited from it.
