@@ -19,7 +19,10 @@ with app.setup:
         MAX_RADIUS,
         N_HEIGHT_BINS,
         N_RADIUS_BINS,
+        RADIUS_METHODS,
         contrast_retention,
+        fruit_bin_means,
+        group_bin_summary,
         latent_map_sums,
         plane_measures,
     )
@@ -164,6 +167,14 @@ def _():
     and PSNR averaged per batch of 4 . The whole
     volume is mostly background, which is easy to reconstruct, so MAE over the body and over the
     core say more about the fruit.
+
+    **Where these numbers come from.** The full reconstructions are not saved (about 8 MB per
+    fruit). The encoding run (`pearlatent.encode_run.reconstruct_one`) decodes one fruit at a
+    time into a full 128³ volume in memory, computes every number in this table from that full
+    volume, saves the numbers (`reconstruction.parquet`) and three central planes of the CT and
+    the reconstruction (`planes.npy`), and then discards the volume. So MAE over the core is
+    computed on the full three-dimensional core (`pearlatent.reconstruction.core_voxel_mask`):
+    the body voxels within one third of the widest radius of the stem-calyx axis.
     """)
     return
 
@@ -291,6 +302,10 @@ def _():
     grade 0 fruit (cause "none") in the CT and in the reconstruction, and their ratio.
     A ratio of 1 means the reconstruction keeps the full difference; 0 means the reconstructed
     core looks like a healthy core.
+
+    This measure was defined (23 October) after the encoding run, when only the saved planes
+    were left, so it uses the core on the two long sections and not the full three-dimensional
+    core of section 2. The core radius is the same in both.
 
     Groups, 2526 only: browning only (cavity 0), cavity only (browning 0), and any cause
     (defective grade). Interval: 95 % percentile bootstrap over boxes (the 12 open boxes drawn
@@ -422,10 +437,13 @@ def _():
 
     Every fruit is folded onto one half long section: **height** runs from 0 at the calyx end of
     the body to 1 at the stalk end (stalk removed), **radius** is the distance to the stem-calyx
-    axis divided by the fruit's widest radius (0 = on the axis, about 1 = skin at the widest
-    point). Both sides of the axis land on the same side. A bin shows the mean over all
-    voxels (or latent cells) of all fruit of the column that fall in it. A bin is drawn only
-    when at least half of the fruit of the column reach it: bins near the skin that only some
+    axis divided by the distance of the outermost body voxel (0 = on the axis, 1 = the skin
+    where the fruit is widest), so both run from 0 to 1 in every map of this notebook and of
+    notebook 07. Both sides of the axis land on the same side. A bin shows the group mean with
+    every fruit counting once: first the mean of each fruit over its voxels (or latent cells)
+    in the bin, then the mean over the fruit of the column (before 27 October: one mean over
+    all voxels of all fruit, so large fruit weighed more). A bin is drawn only when at least
+    half of the fruit of the column have voxels in it: bins near the skin that only some
     fruit reach show differences in fruit shape, not in tissue.
 
     Columns: grade 0 (defective 0) and browning-only grades 1 to 3, 2526 fruit; the last
@@ -443,6 +461,25 @@ def _():
     latent value. Row 3: latent minus the grade 0 latent. A latent value is not an intensity:
     red means a higher latent value, not a brighter tissue. Each latent cell sees about 31
     voxels around it (about 19 mm), so the latent map is smoother than the CT map.
+
+    **Two latent views: how the radius is normalised** (`pearlatent.step0.latent_map_sums`,
+    27 October 2026). Neither interpolates: every cell keeps its value and only gets a
+    coordinate. 20 height bins × 8 radius bins: the 2526 body spans 21 to 32 latent slices and
+    is about 6 to 11 cells in radius (median about 7.5), so a bin is about one cell.
+
+    - *One radius per fruit*: distance to one straight stem-calyx axis, divided by the
+      distance of the outermost body cell of the fruit. Keeps the shape: the neck only reaches
+      small radii, so outer bins near the stalk are empty (white).
+    - *Radius per slice*: distance to the centre of the same slice, divided by the distance
+      of the outermost body cell of that slice. Removes the shape: radius 1 is the skin at
+      every height, so a radius bin is a relative depth below the skin.
+
+    Until 27 October the radius was divided by sqrt(largest slice area / pi), the radius of a
+    circle of the same area; slices that are not round then put skin voxels up to about 1.2.
+    Dividing by the outermost voxel or cell keeps every map within 0 to 1.
+
+    Row 1 (CT, from the two long sections) uses one radius per fruit in both views. Notebook
+    07 section 3 compares the two methods.
     """)
     return
 
@@ -459,8 +496,6 @@ def _(measured):
         ("browning 3 only", (pl.col("browning") == 3) & (pl.col("cavity") == 0)),
         ("cavity 2-3, any browning", (pl.col("cavity") >= 2)),
     ]
-    # A bin is drawn only when at least this share of the fruit of the column reach it.
-    MIN_FRUIT_SHARE_PER_BIN = 0.5
     _is_2526 = (measured["group"] == "2526").to_numpy()
 
     def column_fruit(condition: pl.Expr) -> np.ndarray:
@@ -470,19 +505,15 @@ def _(measured):
     def group_means(
         counts: np.ndarray, sums: np.ndarray, selected: np.ndarray
     ) -> np.ndarray:
-        """Group mean per bin, NaN where fewer than MIN_FRUIT_SHARE_PER_BIN of the fruit
-        reach the bin.
+        """Group mean per bin, every fruit counting once (the rule of every map in notebooks
+        06 and 07): first the mean of each fruit in the bin, then the mean over the fruit.
+        NaN where fewer than half of the fruit have a voxel or cell in the bin
+        (`MIN_FRUIT_SHARE_PER_BIN`).
 
         In: per-fruit counts (fruit, height, radius), per-fruit sums (fruit, k, height,
         radius) and the selected fruit. Out: means (k, height, radius).
         """
-        _counts = counts[selected]
-        _fruit_reaching = (_counts > 0).sum(axis=0)
-        _enough = _fruit_reaching >= MIN_FRUIT_SHARE_PER_BIN * selected.sum()
-        _total = _counts.sum(axis=0)
-        with np.errstate(invalid="ignore", divide="ignore"):
-            _means = sums[selected].sum(axis=0) / _total
-        return np.where(_enough, _means, np.nan)
+        return group_bin_summary(fruit_bin_means(counts, sums), selected)["mean"]
 
     return MAP_COLUMNS, column_fruit, group_means
 
@@ -490,21 +521,25 @@ def _(measured):
 @app.cell(hide_code=True)
 def _(measured, run_dir):
     # Latent height-radius sums of every measured fruit, in the row order of `measured`.
-    # `position` is the row of the fruit in latents.npy and masks.npy.
+    # `position` is the row of the fruit in latents.npy and masks.npy. Once per radius
+    # method ("fruit": one radius per fruit; "slice": a radius per slice), keyed by method.
     _latents = np.load(run_dir / "latents.npy", mmap_mode="r")
     _cells = np.load(run_dir / "masks.npy", mmap_mode="r")
-    _counts, _sums = [], []
-    for _position in measured["position"].to_list():
-        _c, _s = latent_map_sums(
-            np.asarray(_latents[_position]), np.asarray(_cells[_position])
+    latent_counts, latent_sums = {}, {}
+    for _method in RADIUS_METHODS:
+        _counts, _sums = [], []
+        for _position in measured["position"].to_list():
+            _c, _s = latent_map_sums(
+                np.asarray(_latents[_position]), np.asarray(_cells[_position]), _method
+            )
+            _counts.append(_c)
+            _sums.append(_s)
+        latent_counts[_method] = np.stack(_counts)
+        latent_sums[_method] = np.stack(_sums)[:, None]  # (fruit, 1, height, radius)
+        print(
+            f"radius per {_method}: latent maps of {latent_counts[_method].shape[0]} fruit,"
+            f" bins {latent_counts[_method].shape[1:]}"
         )
-        _counts.append(_c)
-        _sums.append(_s)
-    latent_counts = np.stack(_counts)
-    latent_sums = np.stack(_sums)[:, None]  # (fruit, 1, height, radius)
-    print(
-        f"latent maps of {latent_counts.shape[0]} fruit, bins {latent_counts.shape[1:]}"
-    )
     return latent_counts, latent_sums
 
 
@@ -548,7 +583,7 @@ def draw_maps(columns, rows, title):
             if _c == 0 or (_c == 1 and _axes[_r, 0].axison is False):
                 _ax.set_ylabel(f"{_name}\n\nheight (calyx 0, stalk 1)", fontsize=9)
             if _r == len(rows) - 1:
-                _ax.set_xlabel("radius / widest radius")
+                _ax.set_xlabel("radius (axis 0, skin 1)")
     for _r in _images:
         _fig.colorbar(_images[_r], ax=_axes[_r, :].tolist(), shrink=0.9)
     _fig.suptitle(title)
@@ -602,51 +637,61 @@ def _(
     latent_sums,
     map_sums,
 ):
-    _columns = []
-    for _title, _condition in MAP_COLUMNS:
-        _selected = column_fruit(_condition)
-        _voxel = group_means(map_sums[:, 0], map_sums[:, 1:2], _selected)[0]
-        _latent = group_means(latent_counts, latent_sums, _selected)[0]
-        _columns.append((_title, int(_selected.sum()), (_voxel, _latent)))
-    _healthy_ct, _healthy_latent = _columns[0][2]
+    def latent_maps_figure(method: str):
+        """The latent height-radius figure for one radius method ("fruit" or "slice")."""
+        _columns = []
+        for _title, _condition in MAP_COLUMNS:
+            _selected = column_fruit(_condition)
+            _voxel = group_means(map_sums[:, 0], map_sums[:, 1:2], _selected)[0]
+            _latent = group_means(
+                latent_counts[method], latent_sums[method], _selected
+            )[0]
+            _columns.append((_title, int(_selected.sum()), (_voxel, _latent)))
+        _healthy_ct, _healthy_latent = _columns[0][2]
 
-    # Colour limits of the latent rows from the data (latent values have no fixed range):
-    # the 1st to 99th percentile of the mean latent, and a symmetric limit at the 99th
-    # percentile of the absolute differences from grade 0.
-    _mean_values = np.concatenate([c[2][1].ravel() for c in _columns])
-    _mean_limits = tuple(np.nanpercentile(_mean_values, [1, 99]))
-    _differences = np.concatenate(
-        [(c[2][1] - _healthy_latent).ravel() for c in _columns[1:]]
-    )
-    _d = float(np.nanpercentile(np.abs(_differences), 99))
+        # Colour limits of the latent rows from the data (latent values have no fixed range):
+        # the 1st to 99th percentile of the mean latent, and a symmetric limit at the 99th
+        # percentile of the absolute differences from grade 0.
+        _mean_values = np.concatenate([c[2][1].ravel() for c in _columns])
+        _mean_limits = tuple(np.nanpercentile(_mean_values, [1, 99]))
+        _differences = np.concatenate(
+            [(c[2][1] - _healthy_latent).ravel() for c in _columns[1:]]
+        )
+        _d = float(np.nanpercentile(np.abs(_differences), 99))
 
-    latent_figure = draw_maps(
-        _columns,
-        [
-            (
-                "CT minus\ngrade 0 CT",
-                lambda m, c: None if c == 0 else m[0] - _healthy_ct,
-                "RdBu_r",
-                (-0.06, 0.06),
-            ),
-            ("mean latent", lambda m, c: m[1], "viridis", _mean_limits),
-            (
-                "latent minus\ngrade 0 latent",
-                lambda m, c: None if c == 0 else m[1] - _healthy_latent,
-                "RdBu_r",
-                (-_d, _d),
-            ),
-        ],
-        "2526 fruit; row 1 from two CT long sections, rows 2 and 3 from all body cells of"
-        " the latent; red = higher value",
-    )
-    return (latent_figure,)
+        return draw_maps(
+            _columns,
+            [
+                (
+                    "CT minus\ngrade 0 CT",
+                    lambda m, c: None if c == 0 else m[0] - _healthy_ct,
+                    "RdBu_r",
+                    (-0.06, 0.06),
+                ),
+                ("mean latent", lambda m, c: m[1], "viridis", _mean_limits),
+                (
+                    "latent minus\ngrade 0 latent",
+                    lambda m, c: None if c == 0 else m[1] - _healthy_latent,
+                    "RdBu_r",
+                    (-_d, _d),
+                ),
+            ],
+            "2526 fruit; row 1 from two CT long sections (one radius per fruit), rows 2 and 3"
+            f" from all body cells of the latent (radius per {method}); red = higher value",
+        )
+
+    latent_figures = {_method: latent_maps_figure(_method) for _method in RADIUS_METHODS}
+    return (latent_figures,)
 
 
 @app.cell(hide_code=True)
 def _():
     map_view = mo.ui.dropdown(
-        options=["CT and reconstruction", "latent"],
+        options=[
+            "CT and reconstruction",
+            "latent, one radius per fruit",
+            "latent, radius per slice",
+        ],
         value="CT and reconstruction",
         label="Map of",
     )
@@ -655,8 +700,13 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(hr_figure, latent_figure, map_view):
-    hr_figure if map_view.value == "CT and reconstruction" else latent_figure
+def _(hr_figure, latent_figures, map_view):
+    _figures = {
+        "CT and reconstruction": hr_figure,
+        "latent, one radius per fruit": latent_figures["fruit"],
+        "latent, radius per slice": latent_figures["slice"],
+    }
+    _figures[map_view.value]
     return
 
 
@@ -671,7 +721,7 @@ def _():
     at them in section 7 or in notebook 05.
 
     Result (26 October 2026): not a few fruit; the whole browning 1 group is darker there
-    (median 0.724 against 0.789 for grade 0). Explained by the grading rubric as stated by
+    (median 0.727 against 0.789 for grade 0; 0.724 before the radius change of 27 October). Explained by the grading rubric as stated by
     Ruben (the rubric table itself is not in the repository): browning grade 1 is a light
     discoloration of the kernel membranes, which line the seed cavity. Grades 2 and 3 spread
     further from the core.
@@ -799,7 +849,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(cfg, example_figure, hr_figure, latent_figure, save_step0_figures):
+def _(cfg, example_figure, hr_figure, latent_figures, save_step0_figures):
     # Saved under derived/ (outside git): CT images stay off GitHub until Hugo agrees.
     mo.stop(mo.running_in_notebook() and not save_step0_figures.value)
     _folder = cfg.path("derived_dir") / "figures"
@@ -807,14 +857,14 @@ def _(cfg, example_figure, hr_figure, latent_figure, save_step0_figures):
     hr_figure.savefig(
         _folder / "06_height_radius_maps.png", dpi=130, bbox_inches="tight"
     )
-    latent_figure.savefig(
-        _folder / "06_height_radius_maps_latent.png", dpi=130, bbox_inches="tight"
-    )
+    _saved = ["06_height_radius_maps.png"]
+    for _method, _figure in latent_figures.items():
+        _name = f"06_height_radius_maps_latent_{_method}.png"
+        _figure.savefig(_folder / _name, dpi=130, bbox_inches="tight")
+        _saved.append(_name)
     example_figure.savefig(_folder / "06_examples.png", dpi=130, bbox_inches="tight")
-    print(
-        "saved 06_height_radius_maps.png, 06_height_radius_maps_latent.png and"
-        f" 06_examples.png to {_folder}"
-    )
+    _saved.append("06_examples.png")
+    print(f"saved {', '.join(_saved)} to {_folder}")
     return
 
 
