@@ -19,11 +19,11 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   - The comparison with the CT uses the existing 4 × 4 × 4 block mean of notebook 03 (charter
     comparison row); no new downsampling.
   - Hugo is shown notebook 07 live, not a fixed comparison figure.
-- **Done this session (28 Oct, Mac), commit bba5df6:**
-  - Notebook 07: dropdown at the top for the representation, read through `grid_reader`
-    (the CT run holds all 1,093 fruit; it is joined on the open manifest, so the 153 sealed
-    rows are never read). Saved figures of the other two representations get
-    `_random_init` / `_raw_ct_32` in their names.
+- **Done this session (28 Oct, Mac), commits bba5df6, c03c965, 09d67a2:**
+  - Notebook 07: dropdown at the top for the representation, read through
+    `pearlatent.feature_sets.load_features` (refuses sealed fruit; the CT run also holds the
+    153 sealed fruit). Saved figures of the other two representations get `_random_init` /
+    `_ct_32` in their names.
   - Section 1: table of Spearman correlations of PC1 to PC5 with stalk, size and grades for
     all three representations at once.
   - Section 4 (new): long sections of the grid, map and 1,024-cell spectrum linked both
@@ -34,6 +34,14 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   - Checked: the CT run's body masks equal those of Hugo's run for all 940 open fruit; the
     random encoder run is complete (940 × 32³, no NaN, no all-zero fruit; sealed part in
     `derived/sealed/latents/random_init/`).
+  - Refactor (c03c965): new `pearlatent.fruit_table` (`open_fruit`, `cause`,
+    `attach_labels`, `drop_faulty_volumes`, 6 tests); notebooks 05, 06, 07 use it instead
+    of three own joins. `pearlatent.runs` lists the runs in use (`ENCODING_RUN_DIR`,
+    `RANDOM_INIT_RUN_DIR`, `RAW_CT_32_RUN_DIR`, `DESCRIPTORS_RUN_DIR`); notebooks and
+    `descriptors`, `decode_examples`, `feature_sets` read them from there. Checked: fruit
+    tables and grids identical to before in all three notebooks. Tests: 104 passed.
+  - Meeting document (09d67a2): "Questions to answer at the meeting" at the bottom, the
+    open questions for Hugo by number (33, 18, 38, 40 first).
 - **Found (exploratory, 315 open 2526 fruit, seen by Ruben):**
   - PC1 follows body size and stalk length equally in all three representations (body voxels
     |r| 0.97 / 0.97 / 1.00; stalk 0.78 / 0.74 / 0.77 for Hugo / random / CT): the stalk and
@@ -44,8 +52,9 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   - Only 78 of the 1,024 cells of the central long section lie in the body of every fruit;
     a PCA on the plane drops the rest.
 - **Next step:** the meeting with Hugo on 29 Oct (Ruben), with notebook 07 open on Hugo's
-  latent. Discuss the stalk route (questions 33, 18, 38) with the section 1 comparison table,
-  and the Med3D choices (question 40). After the meeting: record the 28 October method rules
+  latent (reload it in the browser first). Work through the list at the bottom of
+  `docs/meeting_2026-10-29.md`: the stalk route (questions 33, 18, 38) with the section 1
+  comparison table, then the Med3D choices (question 40). After the meeting: record the 28 October method rules
   in `docs/methods_step0_and_maps.md`, then the first PLS-DA on `binary_23` with Hugo's full
   flattened latent (`pearlatent.plsda`, box folds in `derived/outer_folds_20/`, test boxes
   F, J, M sealed).
@@ -77,7 +86,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   - Mac (main machine from 20 Oct): `/Users/rubenhoeven/code/pear-latent-thesis`, Python
     3.12.15, torch 2.14.1 (`device = "cpu"` in `config/local.toml`), marimo 0.25.1; data in
     `~/data/pear-thesis`; weights in `data/weights/hugo_vae/`; Hugo's repository at
-    `../Synthetic_CT_pear`, commit 183112f. `uv run pytest`: 98 passed on 27 Oct.
+    `../Synthetic_CT_pear`, commit 183112f. `uv run pytest`: 104 passed on 28 Oct.
     The workstation is only for the ResNet-18 baseline and is not set up. School PC not set
     up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
     `notebooks/00_environment_check.py`; for live pairing also
@@ -302,6 +311,15 @@ For Ruben and Hugo, added 28 Oct:
     steps of 4 voxels and the neck tip counts as stalk. Define the boundary at voxel level
     (for example fewer than 64 fruit voxels per slice) and compare on all fruit? A change
     to a method rule; after the meeting.
+42. Two exclusion mechanisms exist: `derived/exclusions.csv` with
+    `pearlatent.exclusions.apply_exclusions` (documented as the one every notebook uses) and
+    `derived/volume_decisions.csv`, read by `pearlatent.fruit_table.drop_faulty_volumes` in
+    notebooks 06 and 07. They agree on 28 Oct (the same 35 faulty volumes). Choose one for
+    the model notebooks; notebook 06 keeps Hugo's training sample on purpose, which
+    `apply_exclusions` in mode "primary" would drop.
+43. Remaining refactors (28 Oct): one shared map-and-spectrum chart for sections 3 and 4 of
+    notebook 07; `pca_on_selection` into `src/pearlatent/` with a test; 8 ruff warnings in
+    the notebooks; "Status: draft" in notebooks 00 to 04.
 
 For Ruben, added 26 Oct:
 36. Put the grading rubric table (Tier 1) in the repository or in `data/` (outside git), so
@@ -410,6 +428,9 @@ Newest first. One entry per session, three to six lines.
 - Found: PC1 is size and stalk in all three representations; only Hugo's latent has a
   component (PC4) that follows the grades (|r| about 0.25).
 - New questions 40 (Med3D choices) and 41 (stalk boundary at voxel level).
+- Refactor: one fruit table (`pearlatent.fruit_table`) and the runs in `pearlatent.runs`
+  for notebooks 05 to 07, output checked identical; questions for Hugo listed at the bottom
+  of the meeting document. New questions 42 (exclusion mechanism) and 43 (refactors left).
 
 ### 2026-10-27 — one height-radius rule, latent spectra, methods record
 - Decided (Ruben): radius divided by the outermost voxel or cell; every fruit counts once in
