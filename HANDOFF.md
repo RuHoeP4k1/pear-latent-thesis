@@ -5,48 +5,55 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-27
-- **Phase:** preparation of the meeting with Hugo (Thursday 29 Oct, 11:00). Height-radius
-  maps made consistent and extended with latent spectra for exploration. No model fitted on
-  labels yet. Everything to show and ask Hugo is in `docs/meeting_2026-10-29.md` ("Update
-  27 October" at the top, walkthrough of notebooks 06 and 07 at the end).
-- **Decided this session (Ruben, 27 Oct):**
-  - Height-radius maps, one rule everywhere: radius = distance to the axis divided by the
-    outermost body voxel or cell (0 axis, 1 skin); group mean with every fruit counting
-    once; a bin only where at least half of the group's fruit reach it (also for the grade
-    0 reference). Latent maps 20 × 8 bins, CT maps 32 × 24.
-  - Two latent radius methods kept side by side: one radius per fruit, a radius per slice.
-  - The 13 October core definition (one third of sqrt(largest slice area / pi)) stays; its
-    edge lies at 0.32 on the map radius (median, 346 open 2526 fruit).
-  - In the models, a grade 0 correction subtracts the grade 0 mean of the training boxes
-    only (a held-out box cannot use its own grade 0 fruit).
-  - Deep learning (ResNet-18) waits; the statistical models on the latent come first.
-  - Models on the height-radius bins or on the full flattened latent: another day, after the
-    meeting.
-  - Every method rule goes, dated, into `docs/methods_step0_and_maps.md` (new) for writing.
-- **Done this session (27 Oct, Mac), commits f572fcb and f407e67:**
-  - `pearlatent.step0`: `latent_map_sums(radius_method="fruit"|"slice")`, `radius_bin`,
-    `fruit_bin_means`, `group_bin_summary`, `MIN_FRUIT_SHARE_PER_BIN`; plane maps use the
-    outermost-voxel radius. Tests: 98 passed.
-  - Notebook 06: section 2 explains that the error numbers come from the full reconstruction
-    in memory during the encoding run; section 5 shows both latent views (dropdown) and saves
-    `06_height_radius_maps_latent_fruit.png` and `_slice.png`. Seed-cavity check: browning 1
-    median 0.727 (was 0.724), grade 0 0.789.
-  - Notebook 07 section 3 (new): comparison of the two radius methods
-    (`07_hr_radius_methods.png`); map and spectra in one chart, drag selection linked both
-    ways; corrections none / minus grade 0 / divided by grade 0 SD / minus grade 0 of the
-    same box; 3D surfaces (`07_hr_surfaces_<method>_<correction>.png`); PCA with scree plot
-    on the bins selected by both drags (tested live: marimo passes `map_box` and
-    `spectrum_range` back in `hr_linked.selections`).
-  - Found: the map groups differ in stalk and body size and in box (question 38).
-- **Next step:** the meeting with Hugo on 29 Oct (Ruben). Before it, Ruben looks at the
-  27 October maps (notebook 06 section 5, notebook 07 section 3; the 26 October versions are
-  outdated) and reads the walkthrough at the end of `docs/meeting_2026-10-29.md`. After the
-  meeting: settle the stalk route (questions 33, 18, 38), then the first PLS-DA on
-  `binary_23` with Hugo's full flattened latent (`pearlatent.plsda`, box folds in
-  `derived/outer_folds_20/`, test boxes F, J, M sealed).
+- **Date:** 2026-10-28
+- **Phase:** preparation of the meeting with Hugo (Thursday 29 Oct, 11:00). Notebook 07 now
+  compares the three 32³ representations (Hugo's latent, random encoder, CT averaged to 32³)
+  and shows long sections of the real grid. No model fitted on labels yet. Material for Hugo:
+  `docs/meeting_2026-10-29.md` (not updated this session) and notebook 07, shown live.
+- **Decided this session (Ruben, 28 Oct):**
+  - The height-radius map is an exploratory method: the number of latent cells behind a bin
+    differs between bins and between fruit (estimate: about 2 cells in the axis bin of a
+    small fruit, about 140 in the outer ring of a large one). See question 39.
+  - The real grid is shown as a long section (one plane at fixed x or y, slider), not as a
+    mean over one axis.
+  - The comparison with the CT uses the existing 4 × 4 × 4 block mean of notebook 03 (charter
+    comparison row); no new downsampling.
+  - Hugo is shown notebook 07 live, not a fixed comparison figure.
+- **Done this session (28 Oct, Mac), commit bba5df6:**
+  - Notebook 07: dropdown at the top for the representation, read through `grid_reader`
+    (the CT run holds all 1,093 fruit; it is joined on the open manifest, so the 153 sealed
+    rows are never read). Saved figures of the other two representations get
+    `_random_init` / `_raw_ct_32` in their names.
+  - Section 1: table of Spearman correlations of PC1 to PC5 with stalk, size and grades for
+    all three representations at once.
+  - Section 4 (new): long sections of the grid, map and 1,024-cell spectrum linked both
+    ways, the four grade 0 corrections, PCA on the selected cells. Section 3 and 4 share
+    `pca_on_selection` and `grade0_correction`.
+  - Controls no longer reset when the representation changes (groups, corrections, the 2526
+    fruit and the axis position moved to cells that read no grid data).
+  - Checked: the CT run's body masks equal those of Hugo's run for all 940 open fruit; the
+    random encoder run is complete (940 × 32³, no NaN, no all-zero fruit; sealed part in
+    `derived/sealed/latents/random_init/`).
+- **Found (exploratory, 315 open 2526 fruit, seen by Ruben):**
+  - PC1 follows body size and stalk length equally in all three representations (body voxels
+    |r| 0.97 / 0.97 / 1.00; stalk 0.78 / 0.74 / 0.77 for Hugo / random / CT): the stalk and
+    size structure is in the volumes, not added by Hugo's encoder.
+  - Only Hugo's latent has a component (PC4) that follows the grades more than size
+    (|r| 0.25 defective, 0.23 browning, 0.27 cavity); random encoder and CT reach about 0.16,
+    on PC1 (size). One component, no test.
+  - Only 78 of the 1,024 cells of the central long section lie in the body of every fruit;
+    a PCA on the plane drops the rest.
+- **Next step:** the meeting with Hugo on 29 Oct (Ruben), with notebook 07 open on Hugo's
+  latent. Discuss the stalk route (questions 33, 18, 38) with the section 1 comparison table,
+  and the Med3D choices (question 40). After the meeting: record the 28 October method rules
+  in `docs/methods_step0_and_maps.md`, then the first PLS-DA on `binary_23` with Hugo's full
+  flattened latent (`pearlatent.plsda`, box folds in `derived/outer_folds_20/`, test boxes
+  F, J, M sealed).
 - **Blocked on:** modelling on labels waits for the meeting (stalk reprocessing, original
-  fruit lengths, size and stalk in the maps).
+  fruit lengths, size and stalk in the maps). Med3D waits for the choices in question 40.
+- **Working note:** with `marimo edit --watch` open, the editor reloads and saves the file;
+  several quick file edits in a row were overwritten on 28 Oct. Make notebook edits in one
+  write, or through the live session (marimo-pair, needs the server token).
 - **Reference, still valid (from earlier sessions):**
   - Encoding run `20261013T171306Z_hugo_vae` (code 0c9052f; `dirty: true` only because of an
     untracked handoff file): open part `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/`,
@@ -280,6 +287,21 @@ For Ruben, added 27 Oct:
 39. After the meeting: fit the models on the height-radius bins, on the full flattened
     latent, or both? A height-radius row reopens the decision of 10 October that dropped the
     cylindrical bins (and item 20, removing the old cylindrical code in `pooling.py`).
+    28 Oct: Ruben agrees the height-radius map is exploratory (unequal number of cells per
+    bin); a model row on the bins would also need a rule for empty bins. Leaning to the full
+    grid for the models; to confirm.
+
+For Ruben and Hugo, added 28 Oct:
+40. Med3D (charter comparison row, frozen; no code yet): which network (ResNet-10 is the
+    realistic one on the CPU), which input normalisation (Med3D was trained on z-scored CT,
+    our volumes are min-max scaled), which layer and pooling (the last layer gives about
+    16³ × 512 for a 128³ input, not 32³), and the weights: source, version, checksum,
+    licence. Adding the package needs `uv add`.
+41. Stalk length and body size are measured on the 128³ volumes, but the body-stalk
+    boundary is decided on the 32³ CT grid (slices with fewer than 4 cells), so it moves in
+    steps of 4 voxels and the neck tip counts as stalk. Define the boundary at voxel level
+    (for example fewer than 64 fruit voxels per slice) and compare on all fruit? A change
+    to a method rule; after the meeting.
 
 For Ruben, added 26 Oct:
 36. Put the grading rubric table (Tier 1) in the repository or in `data/` (outside git), so
@@ -379,6 +401,15 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-10-28 — three representations side by side, long sections of the grid
+- Decided (Ruben): the height-radius map is exploratory; the real grid is shown as long
+  sections; the CT comparison is the existing 4³ block mean; notebook 07 is shown live.
+- Notebook 07: representation dropdown (Hugo, random encoder, CT at 32³), section 1 table for
+  all three, section 4 long sections with linked spectra and PCA; controls keep their values.
+- Found: PC1 is size and stalk in all three representations; only Hugo's latent has a
+  component (PC4) that follows the grades (|r| about 0.25).
+- New questions 40 (Med3D choices) and 41 (stalk boundary at voxel level).
 
 ### 2026-10-27 — one height-radius rule, latent spectra, methods record
 - Decided (Ruben): radius divided by the outermost voxel or cell; every fruit counts once in
