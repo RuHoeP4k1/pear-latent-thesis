@@ -38,8 +38,7 @@ import numpy as np
 
 from pearlatent.pooling import MASK_THRESHOLD, body_mask, fruit_mask
 from pearlatent.reconstruction import body_voxel_mask
-
-ENCODING_RUN = "20261013T171306Z_hugo_vae"
+from pearlatent.runs import ENCODING_RUN, ENCODING_RUN_DIR
 
 # Flat-face search (module docstring): planes tried, distance to the plane in voxels, seed.
 FLAT_FACE_PLANES = 3000
@@ -206,7 +205,7 @@ def main() -> None:
     from pearlatent.runs import new_run_dir, write_run_record
 
     cfg = load_config()
-    run = cfg.path("derived_dir") / "latents" / "hugo_vae" / ENCODING_RUN
+    run = cfg.path("derived_dir") / ENCODING_RUN_DIR
     # Open fruit only: the sealed test fruit are not in this manifest and stay unopened.
     manifest = pl.read_parquet(run / "manifest.parquet")
     print(f"open fruit in {ENCODING_RUN}: {manifest.height}")

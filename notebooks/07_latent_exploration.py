@@ -14,8 +14,9 @@ with app.setup(hide_code=True):
     from sklearn.decomposition import PCA
 
     from pearlatent.config import load_config
-    from pearlatent.exclusions import read_volume_decisions
-    from pearlatent.labels import load_labels
+    from pearlatent.feature_sets import load_features
+    from pearlatent.fruit_table import drop_faulty_volumes, open_fruit
+    from pearlatent.runs import ENCODING_RUN_DIR
     from pearlatent.step0 import (
         MAX_RADIUS,
         N_LATENT_HEIGHT_BINS,
@@ -43,7 +44,7 @@ def _():
     `reconstruction.parquet`, `masks.npy`), both label files, `derived/descriptors/20261023T155219Z_descriptors/`,
     `derived/volume_decisions.csv` when it exists. For the comparison rows (charter, Methods,
     point 3): random encoder run `20261020T120336Z_random_init` (`latents.npy`) and CT run
-    `20261005T142026Z_raw_ct_32` (`grids.npy`).
+    `20261005T142026Z_raw_ct_32` (`grids.npy`); all run names in `pearlatent.runs`.
 
     **Representation.** Chosen with the dropdown below; every section uses it. Where the text
     says "latent", read "the chosen representation". The fruit, labels and body masks are the
@@ -67,7 +68,7 @@ def _():
     REPRESENTATIONS = {
         "hugo_vae": "Hugo's latent (mu)",
         "random_init": "random encoder (same architecture, seed 0)",
-        "raw_ct_32": "CT averaged to 32³ (mean of 4 × 4 × 4 voxel blocks)",
+        "ct_32": "CT averaged to 32³ (mean of 4 × 4 × 4 voxel blocks)",
     }
     representation_choice = mo.ui.dropdown(
         options={_label: _key for _key, _label in REPRESENTATIONS.items()},
@@ -90,43 +91,21 @@ def _():
 @app.cell(hide_code=True)
 def _():
     cfg = load_config()
-    run_dir = (
-        cfg.path("derived_dir") / "latents" / "hugo_vae" / "20261013T171306Z_hugo_vae"
-    )
-    descriptor_dir = (
-        cfg.path("derived_dir") / "descriptors" / "20261023T155219Z_descriptors"
-    )
-    return cfg, descriptor_dir, run_dir
+    # The runs in use are listed in one place, `pearlatent.runs`.
+    run_dir = cfg.path("derived_dir") / ENCODING_RUN_DIR
+    return cfg, run_dir
 
 
 @app.cell(hide_code=True)
-def _(cfg, descriptor_dir, run_dir):
-    _manifest = pl.read_parquet(run_dir / "manifest.parquet").with_row_index("position")
-    _labels = load_labels(cfg).select("fruit_id", "browning", "cavity")
-    _descriptors = pl.read_parquet(descriptor_dir / "descriptors.parquet")
+def _(cfg, run_dir):
+    # Grades, `defective`, cause (charter rule 5) and descriptors of every open fruit
+    # (`pearlatent.fruit_table.open_fruit`), plus the core reconstruction error where the
+    # fruit was decoded.
     _reconstruction = pl.read_parquet(run_dir / "reconstruction.parquet").select(
         "fruit_id", "mae_core"
     )
-    _all = (
-        _manifest.drop("storage")
-        .join(
-            load_labels(cfg).select("fruit_id", "storage"),
-            on="fruit_id",
-            validate="1:1",
-        )
-        .join(_labels, on="fruit_id", validate="1:1")
-        .join(_descriptors, on="fruit_id", validate="1:1")
-        .join(_reconstruction, on="fruit_id", how="left", validate="1:1")
-        .with_columns(defective=pl.max_horizontal("browning", "cavity"))
-        .with_columns(
-            cause=pl.when(pl.col("defective") == 0)
-            .then(pl.lit("none"))
-            .when(pl.col("cavity") == 0)
-            .then(pl.lit("browning only"))
-            .when(pl.col("browning") == 0)
-            .then(pl.lit("cavity only"))
-            .otherwise(pl.lit("both"))
-        )
+    _all = open_fruit(cfg).join(
+        _reconstruction, on="fruit_id", how="left", validate="1:1"
     )
     # 2526 open fruit and Hugo's 2425 validation fruit (section "Fruit" above).
     _kept = _all.filter(
@@ -134,68 +113,31 @@ def _(cfg, descriptor_dir, run_dir):
     )
     print(f"open fruit: {_all.height}; 2526 plus 2425 validation: {_kept.height}")
 
-    _decisions_file = cfg.path("derived_dir") / "volume_decisions.csv"
-    if _decisions_file.exists():
-        _faulty = read_volume_decisions(_decisions_file).filter(
-            pl.col("decision") != "keep"
-        )
-        fruit = _kept.join(_faulty.select("fruit_id"), on="fruit_id", how="anti")
-        print(f"faulty volumes dropped: {_kept.height - fruit.height}")
-    else:
-        fruit = _kept
-        print("no decisions file yet: no faulty volume dropped")
+    # Faulty volumes (docs/outlier_rule.md, derived/volume_decisions.csv).
+    fruit = drop_faulty_volumes(_kept, cfg.path("derived_dir") / "volume_decisions.csv")
+    print(f"faulty volumes dropped: {_kept.height - fruit.height}")
     print(f"fruit in this notebook: {fruit.height}")
     fruit.group_by("season").len().sort("season")
     return (fruit,)
 
 
 @app.cell(hide_code=True)
-def _(cfg, run_dir):
+def _(cfg):
     def grid_reader(representation: str):
         """A function that reads the 32³ grids of one representation.
 
-        In: the representation key ("hugo_vae", "random_init" or "raw_ct_32"). Out: a
-        function `read(positions)` that takes rows of Hugo's `manifest.parquet` (the
-        `position` column of `fruit`) and returns the grids of those fruit, in the same
-        order, as (fruit, 32, 32, 32) float32. For the CT the position is first translated
-        to the row of the same fruit in the CT run. Defined apart from the dropdown so that
-        the table at the end of section 1 can read all three representations.
+        In: the representation key ("hugo_vae", "random_init" or "ct_32", the names of
+        `pearlatent.feature_sets.FEATURE_RUNS`). Out: a function `read(fruit_ids)` that
+        returns the grids of those fruit, in that order, as (fruit, 32, 32, 32) float32.
+        Reads through `pearlatent.feature_sets.load_features`, which refuses sealed fruit
+        (the CT run also holds the 153 sealed test fruit). Defined apart from the dropdown
+        so that the table at the end of section 1 can read all three representations.
         """
-        _derived = cfg.path("derived_dir")
-        _manifest = pl.read_parquet(run_dir / "manifest.parquet").select("fruit_id")
-        if representation == "hugo_vae":
-            _grids = np.load(run_dir / "latents.npy", mmap_mode="r")
-            _rows = np.arange(_manifest.height)
-        elif representation == "random_init":
-            _dir = _derived / "latents" / "random_init" / "20261020T120336Z_random_init"
-            # Same fruit in the same order as Hugo's run: checked here, not assumed.
-            _other = pl.read_parquet(_dir / "manifest.parquet").select("fruit_id")
-            if not _other["fruit_id"].equals(_manifest["fruit_id"]):
-                raise ValueError("random encoder manifest differs from Hugo's run")
-            _grids = np.load(_dir / "latents.npy", mmap_mode="r")
-            _rows = np.arange(_manifest.height)
-        else:
-            _dir = _derived / "raw_ct_32" / "20261005T142026Z_raw_ct_32"
-            # This run holds all 1,093 fruit, the sealed test fruit included (it was made
-            # on 5 October, before the test boxes were sealed). Only the rows of the open
-            # fruit of Hugo's run are looked up; the sealed rows are never read.
-            _ct = pl.read_parquet(_dir / "manifest.parquet").with_row_index("ct_row")
-            _joined = (
-                _manifest.with_row_index("position")
-                .join(_ct.select("fruit_id", "ct_row"), on="fruit_id", validate="1:1")
-                .sort("position")
-            )
-            if _joined.height != _manifest.height:
-                raise ValueError("some open fruit are missing from the CT run")
-            print(
-                f"CT run: {_ct.height} fruit; open fruit looked up: {_joined.height};"
-                f" never read: {_ct.height - _joined.height}"
-            )
-            _grids = np.load(_dir / "grids.npy", mmap_mode="r")
-            _rows = _joined["ct_row"].to_numpy()
 
-        def read(positions: np.ndarray) -> np.ndarray:
-            return np.asarray(_grids[_rows[np.asarray(positions)]], dtype=np.float32)
+        def read(fruit_ids) -> np.ndarray:
+            _rows = load_features(cfg, representation, list(fruit_ids))
+            # load_features gives 32,768 numbers per fruit; back to the 32³ grid.
+            return _rows.reshape(len(_rows), 32, 32, 32)
 
         return read
 
@@ -219,7 +161,7 @@ def _(REPRESENTATIONS, grid_reader, representation_choice):
 def _(fruit, read_grids):
     # Grids of the chosen representation in the order of `fruit`, flattened to 32,768
     # numbers per fruit.
-    flat = read_grids(fruit["position"].to_numpy()).reshape(fruit.height, -1)
+    flat = read_grids(fruit["fruit_id"]).reshape(fruit.height, -1)
     is_2526 = (fruit["season"] == "2526").to_numpy()
 
     # PCA as in notebook 05: mean-centred, not scaled, exact solver, fitted on the 2526 fruit;
@@ -317,10 +259,9 @@ def _(REPRESENTATIONS, fruit, grid_reader, is_2526):
         "cavity",
     ]
     _fruit_2526 = fruit.filter(pl.Series(is_2526))
-    _positions = fruit["position"].to_numpy()
     _rows = []
     for _key, _name in REPRESENTATIONS.items():
-        _flat = grid_reader(_key)(_positions).reshape(fruit.height, -1)
+        _flat = grid_reader(_key)(fruit["fruit_id"]).reshape(fruit.height, -1)
         # Same PCA as section 1: centred, not scaled, exact solver, fitted on 2526 fruit.
         _pca = PCA(n_components=_n_components, svd_solver="full").fit(_flat[is_2526])
         _scores = _pca.transform(_flat[is_2526])
@@ -507,7 +448,7 @@ def _(fruit):
 @app.cell(hide_code=True)
 def _(hr_fruit, read_grids, run_dir):
     _positions = hr_fruit["position"].to_numpy()
-    _grids = read_grids(_positions)
+    _grids = read_grids(hr_fruit["fruit_id"])
     _cells = np.load(run_dir / "masks.npy", mmap_mode="r")
     # Per radius method: (fruit, height, radius) bin means, NaN where the fruit has no cell.
     hr_means = {}
@@ -1242,7 +1183,7 @@ def _(hr_fruit, read_grids, run_dir):
     _cells = np.load(run_dir / "masks.npy", mmap_mode="r")
     _positions = hr_fruit["position"].to_numpy()
     _body = np.asarray(_cells[_positions], dtype=bool)
-    grid_values = np.where(_body, read_grids(_positions), np.nan)
+    grid_values = np.where(_body, read_grids(hr_fruit["fruit_id"]), np.nan)
     print(f"grid cells: {grid_values.shape}")
     return (grid_values,)
 

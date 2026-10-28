@@ -18,7 +18,7 @@ import sys
 
 import numpy as np
 
-ENCODING_RUN = "20261013T171306Z_hugo_vae"
+from pearlatent.runs import ENCODING_RUN, ENCODING_RUN_DIR
 
 
 def main(fruit_ids: list[str]) -> None:
@@ -33,7 +33,7 @@ def main(fruit_ids: list[str]) -> None:
     from pearlatent.runs import new_run_dir, write_run_record
 
     cfg = load_config()
-    run = cfg.path("derived_dir") / "latents" / "hugo_vae" / ENCODING_RUN
+    run = cfg.path("derived_dir") / ENCODING_RUN_DIR
     manifest = pl.read_parquet(run / "manifest.parquet").with_row_index("position")
     chosen = manifest.filter(pl.col("fruit_id").is_in(fruit_ids))
     missing = set(fruit_ids) - set(chosen["fruit_id"].to_list())

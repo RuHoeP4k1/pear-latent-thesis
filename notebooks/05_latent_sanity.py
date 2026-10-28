@@ -15,10 +15,11 @@ with app.setup:
     from sklearn.decomposition import PCA
 
     from pearlatent.config import load_config
-    from pearlatent.labels import load_labels
     from pearlatent.descriptors import flat_face_patch, largest_part
+    from pearlatent.fruit_table import open_fruit
     from pearlatent.pooling import MASK_THRESHOLD, scale_minmax
     from pearlatent.reconstruction import body_centre, body_voxel_mask, central_planes
+    from pearlatent.runs import DESCRIPTORS_RUN_DIR, ENCODING_RUN_DIR
 
 
 @app.cell(hide_code=True)
@@ -43,13 +44,10 @@ def _():
 @app.cell
 def _():
     cfg = load_config()
-    run_dir = (
-        cfg.path("derived_dir") / "latents" / "hugo_vae" / "20261013T171306Z_hugo_vae"
-    )
+    # The runs in use are listed in one place, `pearlatent.runs`.
+    run_dir = cfg.path("derived_dir") / ENCODING_RUN_DIR
     # Shape, stalk and intensity per fruit (python -m pearlatent.descriptors).
-    descriptor_dir = (
-        cfg.path("derived_dir") / "descriptors" / "20261023T155219Z_descriptors"
-    )
+    descriptor_dir = cfg.path("derived_dir") / DESCRIPTORS_RUN_DIR
     return cfg, descriptor_dir, run_dir
 
 
@@ -68,23 +66,14 @@ def _():
 @app.cell(hide_code=True)
 def _(cfg, descriptor_dir, run_dir):
     latents = np.load(run_dir / "latents.npy")
-    # The n-th row of the manifest belongs to the n-th latent. That place is stored as
-    # `position`. (The manifest's own column `row` is the row in the list of all 1,093
-    # volumes, so it is NOT the place in latents.npy.)
-    manifest = pl.read_parquet(run_dir / "manifest.parquet").with_row_index("position")
-
-    labels = load_labels(cfg).select("fruit_id", "browning", "cavity")
-
-    # Shape, stalk and intensity of every fruit (definitions in pearlatent.descriptors).
+    # One row per open fruit (`pearlatent.fruit_table.open_fruit`): the manifest with
+    # `position`, the n-th row belonging to the n-th latent (the manifest's own column `row`
+    # is the row in the list of all 1,093 volumes, so it is NOT the place in latents.npy);
+    # the grades, `defective`, the cause of the defect (charter rule 5) and the shape, stalk
+    # and intensity descriptors. It stops if a fruit has no grade or no descriptors.
+    fruit = open_fruit(cfg)
+    # The descriptors on their own, for the descriptor screen in section 9.
     descriptors = pl.read_parquet(descriptor_dir / "descriptors.parquet")
-
-    # Attach the grades and the descriptors to every fruit. validate="1:1" stops if a fruit
-    # occurs twice.
-    fruit = (
-        manifest.join(labels, on="fruit_id", how="left", validate="1:1")
-        .join(descriptors, on="fruit_id", how="left", validate="1:1")
-        .with_columns(defective=pl.max_horizontal("browning", "cavity"))
-    )
 
     # One readable group name per fruit, to filter and colour the plots.
     # 2526: all fruit were scanned after storage. 2425: Hugo's split and the storage group,
@@ -95,24 +84,8 @@ def _(cfg, descriptor_dir, run_dir):
         .otherwise(pl.format("2425 {}, {}", "hugo_split", "storage"))
     )
 
-    # The cause of the defect (charter rule 5: results on `defective` are split by cause).
-    fruit = fruit.with_columns(
-        cause=pl.when((pl.col("browning") == 0) & (pl.col("cavity") == 0))
-        .then(pl.lit("none"))
-        .when(pl.col("cavity") == 0)
-        .then(pl.lit("browning only"))
-        .when(pl.col("browning") == 0)
-        .then(pl.lit("cavity only"))
-        .otherwise(pl.lit("both"))
-    )
-
     print(f"latents: {latents.shape[0]} fruit, grid {latents.shape[1:]}")
-    print(f"manifest: {manifest.height} fruit; after the join: {fruit.height} fruit")
-    print(f"fruit without a grade: {fruit['browning'].null_count()}")
-    print(
-        f"descriptors from {descriptor_dir.name}; fruit without them: "
-        f"{fruit['body_voxels'].null_count()}"
-    )
+    print(f"open fruit: {fruit.height}; descriptors from {descriptor_dir.name}")
     return descriptors, fruit, latents
 
 

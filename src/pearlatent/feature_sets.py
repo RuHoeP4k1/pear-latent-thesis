@@ -19,12 +19,13 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
+from pearlatent.runs import ENCODING_RUN_DIR, RANDOM_INIT_RUN_DIR, RAW_CT_32_RUN_DIR
 from pearlatent.sealed import drop_sealed, read_sealed_fruit
 
 FEATURE_RUNS = {
-    "hugo_vae": ("latents/hugo_vae/20261013T171306Z_hugo_vae", "latents.npy"),
-    "random_init": ("latents/random_init/20261020T120336Z_random_init", "latents.npy"),
-    "ct_32": ("raw_ct_32/20261005T142026Z_raw_ct_32", "grids.npy"),
+    "hugo_vae": (ENCODING_RUN_DIR, "latents.npy"),
+    "random_init": (RANDOM_INIT_RUN_DIR, "latents.npy"),
+    "ct_32": (RAW_CT_32_RUN_DIR, "grids.npy"),
 }
 
 

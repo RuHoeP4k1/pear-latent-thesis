@@ -13,8 +13,8 @@ with app.setup:
     from matplotlib.animation import FuncAnimation, PillowWriter
 
     from pearlatent.config import load_config
-    from pearlatent.exclusions import read_volume_decisions
-    from pearlatent.labels import load_labels
+    from pearlatent.fruit_table import drop_faulty_volumes, open_fruit
+    from pearlatent.runs import ENCODING_RUN_DIR
     from pearlatent.step0 import (
         MAX_RADIUS,
         N_HEIGHT_BINS,
@@ -63,13 +63,9 @@ def _():
 @app.cell(hide_code=True)
 def _():
     cfg = load_config()
-    run_dir = (
-        cfg.path("derived_dir") / "latents" / "hugo_vae" / "20261013T171306Z_hugo_vae"
-    )
-    descriptor_dir = (
-        cfg.path("derived_dir") / "descriptors" / "20261023T155219Z_descriptors"
-    )
-    return cfg, descriptor_dir, run_dir
+    # The runs in use are listed in one place, `pearlatent.runs`.
+    run_dir = cfg.path("derived_dir") / ENCODING_RUN_DIR
+    return cfg, run_dir
 
 
 @app.cell(hide_code=True)
@@ -85,43 +81,21 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(cfg, descriptor_dir, run_dir):
-    manifest = pl.read_parquet(run_dir / "manifest.parquet").with_row_index("position")
+def _(cfg, run_dir):
     reconstruction = pl.read_parquet(run_dir / "reconstruction.parquet")
-    labels = load_labels(cfg).select("fruit_id", "browning", "cavity")
-    descriptors = pl.read_parquet(descriptor_dir / "descriptors.parquet")
+    # Grades, `defective`, cause (charter rule 5) and descriptors of every open fruit
+    # (`pearlatent.fruit_table.open_fruit`), without the manifest columns this notebook
+    # does not use.
+    _open = open_fruit(cfg).drop(
+        "row", "file_stem", "hugo_training", "sealed", "decode"
+    )
 
-    decoded = (
-        reconstruction.join(
-            manifest.select(
-                "fruit_id",
-                "position",
-                "recon_row",
-                "season",
-                "box",
-                "storage",
-                "hugo_split",
-            ),
-            on="fruit_id",
-            validate="1:1",
-        )
-        .join(labels, on="fruit_id", how="left", validate="1:1")
-        .join(descriptors, on="fruit_id", how="left", validate="1:1")
-        .with_columns(defective=pl.max_horizontal("browning", "cavity"))
-        .with_columns(
-            group=pl.when(pl.col("season") == "2526")
-            .then(pl.lit("2526"))
-            .when(pl.col("hugo_split") == "train")
-            .then(pl.lit("2425 training sample"))
-            .otherwise(pl.lit("2425 validation")),
-            cause=pl.when(pl.col("defective") == 0)
-            .then(pl.lit("none"))
-            .when(pl.col("cavity") == 0)
-            .then(pl.lit("browning only"))
-            .when(pl.col("browning") == 0)
-            .then(pl.lit("cavity only"))
-            .otherwise(pl.lit("both")),
-        )
+    decoded = reconstruction.join(_open, on="fruit_id", validate="1:1").with_columns(
+        group=pl.when(pl.col("season") == "2526")
+        .then(pl.lit("2526"))
+        .when(pl.col("hugo_split") == "train")
+        .then(pl.lit("2425 training sample"))
+        .otherwise(pl.lit("2425 validation")),
     )
     print(f"decoded fruit: {reconstruction.height}; after the joins: {decoded.height}")
     print(f"without a grade: {decoded['browning'].null_count()}")
@@ -143,8 +117,7 @@ def _():
 def _(cfg, decoded, drop_faulty):
     _file = cfg.path("derived_dir") / "volume_decisions.csv"
     if drop_faulty.value and _file.exists():
-        _faulty = read_volume_decisions(_file).filter(pl.col("decision") != "keep")
-        fruit = decoded.join(_faulty.select("fruit_id"), on="fruit_id", how="anti")
+        fruit = drop_faulty_volumes(decoded, _file)
         _note = f"{decoded.height - fruit.height} faulty volumes dropped"
     else:
         fruit = decoded
@@ -680,7 +653,9 @@ def _(
             f" from all body cells of the latent (radius per {method}); red = higher value",
         )
 
-    latent_figures = {_method: latent_maps_figure(_method) for _method in RADIUS_METHODS}
+    latent_figures = {
+        _method: latent_maps_figure(_method) for _method in RADIUS_METHODS
+    }
     return (latent_figures,)
 
 

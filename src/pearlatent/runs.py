@@ -8,6 +8,15 @@ import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 
+# The runs in use, as folders under `derived_dir` (28 October 2026). After a rerun (for example
+# new latents after reprocessing without the stalk), change them here; every notebook and
+# module reads them from here.
+ENCODING_RUN = "20261013T171306Z_hugo_vae"
+ENCODING_RUN_DIR = f"latents/hugo_vae/{ENCODING_RUN}"
+RANDOM_INIT_RUN_DIR = "latents/random_init/20261020T120336Z_random_init"
+RAW_CT_32_RUN_DIR = "raw_ct_32/20261005T142026Z_raw_ct_32"
+DESCRIPTORS_RUN_DIR = "descriptors/20261023T155219Z_descriptors"
+
 
 def git_state(root: Path | None = None) -> dict:
     """Commit hash and whether the working tree has uncommitted changes."""
