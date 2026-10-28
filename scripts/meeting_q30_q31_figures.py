@@ -14,7 +14,9 @@ Writes to `derived/figures/` (outside git):
   fruit, an object other than the fruit set the top of the min-max scaling and darkened the
   fruit.
 - `meeting_q31_stray_objects.png`: per fruit the maximum projection along each axis and a slice
-  through the centre of the stray voxels along each axis, stray voxels outlined in red.
+  through the centre of the stray voxels along each axis, stray voxels outlined in red. Read by
+  Ruben (28 October): only 2425_J46 has an object beside the fruit; in the other four the
+  stray voxels are the stalk, bent to the side and separated from the fruit at the threshold.
 - `meeting_q30_q31_numbers.csv`: raw minimum and maximum, where the brightest voxel lies, the
   tissue median and the stray voxel count per fruit shown.
 
@@ -53,22 +55,20 @@ CUT = [
     "2526_L16",
     "2526_L22",
 ]
-# The four darkest 2425 volumes (tissue median 0.38 to 0.49) are not named in question 30 but
-# are darker than 2425_A36; they are shown too.
-DARK = [
-    "2425_A51",
-    "2425_D54",
-    "2425_A57",
-    "2425_C43",
-    "2425_A36",
-    "2526_C03",
-    "2526_I03",
-    "2526_L03",
-]
+# Dark volumes, in the order of the figure: the five 2425 volumes far below the rest of 2425
+# (tissue median 0.38 to 0.54; 2425 median 0.87, 1 % below 0.70; A51, D54, A57 and C43 are not
+# named in question 30 but are darker than A36), two normal 2425 fruit of the same boxes, then
+# the three 2526 volumes named in question 30 (0.67 to 0.69, a normal-looking tissue peak only
+# slightly lower; Ruben, 28 October: they look normal) and three normal 2526 fruit.
+DARK_2425 = ["2425_A51", "2425_D54", "2425_A57", "2425_C43", "2425_A36"]
+# Healthy, at harvest, no cut, no stray object, tissue median at the 2425 median (0.87).
+REFERENCE_DARK_2425 = ["2425_A41", "2425_D34"]
+LOW_2526 = ["2526_C03", "2526_I03", "2526_L03"]
 # All open fruit with more than 100 stray voxels (descriptors run of 23 October).
 STRAY = ["2526_K13", "2425_H53", "2425_J46", "2526_A30", "2526_K02"]
 REFERENCE = ["2526_I02", "2526_L02"]
-REFERENCE_DARK = ["2526_C02", "2526_I02", "2526_L02"]
+REFERENCE_DARK_2526 = ["2526_C02", "2526_I02", "2526_L02"]
+DARK_ORDER = DARK_2425 + REFERENCE_DARK_2425 + LOW_2526 + REFERENCE_DARK_2526
 # Heights of the cross-sections, as a share of the fruit's extent along the axis (calyx 0).
 CROSS_SECTION_HEIGHTS = (0.2, 0.4, 0.6, 0.8)
 
@@ -197,16 +197,22 @@ def dark_figure(cfg, table: pl.DataFrame, ids: list[str], out) -> list[dict]:
         axes[r, 3].set_title("raw intensities (log count)", fontsize=7)
         axes[r, 3].tick_params(labelsize=6)
         axes[r, 3].legend(fontsize=6)
-        kind = "reference" if fid in REFERENCE_DARK else "dark"
+        if fid in DARK_2425:
+            kind = "dark"
+        elif fid in LOW_2526:
+            kind = "slightly low"
+        else:
+            kind = "normal reference"
         label_row(
             axes[r, 0],
             f"{fid}\n{kind}, tissue {row['tissue_intensity_median']:.2f}",
         )
     fig.suptitle(
-        "Question 30, dark volumes: scaled tissue median per fruit at the left (normal fruit"
-        " about 0.82 to 0.86). Same grey scale in every picture. Red x: the brightest raw"
-        " voxel, which sets the top of the min-max scaling. Last rows: normal fruit of boxes"
-        " C, I and L.",
+        "Question 30, dark volumes: scaled tissue median per fruit at the left (median of all"
+        " open fruit: 2425 0.87, 2526 0.85). Same grey scale in every picture. Red x: the"
+        " brightest raw voxel, which sets the top of the scaling. Rows: five dark 2425"
+        " volumes, two normal 2425 fruit of boxes A and D, three slightly low 2526 volumes,"
+        " three normal 2526 fruit of boxes C, I and L.",
         fontsize=9,
         wrap=True,
     )
@@ -270,7 +276,7 @@ def stray_figure(cfg, table: pl.DataFrame, ids: list[str], out) -> list[dict]:
 def main() -> None:
     cfg = load_config()
     table = open_fruit(cfg)
-    wanted = set(CUT + DARK + STRAY + REFERENCE + REFERENCE_DARK)
+    wanted = set(CUT + DARK_ORDER + STRAY + REFERENCE)
     not_open = sorted(wanted - set(table["fruit_id"]))
     if not_open:
         raise ValueError(f"not open fruit (sealed or absent), not read: {not_open}")
@@ -279,7 +285,7 @@ def main() -> None:
 
     cut_figure(cfg, table, CUT + REFERENCE, folder / "meeting_q30_cut_volumes.png")
     numbers = dark_figure(
-        cfg, table, DARK + REFERENCE_DARK, folder / "meeting_q30_dark_volumes.png"
+        cfg, table, DARK_ORDER, folder / "meeting_q30_dark_volumes.png"
     )
     numbers += stray_figure(cfg, table, STRAY, folder / "meeting_q31_stray_objects.png")
     summary = pl.DataFrame(numbers, infer_schema_length=None)
