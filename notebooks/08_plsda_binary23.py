@@ -23,6 +23,7 @@ with app.setup(hide_code=True):
         cross_validated_predictions,
         mean_squared_errors,
         predict_each_h,
+        youden_cutoff,
     )
     from pearlatent.runs import new_run_dir, write_run_record
 
@@ -40,8 +41,11 @@ def _():
     repeats of a 4-fold box cross-validation (`derived/outer_folds_20/`), 1 to 15 latent
     variables (LVs), centring only (`scale=False`). The number of LVs is chosen by Ruben at
     the elbow of the mean RMSECV curve (2 November 2026), before any test box is opened. The
-    score: AUC (area under the ROC curve), recall per grade and precision at the fixed cut-off
-    0.5, split by cause; 95 % interval by a bootstrap over boxes.
+    score: AUC (area under the ROC curve), recall per grade and precision at two cut-offs,
+    split by cause; 95 % interval by a bootstrap over boxes. Cut-offs (Ruben, 2 November
+    2026): 0.5, fixed in advance, and the Youden cut-off (largest recall − false-positive
+    rate) on the out-of-fold predictions, saved in `run.json` and applied unchanged to the
+    test boxes.
 
     **Inputs.** The fruit table (`pearlatent.fruit_table`), `derived/volume_decisions.csv`,
     `derived/outer_folds_20/outer_folds.csv`, the feature sets of `pearlatent.feature_sets`.
@@ -274,45 +278,76 @@ def _(cv, fruit, lv_choice, y):
     _grade = fruit["defective"].to_numpy()
     _boxes = fruit["box"].to_numpy()
 
-    _per_repeat = pl.DataFrame(
-        [classification_scores(_at_h[_r], y, _grade) for _r in range(_at_h.shape[0])]
-    )
-    _main = classification_scores(mean_prediction, y, _grade)
+    # Youden cut-off from the averaged out-of-fold predictions of the open boxes only; the
+    # repeats are scored at this same cut-off, not each at its own.
+    cutoff_youden = youden_cutoff(mean_prediction, y)
+    _cutoffs = {"0.5": CUTOFF, "Youden": cutoff_youden}
+    _main = {
+        _name: classification_scores(mean_prediction, y, _grade, cutoff=_c)
+        for _name, _c in _cutoffs.items()
+    }
+    _per_repeat = {
+        _name: pl.DataFrame(
+            [
+                classification_scores(_at_h[_r], y, _grade, cutoff=_c)
+                for _r in range(_at_h.shape[0])
+            ]
+        )
+        for _name, _c in _cutoffs.items()
+    }
     _low, _high, _ = box_bootstrap_auc(mean_prediction, y, _boxes)
-    scores = {**_main, "auc_box_bootstrap_95": [_low, _high], "n_lv": chosen_lv}
+    scores = {
+        **_main["0.5"],
+        "youden": {"cutoff": cutoff_youden, **_main["Youden"]},
+        "auc_box_bootstrap_95": [_low, _high],
+        "n_lv": chosen_lv,
+    }
+    _rows = [("AUC", "0.5", "auc")] + [
+        (_score, _name, _key)
+        for _name in _cutoffs
+        for _score, _key in (("recall", "recall"), ("precision", "precision"))
+    ]
     _summary = pl.DataFrame(
         {
-            "score": ["AUC", "recall", "precision"],
-            "average of 20 predictions": [_main["auc"], _main["recall"], _main["precision"]],
-            "repeats: min": [_per_repeat[c].min() for c in ("auc", "recall", "precision")],
-            "repeats: max": [_per_repeat[c].max() for c in ("auc", "recall", "precision")],
+            "score": [_r[0] for _r in _rows],
+            "cut-off": ["none" if _r[0] == "AUC" else _r[1] for _r in _rows],
+            "average of 20 predictions": [_main[_n][_k] for _, _n, _k in _rows],
+            "repeats: min": [_per_repeat[_n][_k].min() for _, _n, _k in _rows],
+            "repeats: max": [_per_repeat[_n][_k].max() for _, _n, _k in _rows],
         }
     )
     mo.vstack(
         [
             mo.md(
-                f"**{chosen_lv} LVs.** AUC {_main['auc']:.3f}, 95 % box-bootstrap interval"
-                f" {_low:.3f} to {_high:.3f}. Cut-off {CUTOFF} (fixed in advance)."
+                f"**{chosen_lv} LVs.** AUC {_main['0.5']['auc']:.3f}, 95 % box-bootstrap"
+                f" interval {_low:.3f} to {_high:.3f}. Cut-offs: {CUTOFF} (fixed in advance)"
+                f" and Youden {cutoff_youden:.3f} (chosen on these predictions)."
             ),
             _summary,
         ]
     )
-    return chosen_lv, mean_prediction, scores
+    return chosen_lv, cutoff_youden, mean_prediction, scores
 
 
 @app.cell(hide_code=True)
-def _(fruit, mean_prediction):
+def _(cutoff_youden, fruit, mean_prediction):
     # Charter rule 5: results on `defective` split by cause. For grades 0 and 1 (label 0) the
     # share called positive is the false-positive rate; for grades 2 and 3 it is the recall.
     predictions_table = fruit.select(
         "fruit_id", "box", "defective", "browning", "cavity", "cause", "binary_23"
     ).with_columns(
-        prediction=mean_prediction, called_positive=mean_prediction >= CUTOFF
+        prediction=mean_prediction,
+        called_positive=mean_prediction >= CUTOFF,
+        called_positive_youden=mean_prediction >= cutoff_youden,
     )
     _cause_order = {_c: _k for _k, _c in enumerate(CAUSES)}
     (
         predictions_table.group_by("cause", "defective")
-        .agg(n=pl.len(), share_called_positive=pl.col("called_positive").mean().round(2))
+        .agg(
+            n=pl.len(),
+            called_at_0_5=pl.col("called_positive").mean().round(2),
+            called_at_youden=pl.col("called_positive_youden").mean().round(2),
+        )
         .with_columns(_order=pl.col("cause").replace_strict(_cause_order))
         .sort("_order", "defective")
         .drop("_order")
@@ -345,6 +380,7 @@ def _(
     cfg,
     chosen_lv,
     curves,
+    cutoff_youden,
     predictions_table,
     representation_choice,
     save_button,
@@ -369,6 +405,8 @@ def _(
             "scale": False,
             "max_components": MAX_COMPONENTS,
             "cutoff": CUTOFF,
+            # Chosen on the out-of-fold predictions above; apply unchanged to the test boxes.
+            "cutoff_youden": cutoff_youden,
             "folds": "derived/outer_folds_20/outer_folds.csv",
             "bootstrap_seed": 369,
         },

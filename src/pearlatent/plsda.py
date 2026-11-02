@@ -11,7 +11,9 @@ Design A, in the order the functions are used:
 3. `pearlatent.component_choice.choose_n_components`: the number of latent variables (van der
    Voet randomisation test, signs flipped per box).
 4. `classification_scores` and `box_bootstrap_auc`: area under the ROC curve (AUC), recall per
-   grade and precision at the fixed cut-off 0.5, and the 95 % interval by a bootstrap over boxes.
+   grade and precision at a cut-off, and the 95 % interval by a bootstrap over boxes.
+5. `youden_cutoff`: the second cut-off reported beside 0.5 (Ruben, 2 November 2026), chosen on
+   the out-of-fold predictions of the open boxes and applied unchanged to the test boxes.
 
 PLS-DA here is PLS regression on the 0/1 label (scikit-learn `PLSRegression`, NIPALS). For one
 response, the model with h latent variables is the first h latent variables of the model with
@@ -32,7 +34,7 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 from sklearn.cross_decomposition import PLSRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
 
 from pearlatent.splits import assert_no_group_leakage
 
@@ -128,6 +130,25 @@ def classification_scores(
     for g in np.unique(grade):
         out[f"called_positive_grade_{g}"] = float(called[grade == g].mean())
     return out
+
+
+def youden_cutoff(prediction: np.ndarray, y: np.ndarray) -> float:
+    """Cut-off with the largest Youden index J = recall - false-positive rate.
+
+    In: out-of-fold predictions and the 0/1 labels. Out: the cut-off; a fruit is called
+    positive when its prediction is >= the cut-off, as in `classification_scores`.
+
+    Why (Ruben, 2 November 2026): the fixed 0.5 called only 73 % of the non-consumable fruit
+    in the open boxes, because many of them have outputs between 0.35 and 0.5. Youden weighs
+    recall and false-positive rate equally, as Van De Looverbosch et al. (2022) did. It is
+    chosen on the cross-validation predictions only, so it is slightly optimistic there; the
+    sealed test boxes check it. 0.5 stays reported beside it.
+    """
+    false_positive_rate, recall, thresholds = roc_curve(np.asarray(y).astype(int), prediction)
+    # roc_curve calls a fruit positive when prediction >= threshold. Its first threshold is
+    # infinity (nothing called positive, J = 0), which is never the maximum when AUC > 0.5.
+    # On ties np.argmax takes the first, i.e. the highest cut-off with that J.
+    return float(thresholds[np.argmax(recall - false_positive_rate)])
 
 
 def vip_scores(model: PLSRegression, n_components: int) -> np.ndarray:

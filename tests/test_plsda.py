@@ -11,6 +11,7 @@ from pearlatent.plsda import (
     mean_squared_errors,
     predict_each_h,
     vip_scores,
+    youden_cutoff,
 )
 
 BOXES = [f"B{k:02d}" for k in range(12)]
@@ -130,3 +131,15 @@ def test_vip_mean_square_is_one_and_signal_features_rank_first():
     assert np.isclose((vip**2).mean(), 1.0)
     # Features 0 to 9 carry the label (see `_data`); they should have the largest VIP.
     assert set(np.argsort(vip)[-10:]) == set(range(10))
+
+
+def test_youden_cutoff_separates_two_clean_groups():
+    # Negatives at 0.1 to 0.3, positives at 0.35 to 0.45: 0.5 calls none of them, Youden
+    # puts the cut-off at the lowest positive and calls all of them.
+    prediction = np.array([0.1, 0.2, 0.3, 0.35, 0.4, 0.45])
+    y = np.array([0, 0, 0, 1, 1, 1])
+    cutoff = youden_cutoff(prediction, y)
+    assert cutoff == pytest.approx(0.35)
+    scores = classification_scores(prediction, y, y, cutoff=cutoff)
+    assert scores["recall"] == 1.0 and scores["precision"] == 1.0
+    assert classification_scores(prediction, y, y)["recall"] == 0.0

@@ -115,6 +115,16 @@ What is reported for classification: area under the ROC curve (AUC) as the main 
 not depend on a cut-off), with recall per grade and precision at a fixed cut-off of 0.5 on the
 PLS-DA output (fixed in advance, not tuned).
 
+Added 2 November 2026 (Ruben): a second cut-off beside 0.5. The 0.5 called only 73 % of the
+non-consumable fruit in the open boxes (tissue features, 7 LVs), because many have outputs
+between 0.35 and 0.5. The second cut-off is the one with the largest Youden index (recall minus
+false-positive rate; `pearlatent.plsda.youden_cutoff`), as in Van De Looverbosch et al. (2022).
+It is chosen per model on the averaged out-of-fold predictions of the 12 open boxes, written to
+`run.json`, and applied unchanged to the test boxes. Small example: outputs 0.1, 0.2, 0.3 for
+consumable and 0.35, 0.4, 0.45 for non-consumable fruit; 0.5 calls none of the non-consumable
+fruit, Youden picks 0.35 and calls all three, with no false positive. Being chosen on the same
+predictions, its recall and precision there are slightly optimistic; the test boxes check them.
+
 ## 5. Partitions and repeats — where the fold numbers come from
 
 A partition is one way to divide the 12 boxes into 4 folds of 3. How many exist:
