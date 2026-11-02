@@ -11,6 +11,8 @@ Each feature set gives one row of 32,768 numbers per fruit:
   128³ volumes (`pearlatent.tissue_features`, run `20261102T151947Z_tissue_features`, open
   fruit only). Ten numbers per fruit in different units, so models scale them (inside the
   training fold).
+- `med3d`: 512 channels of the Med3D ResNet-18 (Chen et al. 2019), averaged over the grid, on
+  the 128³ volumes (`pearlatent.med3d_features`, open fruit only). Also scaled by the models.
 
 The CT run of 5 October was made before the test boxes were drawn and holds all 1,093
 volumes, the sealed fruit included. `load_features` therefore always removes the sealed fruit
@@ -25,6 +27,7 @@ import polars as pl
 
 from pearlatent.runs import (
     ENCODING_RUN_DIR,
+    MED3D_RUN_DIR,
     RANDOM_INIT_RUN_DIR,
     RAW_CT_32_RUN_DIR,
     TISSUE_FEATURES_RUN_DIR,
@@ -36,6 +39,7 @@ FEATURE_RUNS = {
     "hugo_vae": (ENCODING_RUN_DIR, "latents.npy"),
     "random_init": (RANDOM_INIT_RUN_DIR, "latents.npy"),
     "ct_32": (RAW_CT_32_RUN_DIR, "grids.npy"),
+    "med3d": (MED3D_RUN_DIR, "features.npy"),
 }
 
 
@@ -43,7 +47,7 @@ def load_features(
     cfg, name: str, fruit_ids: list[str], include_sealed: bool = False
 ) -> np.ndarray:
     """Features of `fruit_ids`, in that order, as an array (fruit, 32,768; 10 for
-    `tissue_features`).
+    `tissue_features`, 512 for `med3d`).
 
     In: the config, the feature set name, the fruit wanted. Out: float32 rows. Raises when a
     fruit is not in the feature set or when a sealed fruit is asked for without

@@ -14,6 +14,12 @@ encoder_dir = "data/weights/hugo_vae"
 # Separate clone of github.com/Hugo-Li-Junyan/Synthetic_CT_pear at commit 183112f
 # (not copied into this repository: no licence file)
 hugo_repo = "../Synthetic_CT_pear"
+# Med3D / MedicalNet ResNet-18 weights (Chen, Ma & Zheng 2019), from Hugging Face
+# TencentMedicalNet/MedicalNet-Resnet18, file resnet_18_23dataset.pth, 131,992,196 bytes,
+# SHA-256 61224f9317fcce873366deb3703183e92cc47325b726b69691b33536244e10f4
+med3d_weights = "data/weights/med3d/resnet_18_23dataset.pth"
+# Separate clone of github.com/Tencent/MedicalNet at commit 20f76aa (MIT licence)
+med3d_repo = "../MedicalNet"
 # Where intermediate products and results are written
 derived_dir = "derived"
 results_dir = "results"

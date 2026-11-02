@@ -100,11 +100,12 @@ def _(cfg, fruit):
 
 @app.cell(hide_code=True)
 def _():
-    # Random encoder dropped (Hugo, 29 October 2026). Med3D follows when its features exist.
+    # Random encoder dropped (Hugo, 29 October 2026).
     REPRESENTATIONS = {
         "hugo_vae": "Hugo's latent (mu)",
         "ct_32": "CT averaged to 32³ (mean of 4 × 4 × 4 voxel blocks)",
         "tissue_features": "10 tissue features of Van De Looverbosch et al. 2020 (128³)",
+        "med3d": "Med3D ResNet-18, 512 channels averaged over the grid (128³)",
     }
     representation_choice = mo.ui.dropdown(
         options={_label: _key for _key, _label in REPRESENTATIONS.items()},
@@ -140,8 +141,9 @@ def cross_validate(representation: str, fruit_ids: tuple) -> dict:
     folds = pl.read_csv(cfg.path("derived_dir") / "outer_folds_20" / "outer_folds.csv")
     # Cells are centred only (CLAUDE.md, section 7). The 10 tissue features are in different
     # units (a volume share, means, SDs, a test statistic), so they are also scaled to unit
-    # variance; PLSRegression does that on the training fruit of each fold only.
-    scale = representation == "tissue_features"
+    # variance; PLSRegression does that on the training fruit of each fold only. The same for
+    # the 512 Med3D channels: different variables, not neighbouring cells (Ruben, 2 November).
+    scale = representation in ("tissue_features", "med3d")
     # PLS has at most as many LVs as features: 10 for the tissue features, 15 otherwise.
     n_components = min(MAX_COMPONENTS, x.shape[1])
     predictions = cross_validated_predictions(
