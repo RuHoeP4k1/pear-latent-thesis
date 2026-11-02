@@ -64,15 +64,85 @@ def shell_labels(
     return labels, boundaries
 
 
+def square_ring_labels(grid: int = GRID) -> np.ndarray:
+    """Layer number of every cell: square rings of whole cells around the grid axis.
+
+    Ruben, 2 November 2026: layers of voxels, no computed radius. Ring 0 is the outer edge of
+    the 32 × 32 cross-section (the 124 columns of the 32 × 32 square that are not in the
+    30 × 30 square inside it); ring 1 is the edge of that 30 × 30 square; and so on to ring 15,
+    the 2 × 2 columns at the centre. Each ring is one cell thick on every side and runs over the
+    full height. Out: labels (grid, grid, grid), values 0 to grid / 2 - 1.
+    """
+    index = np.arange(grid)
+    # Number of cells between a column and the nearest outer edge of the grid.
+    from_edge = np.minimum(index, grid - 1 - index)
+    ring = np.minimum(from_edge[:, None], from_edge[None, :])
+    return np.repeat(ring[:, :, None], grid, axis=2)
+
+
+def height_bin_labels(
+    selected_cells: np.ndarray, slices_per_bin: int = 2, grid: int = GRID
+) -> np.ndarray:
+    """Height bin of every selected cell; -1 for cells not selected.
+
+    In: a boolean array (grid, grid, grid), for example the cells of the rings chosen in the
+    first stage. Out: labels (grid, grid, grid): bin k holds the selected cells in slices
+    k * slices_per_bin to (k + 1) * slices_per_bin - 1 along the third axis (the stem-calyx
+    axis, calyx end at slice 0).
+    """
+    height = np.arange(grid) // slices_per_bin
+    labels = np.broadcast_to(height[None, None, :], (grid, grid, grid)).copy()
+    labels[~selected_cells] = -1
+    return labels
+
+
 def interval_rmsecv(
     x: np.ndarray, y: np.ndarray, boxes: np.ndarray, folds: pl.DataFrame
 ) -> np.ndarray:
-    """Mean RMSECV for 1 to 15 LVs: sqrt(mean PRESS over the repeats / n). Centring only."""
-    n_components = min(MAX_COMPONENTS, x.shape[1])
+    """Mean RMSECV for 1 to 15 LVs: sqrt(mean PRESS over the repeats / n). Centring only.
+
+    PLS cannot extract more LVs than the rank of the centred training data (a layer of the
+    CT where only a few fruit reach has a rank below 15). The number of LVs is therefore
+    capped at the smallest rank over the training sets of all folds, minus one for safety;
+    the curve is padded with infinity beyond that cap, so those LVs are never chosen.
+    """
+    n_components = min(
+        MAX_COMPONENTS, x.shape[1], _smallest_training_rank(x, boxes, folds) - 1
+    )
+    curve = np.full(MAX_COMPONENTS, np.inf)
+    if n_components < 1:
+        curve[:] = float(np.std(y))
+        return curve
     predictions = cross_validated_predictions(
         x, y, boxes, folds, scale=False, max_components=n_components
     )
-    return np.sqrt(mean_squared_errors(predictions, y).sum(axis=0) / len(y))
+    curve[:n_components] = np.sqrt(
+        mean_squared_errors(predictions, y).sum(axis=0) / len(y)
+    )
+    return curve
+
+
+def _smallest_training_rank(
+    x: np.ndarray, boxes: np.ndarray, folds: pl.DataFrame
+) -> int:
+    """Smallest rank of the centred training data over all folds of all repeats.
+
+    Only computed when the rank of all fruit together is low; otherwise every training set
+    of 9 boxes (about 235 fruit) has far more than 15 dimensions and the overall rank is
+    returned.
+    """
+    overall = int(np.linalg.matrix_rank(x - x.mean(axis=0)))
+    if overall > 2 * MAX_COMPONENTS:
+        return overall
+    boxes = np.asarray(boxes)
+    smallest = overall
+    for (repeat, fold), _ in folds.group_by(["repeat", "fold"]):
+        held_out_boxes = folds.filter(
+            (pl.col("repeat") == repeat) & (pl.col("fold") == fold)
+        )["box"]
+        train = x[~np.isin(boxes, held_out_boxes.to_list())]
+        smallest = min(smallest, int(np.linalg.matrix_rank(train - train.mean(axis=0))))
+    return smallest
 
 
 def forward_ipls(
@@ -90,13 +160,21 @@ def forward_ipls(
     the RMSECV after the step.
     """
     flat = labels.ravel()
-    shells = np.unique(flat)
+    # Cells with a negative label belong to no interval and are never used.
+    shells = np.unique(flat[flat >= 0])
     curves = {}
+    varies = x.std(axis=0) > 0
 
     def best(selected: tuple[int, ...]) -> tuple[int, float]:
         if selected not in curves:
-            columns = np.isin(flat, selected)
-            curves[selected] = interval_rmsecv(x[:, columns], y, boxes, folds)
+            # Cells that have the same value in every fruit (air around the fruit in the CT)
+            # carry nothing and make PLS divide by zero; they are left out. This uses no
+            # labels. If nothing is left, the curve is that of predicting the mean.
+            columns = np.isin(flat, selected) & varies
+            if columns.any():
+                curves[selected] = interval_rmsecv(x[:, columns], y, boxes, folds)
+            else:
+                curves[selected] = np.full(MAX_COMPONENTS, float(np.std(y)))
         curve = curves[selected]
         return int(np.argmin(curve)) + 1, float(curve.min())
 

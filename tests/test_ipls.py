@@ -1,7 +1,12 @@
 import numpy as np
 import polars as pl
 
-from pearlatent.ipls import forward_ipls, shell_labels
+from pearlatent.ipls import (
+    forward_ipls,
+    height_bin_labels,
+    shell_labels,
+    square_ring_labels,
+)
 
 
 def test_shells_inside_the_radius_have_about_equal_size():
@@ -34,3 +39,23 @@ def test_forward_ipls_finds_the_shell_that_carries_the_label():
     assert alone.sort("rmsecv")["shell"][0] == 0
     assert path["added"][0] == 0
     assert path.height == alone.height
+
+
+def test_square_rings_are_one_cell_thick_from_edge_to_centre():
+    rings = square_ring_labels()
+    counts = np.bincount(rings[:, :, 0].ravel())
+    # Ring k is the edge of a (32 - 2k) square: (32 - 2k)^2 - (30 - 2k)^2 columns.
+    assert counts.tolist() == [
+        (32 - 2 * k) ** 2 - max(30 - 2 * k, 0) ** 2 for k in range(16)
+    ]
+    assert counts[0] == 124 and counts[15] == 4
+    assert (rings == rings[:, :, :1]).all()
+
+
+def test_height_bins_cover_only_the_selected_cells():
+    selected = square_ring_labels() >= 14
+    bins = height_bin_labels(selected, slices_per_bin=2)
+    assert (bins[~selected] == -1).all()
+    assert sorted(np.unique(bins[selected])) == list(range(16))
+    assert (bins[:, :, 0][selected[:, :, 0]] == 0).all()
+    assert (bins[:, :, 31][selected[:, :, 31]] == 15).all()
