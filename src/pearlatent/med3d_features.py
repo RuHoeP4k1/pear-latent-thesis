@@ -14,7 +14,7 @@ Hugo's encoder, which was trained on pears. Choices (Ruben, 2 November 2026):
    min-max scaled volume (the body threshold of Step 0); MedicalNet uses "above 0", but our
    background after min-max scaling is not exactly 0. This removes each fruit's mean and SD,
    so these features carry the pattern inside the fruit, not its overall brightness.
-   Background (voxels at or below 0.1) set to 0 (Ruben, 2 November 2026). MedicalNet fills it
+   Background (outside the fruit) set to 0 (Ruben, 2 November 2026). MedicalNet fills it
    with random noise of mean 0 and SD 1; a first run without noise left it at about -6.5
    (minus the fruit mean over the fruit SD), far from anything the network saw in training
    (figure `derived/figures/12_med3d_input.png`). 0 is the level of MedicalNet's noise, the
@@ -22,6 +22,11 @@ Hugo's encoder, which was trained on pears. Choices (Ruben, 2 November 2026):
    (Isensee et al. 2021, Nature Methods 18, 203-211; github.com/MIC-DKFZ/nnUNet, branch
    nnunetv1, commit db16c6c, `nnunet/preprocessing/preprocessing.py` lines 302-305: z-score
    inside the mask, 0 outside). No noise, so the features are the same on every run.
+   The fruit is the object voxels, largest connected part, enclosed holes filled (as the
+   `fruit` mask of `pearlatent.tissue_features`), so cavities and core air keep their own
+   low value; a first version set every voxel at or below 0.1 to 0, which made a cavity look
+   like average tissue. The mean and SD still come from the object voxels only, so the size
+   of a cavity does not change the scaling of the rest of the fruit.
 2. Features: the backbone up to `layer4` (512 channels × 16³ for a 128³ input; the segmentation
    head is not used), averaged over the 16³ grid: 512 numbers per fruit.
 3. Open fruit only (the manifest of `ENCODING_RUN`); the sealed fruit wait for the test.
@@ -42,19 +47,33 @@ OBJECT_THRESHOLD = 0.1  # min-max scaled intensity; the body threshold of Step 0
 N_FEATURES = 512
 
 
-def normalise_as_medicalnet(scaled: np.ndarray) -> np.ndarray:
-    """Z-score a min-max scaled volume on its object voxels (> `OBJECT_THRESHOLD`).
+def fruit_mask(scaled: np.ndarray) -> np.ndarray:
+    """Voxels above `OBJECT_THRESHOLD`, largest connected part, enclosed holes filled.
 
-    In: a volume in [0, 1]. Out: float32, same shape; the object voxels have mean 0 and SD 1,
-    the background is 0 (as nnU-Net; no noise added).
+    Out: a boolean array, the shape of `scaled`. Cavities and core air enclosed by tissue are
+    inside the fruit; an opening that reaches the outside (calyx) stays outside.
+    """
+    from scipy import ndimage
+
+    labels, n = ndimage.label(np.asarray(scaled) > OBJECT_THRESHOLD)
+    if n == 0:
+        raise ValueError("no voxel above the object threshold")
+    largest = labels == (np.argmax(np.bincount(labels.ravel())[1:]) + 1)
+    return ndimage.binary_fill_holes(largest)
+
+
+def normalise_as_medicalnet(scaled: np.ndarray) -> np.ndarray:
+    """Z-score a min-max scaled volume on its object voxels; 0 outside the fruit.
+
+    In: a volume in [0, 1]. Out: float32, same shape. Mean and SD come from the object voxels
+    (> `OBJECT_THRESHOLD`) inside the fruit, which then have mean 0 and SD 1; enclosed air
+    keeps its (low) z-score; everything outside `fruit_mask` is 0 (as nnU-Net; no noise).
     """
     volume = np.asarray(scaled, dtype=np.float32)
-    is_object = volume > OBJECT_THRESHOLD
-    object_voxels = volume[is_object]
-    if object_voxels.size == 0:
-        raise ValueError("no voxel above the object threshold")
+    fruit = fruit_mask(volume)
+    object_voxels = volume[fruit & (volume > OBJECT_THRESHOLD)]
     out = (volume - object_voxels.mean()) / object_voxels.std()
-    out[~is_object] = 0.0
+    out[~fruit] = 0.0
     return out
 
 

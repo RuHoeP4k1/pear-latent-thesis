@@ -30,3 +30,12 @@ def test_brightness_and_contrast_of_the_fruit_are_removed():
         normalise_as_medicalnet(brighter)[inside],
         atol=1e-4,
     )
+
+
+def test_enclosed_cavity_stays_dark_and_outside_is_zero():
+    volume = np.full((24, 24, 24), 0.02, dtype=np.float32)
+    volume[4:20, 4:20, 4:20] = 0.8
+    volume[10:14, 10:14, 10:14] = 0.02  # enclosed cavity, as dark as the air outside
+    out = normalise_as_medicalnet(volume)
+    assert (out[:4] == 0).all()  # outside the fruit
+    assert (out[10:14, 10:14, 10:14] < -3).all()  # the cavity is not set to 0
