@@ -144,7 +144,9 @@ def youden_cutoff(prediction: np.ndarray, y: np.ndarray) -> float:
     chosen on the cross-validation predictions only, so it is slightly optimistic there; the
     sealed test boxes check it. 0.5 stays reported beside it.
     """
-    false_positive_rate, recall, thresholds = roc_curve(np.asarray(y).astype(int), prediction)
+    false_positive_rate, recall, thresholds = roc_curve(
+        np.asarray(y).astype(int), prediction
+    )
     # roc_curve calls a fruit positive when prediction >= threshold. Its first threshold is
     # infinity (nothing called positive, J = 0), which is never the maximum when AUC > 0.5.
     # On ties np.argmax takes the first, i.e. the highest cut-off with that J.
