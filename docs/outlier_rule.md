@@ -154,3 +154,23 @@ Seen on the PCA of notebook 05 (fit on the 346 open 2526 fruit, A = 13, 99 % lim
 grades): only 6 of the 18 body cuts then on the list and 1 of the 11 neck cuts lie beyond a
 T² or Q limit, so the screen of route 1 alone would have missed most cuts. The dark volumes
 stand out on PC3. Position in the PCA did not enter any decision.
+
+## 10. Decisions of 2 November 2026 (after the meeting with Hugo, 29 October)
+
+Hugo agreed with the exclusions of section 9. Two additions, all as `preprocessing` in
+`derived/volume_decisions.csv` (copy of the previous version:
+`derived/volume_decisions_before_2026-11-02.csv`):
+
+| Fruit | Reason |
+|---|---|
+| 2425_A36, A51, D54, A57, C43 | Dark volume: the tissue peak of the raw intensities lies at 25,000 to 35,000 and is much wider than in normal 2425 fruit (narrow peak near 57,000); tissue median 0.38 to 0.54 after min-max scaling. The cause is unknown (Hugo). D54 and C43 also look cut. |
+| 2425_J46 | Stray object in the volume: a rectangular frame beside the fruit. Hugo: a stray object, omit it. |
+
+Only 2425_A36 changes an analysis set (one of Hugo's 66 validation fruit, before: `keep`). The
+other five are Hugo's encoder-training fruit, which are already out of all analysis except the
+Step 0 comparison. The darker 2526 volumes C03, I03 and L03 stay in: their tissue peak is
+narrow and only slightly lower (Ruben, 28 October). The stalk pieces separated from the fruit
+(2526_K13, A30, K02, 2425_H53) stay in: they are the stalk, not an object.
+
+Totals: 41 volumes excluded, of which 31 of the 346 open 2526 fruit (unchanged), 5 of Hugo's
+66 validation fruit, and 5 of his training fruit.
