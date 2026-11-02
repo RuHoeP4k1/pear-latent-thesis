@@ -130,6 +130,23 @@ def classification_scores(
     return out
 
 
+def vip_scores(model: PLSRegression, n_components: int) -> np.ndarray:
+    """Variable importance in projection (VIP) of every feature, for the first h LVs.
+
+    In: a fitted one-response PLS model and h. Out: one VIP per feature (Wold et al. 1993;
+    Mehmood et al. 2012): VIP_j = sqrt(p * sum_a SS_a (w_ja / ||w_a||)^2 / sum_a SS_a), with
+    SS_a = q_a^2 t_a't_a the part of the sum of squares of y explained by LV a. The mean of
+    VIP^2 over the features is 1, so "VIP > 1" means more than average importance.
+    """
+    weights = model.x_weights_[:, :n_components]
+    scores = model.x_scores_[:, :n_components]
+    y_loadings = model.y_loadings_[0, :n_components]
+    explained = y_loadings**2 * (scores**2).sum(axis=0)  # SS_a, one per LV
+    normalised = weights / np.linalg.norm(weights, axis=0)
+    n_features = weights.shape[0]
+    return np.sqrt(n_features * (normalised**2 @ explained) / explained.sum())
+
+
 def box_bootstrap_auc(
     prediction: np.ndarray,
     y: np.ndarray,

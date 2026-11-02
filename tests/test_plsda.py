@@ -10,6 +10,7 @@ from pearlatent.plsda import (
     cross_validated_predictions,
     mean_squared_errors,
     predict_each_h,
+    vip_scores,
 )
 
 BOXES = [f"B{k:02d}" for k in range(12)]
@@ -120,3 +121,12 @@ def test_called_positive_per_grade_and_bootstrap():
     p = x[:, :10].mean(axis=1)
     low, high, aucs = box_bootstrap_auc(p, y2, boxes, n_resamples=200)
     assert low <= np.median(aucs) <= high
+
+
+def test_vip_mean_square_is_one_and_signal_features_rank_first():
+    x, y, _ = _data(signal=1.0)
+    model = PLSRegression(n_components=5, scale=False).fit(x, y.astype(float))
+    vip = vip_scores(model, 3)
+    assert np.isclose((vip**2).mean(), 1.0)
+    # Features 0 to 9 carry the label (see `_data`); they should have the largest VIP.
+    assert set(np.argsort(vip)[-10:]) == set(range(10))
