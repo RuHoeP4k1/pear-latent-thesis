@@ -69,3 +69,39 @@ against Tier 1. Please confirm or correct it from the sources:
 - Any use of Med3D or MedicalNet features outside medicine (food, plant or industrial CT).
   This tells us whether a domain gap of this size has been tried before.
 - The receptive field of layer1 and layer4, to compare with the 19 mm of a latent cell.
+
+## Alternatives Ruben found (2 November 2026)
+
+Read from the project pages on 2 November (README and documentation of github.com/MIC-DKFZ/nnUNet,
+README of the MONAI bundle `lung_nodule_ct_detection`).
+
+- **nnU-Net** (Isensee et al. 2021, *Nature Methods*). A framework, not a pretrained model:
+  "a semantic segmentation framework that automatically adapts its pipeline to a dataset". It
+  trains a new U-Net per dataset and needs a voxel-wise label mask for every training image
+  (`imagesTr`, `labelsTr`). No image-level classification. Planning measures a dataset
+  fingerprint (sizes, spacings, intensities) and from it sets the target spacing (median),
+  patch size and network. Normalisation "CT": clip to the 0.5 and 99.5 percentiles and z-score
+  with dataset-wide statistics (meant for Hounsfield units); other channels: z-score per image.
+  Licence Apache-2.0 (code). Consequence for us: using it means training a segmentation network
+  from scratch on browning masks we do not have; it is not a frozen comparison row.
+- **nnU-Net pretrained encoders (nnssl / OpenMind).** The documentation describes fine-tuning
+  from self-supervised checkpoints on Hugging Face (collection "MIC-DKFZ/openmind-models",
+  for example `AnonRes/ResEncL-OpenMind-MAE`). These are pretrained 3D encoders and could be
+  used frozen. **[check]** the pretraining data (OpenMind is, as far as we know, MRI), the
+  licence of the checkpoints, and the input spacing they expect.
+- **MONAI `lung_nodule_ct_detection`.** RetinaNet detector of lung nodules, trained on LUNA16
+  (LIDC-IDRI). Input resampled to 0.703125 × 0.703125 × 1.25 mm, patches 192 × 192 × 80, one
+  channel. Code Apache-2.0; the data has its own terms. A detection model: using its backbone
+  frozen is possible in principle but not documented.
+
+What every one of these needs from our data, that the 128³ volumes do not give:
+
+1. **Spacing in millimetres.** All three resample to a physical voxel size. The 128³ volumes
+   have none (each fruit rescaled to 128 voxels in length). The original scans have the
+   scanner voxel size of 0.6267 mm (preprint), so they would give it, and with it the fruit
+   size in millimetres (question 18).
+2. **Intensity.** The CT schemes assume Hounsfield units. Ours are uncalibrated and scaled per
+   volume, so only a z-score per fruit (over the body) is defensible.
+3. **Orientation and cropping.** Their preprocessing crops to the non-zero region and resamples;
+   for the originals, the alignment along the stem–calyx axis would have to be redone or
+   taken from Hugo's pipeline.
