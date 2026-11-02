@@ -91,7 +91,7 @@ def _(cfg, fruit):
             f"boxes differ: folds {sorted(_fold_boxes)}, fruit {sorted(_fruit_boxes)}"
         )
     print(f"{folds['repeat'].n_unique()} repeats over the {len(_fold_boxes)} boxes")
-    return (folds,)
+    return
 
 
 @app.cell(hide_code=True)
@@ -100,6 +100,7 @@ def _():
     REPRESENTATIONS = {
         "hugo_vae": "Hugo's latent (mu)",
         "ct_32": "CT averaged to 32³ (mean of 4 × 4 × 4 voxel blocks)",
+        "tissue_features": "10 tissue features of Van De Looverbosch et al. 2020 (128³)",
     }
     representation_choice = mo.ui.dropdown(
         options={_label: _key for _key, _label in REPRESENTATIONS.items()},
@@ -111,7 +112,7 @@ def _():
     return REPRESENTATIONS, representation_choice, run_cv
 
 
-@app.function
+@app.function(hide_code=True)
 @mo.persistent_cache
 def cross_validate(representation: str, fruit_ids: tuple) -> dict:
     """Out-of-fold predictions and the calibration curve for one representation.
@@ -133,10 +134,18 @@ def cross_validate(representation: str, fruit_ids: tuple) -> dict:
     y = fruit["binary_23"].to_numpy()
     boxes = fruit["box"].to_numpy()
     folds = pl.read_csv(cfg.path("derived_dir") / "outer_folds_20" / "outer_folds.csv")
-    predictions = cross_validated_predictions(x, y, boxes, folds, scale=False)
+    # Cells are centred only (CLAUDE.md, section 7). The 10 tissue features are in different
+    # units (a volume share, means, SDs, a test statistic), so they are also scaled to unit
+    # variance; PLSRegression does that on the training fruit of each fold only.
+    scale = representation == "tissue_features"
+    # PLS has at most as many LVs as features: 10 for the tissue features, 15 otherwise.
+    n_components = min(MAX_COMPONENTS, x.shape[1])
+    predictions = cross_validated_predictions(
+        x, y, boxes, folds, scale=scale, max_components=n_components
+    )
     # RMSEC: one model on all 12 boxes, error on the same fruit. It always goes down with
     # more LVs, so it is plotted for reference and does not decide.
-    full_model = PLSRegression(n_components=MAX_COMPONENTS, scale=False).fit(
+    full_model = PLSRegression(n_components=n_components, scale=scale).fit(
         x, y.astype(float)
     )
     fitted = predict_each_h(full_model, x)
@@ -181,7 +190,7 @@ def _(cv, y):
     _squared = (cv["predictions"] - y[None, :, None].astype(float)) ** 2
     _per_repeat = np.sqrt(_squared.mean(axis=1))  # (repeats, LVs)
     _mean_press = mean_squared_errors(cv["predictions"], y).sum(axis=0)
-    _n_lv = np.arange(1, MAX_COMPONENTS + 1)
+    _n_lv = np.arange(1, cv["predictions"].shape[2] + 1)
     curves = pl.concat(
         [
             pl.DataFrame(
@@ -256,6 +265,10 @@ def _():
 def _(cv, fruit, lv_choice, y):
     mo.stop(lv_choice.value == "not chosen", mo.md("_Choose the number of LVs first._"))
     chosen_lv = int(lv_choice.value)
+    mo.stop(
+        chosen_lv > cv["predictions"].shape[2],
+        mo.md(f"_This representation has at most {cv['predictions'].shape[2]} LVs._"),
+    )
     _at_h = cv["predictions"][:, :, chosen_lv - 1]  # (repeats, fruit)
     mean_prediction = _at_h.mean(axis=0)
     _grade = fruit["defective"].to_numpy()

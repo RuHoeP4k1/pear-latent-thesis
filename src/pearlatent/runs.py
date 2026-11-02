@@ -16,6 +16,7 @@ ENCODING_RUN_DIR = f"latents/hugo_vae/{ENCODING_RUN}"
 RANDOM_INIT_RUN_DIR = "latents/random_init/20261020T120336Z_random_init"
 RAW_CT_32_RUN_DIR = "raw_ct_32/20261005T142026Z_raw_ct_32"
 DESCRIPTORS_RUN_DIR = "descriptors/20261023T155219Z_descriptors"
+TISSUE_FEATURES_RUN_DIR = "tissue_features/20261102T151947Z_tissue_features"
 
 
 def git_state(root: Path | None = None) -> dict:
