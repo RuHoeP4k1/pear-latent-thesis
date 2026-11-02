@@ -59,7 +59,16 @@ one box on both sides).
 2. Average PRESS over the 20 repeats for each h. This gives one RMSECV curve; the 20 single
    curves are plotted beside it to show their spread. RMSEC (fit on all 12 boxes, error on the
    same fruit) is plotted with it.
-3. Choose one number of LVs with the randomisation test of van der Voet (1994, *Chemometrics
+3. Choose one number of LVs by looking at the curves (Ruben, 2 November 2026; replaces the
+   van der Voet rule of 23 October, kept below for the record). The choice is the elbow: the
+   number of LVs after which the mean RMSECV curve stops going down, so that adding more LVs
+   leaves the cross-validation error about the same. RMSEC keeps going down with every LV and
+   does not decide. Only the curves of the 12 non-test boxes are looked at; the chosen number
+   is written into the run record (`run.json`) with the curve before any test box is opened.
+
+   *Replaced rule (23 October 2026, not used):*
+
+   Choose one number of LVs with the randomisation test of van der Voet (1994, *Chemometrics
    and Intelligent Laboratory Systems* 25, 313–323), with the **box** as the unit that is
    randomised. *(Rule decided by Ruben on 23 October 2026, before any curve was computed;
    closes open question 26. Chosen over the Haaland and Thomas F-test with a design-effect

@@ -110,7 +110,7 @@ full; pool it during encoding.
    `derived/latents/<encoder>/<run_id>/latents.npy`, `manifest.parquet` (one row per fruit:
    `fruit_id`, season, box, file, row index) and `run.json`. About 145 MB for all fruit.
    Decode `mu` with `vae.decode(mu)` for Step 0. Do not use `vae(x)`: its forward pass samples z.
-   The random encoder stays a planned run (Ruben, 13 October 2026).
+   The random encoder row was dropped (Hugo, 29 October 2026; Ruben, 2 November).
 2. **Pool** (any machine). Array arithmetic on the saved latents. Options: the full 32³ grid, and
    the deviation-from-healthy map with persistence summaries (high percentile as comparison). No
    cylindrical bins (dropped 10 October 2026), no attention pooling, no 512-channel layer.
@@ -145,8 +145,9 @@ Step 0. `body_mask` is still used to measure height over the fruit body.
   and shape, not browning.
 - Number of PLS components (design A, Ruben, 21 October 2026): 20 repeats of the 4-fold box
   cross-validation on the 12 non-test boxes, PRESS averaged over the repeats, one choice from that
-  curve, one fit on all 12 boxes. No inner split. The choice: van der Voet randomisation test
-  with signs flipped per box, smallest h with p > 0.10 (Ruben, 23 October 2026). See
+  curve, one fit on all 12 boxes. No inner split. The choice: by eye at the elbow of the mean
+  RMSECV curve, recorded before any test box is opened (Ruben, 2 November 2026; replaces the
+  van der Voet rule of 23 October). See
   `docs/cv_explained.md`, section 4.
 - Faulty volumes (missing part of the fruit, failed preprocessing) are excluded by
   `docs/outlier_rule.md`; never because a fruit is defective.

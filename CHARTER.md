@@ -22,11 +22,11 @@ disorders in pear CT, and at which browning grade does that stop?
    (Step 0). Nothing fitted. The decoder is in hand (13 October); Step 0 is the next step.
 2. Is it usable? First consumable versus non-consumable; then per grade; then browning and cavity
    separately, including whether the two can be told apart.
-3. Where does it stop, and why? Per-grade detection at four fixed-feature levels — 128³ input,
-   CT averaged to 32³, Hugo's latent, random encoder — beside a ResNet-18 trained from scratch on
-   the 128³ CT. 128³ versus 32³ places a loss in the resolution; the latent versus the random
-   encoder separates the training from the architecture; the ResNet-18 shows what supervised
-   training on the same fruit reaches.
+3. Where does it stop, and why? Per-grade detection at three fixed-feature levels — 128³ input,
+   CT averaged to 32³, Hugo's latent — and Med3D, beside a ResNet-18 trained from scratch on
+   the 128³ CT. 128³ versus 32³ places a loss in the resolution; the latent versus the CT at 32³
+   places a loss in the encoding; the ResNet-18 shows what supervised training on the same
+   fruit reaches. (Random encoder dropped, Hugo, 29 October 2026.)
 
 "The information is in the latent" is a hypothesis, not a fact: the 0.9915 reconstruction score is
 averaged over the whole volume, and a grade 2 lesion is about 0.2 % of it.
@@ -54,11 +54,11 @@ mild cavity easier than mild browning; non-consumable detected well, mostly thro
 
 ## Comparisons (one external model, no architecture study)
 
-128³ input features · CT averaged to 32³ · Hugo's latent · random frozen encoder · Med3D (frozen) ·
+128³ input features · CT averaged to 32³ · Hugo's latent · Med3D (frozen) ·
 ResNet-18 from scratch on 128³ CT: the 3D ResNet of Hugo's `train_clf_3d.py` (basic blocks 2-2-2-2), trained on our box
 folds on the lab GPU; width *(to settle with Hugo: his default of 16 base channels, or 64)*.
 Dropped on 13 October: the own self-supervised extension (GPU too small for 3D self-supervised
-training). The random frozen encoder stays as a cheap extra row (code exists).
+training). Dropped on 29 October (Hugo): the random frozen encoder.
 
 ## Evaluation rules, fixed before any result is seen
 
@@ -113,8 +113,8 @@ stem–calyx axis)*.
 
 Models, each on the unfolded array: PLS-DA, cumulative-link (mixed) models on PLS scores
 (penalised logistic regression dropped 21 October 2026, Ruben: in p ≫ n data it does about what
-PLS-DA does). Number of PLS components: from the mean RMSECV curve over the 20 repeats, then one
-fit on the 12 boxes (`docs/cv_explained.md`, section 4). Plus one extra model row after the core study: N-way partial least squares (Bro 1996) on
+PLS-DA does). Number of PLS components: chosen by eye at the elbow of the mean RMSECV curve over the 20
+repeats (Ruben, 2 November 2026), then one fit on the 12 boxes (`docs/cv_explained.md`, section 4). Plus one extra model row after the core study: N-way partial least squares (Bro 1996) on
 fruit × x × y × z, first at the 32³ levels, compared with unfolded partial least squares on the same
 box splits, with a core-crop check and a random-rotation check. Prediction *(proposal)*: no gain on
 grade 3; the added value is the three weight profiles.
