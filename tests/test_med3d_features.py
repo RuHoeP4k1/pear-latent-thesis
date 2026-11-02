@@ -13,9 +13,9 @@ def test_object_voxels_get_mean_zero_and_sd_one():
     inside = volume > OBJECT_THRESHOLD
     assert abs(out[inside].mean()) < 1e-5
     assert abs(out[inside].std() - 1) < 1e-4
-    # No noise: the same input gives the same output, and the background stays one value.
+    # No noise: the same input gives the same output, and the background is 0 (nnU-Net).
     assert np.array_equal(out, normalise_as_medicalnet(volume))
-    assert np.unique(out[~inside]).size == 1
+    assert (out[~inside] == 0).all()
 
 
 def test_brightness_and_contrast_of_the_fruit_are_removed():

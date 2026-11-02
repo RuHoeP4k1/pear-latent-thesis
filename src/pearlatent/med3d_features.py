@@ -14,8 +14,14 @@ Hugo's encoder, which was trained on pears. Choices (Ruben, 2 November 2026):
    min-max scaled volume (the body threshold of Step 0); MedicalNet uses "above 0", but our
    background after min-max scaling is not exactly 0. This removes each fruit's mean and SD,
    so these features carry the pattern inside the fruit, not its overall brightness.
-   MedicalNet fills the background with random noise; we do not, so the features are the same
-   on every run.
+   Background (voxels at or below 0.1) set to 0 (Ruben, 2 November 2026). MedicalNet fills it
+   with random noise of mean 0 and SD 1; a first run without noise left it at about -6.5
+   (minus the fruit mean over the fruit SD), far from anything the network saw in training
+   (figure `derived/figures/12_med3d_input.png`). 0 is the level of MedicalNet's noise, the
+   value of the zero padding in every MedicalNet convolution, and the rule of nnU-Net
+   (Isensee et al. 2021, Nature Methods 18, 203-211; github.com/MIC-DKFZ/nnUNet, branch
+   nnunetv1, commit db16c6c, `nnunet/preprocessing/preprocessing.py` lines 302-305: z-score
+   inside the mask, 0 outside). No noise, so the features are the same on every run.
 2. Features: the backbone up to `layer4` (512 channels × 16³ for a 128³ input; the segmentation
    head is not used), averaged over the 16³ grid: 512 numbers per fruit.
 3. Open fruit only (the manifest of `ENCODING_RUN`); the sealed fruit wait for the test.
@@ -40,13 +46,16 @@ def normalise_as_medicalnet(scaled: np.ndarray) -> np.ndarray:
     """Z-score a min-max scaled volume on its object voxels (> `OBJECT_THRESHOLD`).
 
     In: a volume in [0, 1]. Out: float32, same shape; the object voxels have mean 0 and SD 1,
-    the background is transformed with the same mean and SD (no noise added).
+    the background is 0 (as nnU-Net; no noise added).
     """
     volume = np.asarray(scaled, dtype=np.float32)
-    object_voxels = volume[volume > OBJECT_THRESHOLD]
+    is_object = volume > OBJECT_THRESHOLD
+    object_voxels = volume[is_object]
     if object_voxels.size == 0:
         raise ValueError("no voxel above the object threshold")
-    return (volume - object_voxels.mean()) / object_voxels.std()
+    out = (volume - object_voxels.mean()) / object_voxels.std()
+    out[~is_object] = 0.0
+    return out
 
 
 def load_backbone(weights: Path, repo: Path):
