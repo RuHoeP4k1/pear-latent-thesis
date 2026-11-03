@@ -112,12 +112,14 @@ On the averaged out-of-fold score of each row, for all four rows:
 
 | Row | Feature run | PLS-DA run | LVs |
 |---|---|---|---|
-| Hugo's latent | `derived/latents/hugo_vae/20261013T171306Z_hugo_vae` | `results/20261102T110957Z_plsda_binary23_hugo_vae` | 4 |
-| CT at 32³ | `derived/raw_ct_32/20261005T142026Z_raw_ct_32` | `results/20261102T111004Z_plsda_binary23_ct_32` | 5 |
+| Hugo's latent | `derived/latents/hugo_vae/20261013T171306Z_hugo_vae` | `results/20261103T101426Z_plsda_binary23_hugo_vae` | 4 |
+| CT at 32³ | `derived/raw_ct_32/20261005T142026Z_raw_ct_32` | `results/20261103T101429Z_plsda_binary23_ct_32` | 5 |
 | Tissue features | `derived/tissue_features/20261102T151947Z_tissue_features` | `results/20261103T100917Z_plsda_binary23_tissue_features` | 7 |
 | Med3D | `derived/med3d/20261102T185107Z_med3d_resnet18` | `results/20261103T100914Z_plsda_binary23_med3d` | 7 |
 
-The two runs of 2 November were saved before the Youden cut-off existed: their `run.json` has
-no `cutoff_youden` (to resave from notebook 08 at the same LVs). The two runs of 3 November
-were saved by running notebook 08 headless with the choices filled in
-(`app.run(defs=...)`: representation, 7 LVs, save), from the clean commit 57277c3.
+All four runs were saved on 3 November by running notebook 08 headless with the choices
+filled in (`app.run(defs=...)`: representation, number of LVs, save), from clean commits
+(57277c3 for tissue features and Med3D, a4b318f for the other two). The first runs of Hugo's
+latent and CT at 32³ (`20261102T110957Z`, `20261102T111004Z`) were saved before the Youden
+cut-off existed and have no `cutoff_youden` in `run.json`; the resaved runs have identical
+predictions (largest difference 0.0) and replace them.
