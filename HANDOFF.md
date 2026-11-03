@@ -5,92 +5,70 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-10-28
-- **Phase:** preparation of the meeting with Hugo (Thursday 29 Oct, 11:00). Notebook 07 now
-  compares the three 32³ representations (Hugo's latent, random encoder, CT averaged to 32³)
-  and shows long sections of the real grid. No model fitted on labels yet. Material for Hugo:
-  `docs/meeting_2026-10-29.md` (not updated this session) and notebook 07, shown live.
-- **Decided this session (Ruben, 28 Oct):**
-  - The height-radius map is an exploratory method: the number of latent cells behind a bin
-    differs between bins and between fruit (estimate: about 2 cells in the axis bin of a
-    small fruit, about 140 in the outer ring of a large one). See question 39.
-  - The real grid is shown as a long section (one plane at fixed x or y, slider), not as a
-    mean over one axis.
-  - The comparison with the CT uses the existing 4 × 4 × 4 block mean of notebook 03 (charter
-    comparison row); no new downsampling.
-  - Hugo is shown notebook 07 live, not a fixed comparison figure.
-- **Done this session (28 Oct, Mac), commits bba5df6, c03c965, 09d67a2:**
-  - Notebook 07: dropdown at the top for the representation, read through
-    `pearlatent.feature_sets.load_features` (refuses sealed fruit; the CT run also holds the
-    153 sealed fruit). Saved figures of the other two representations get `_random_init` /
-    `_ct_32` in their names.
-  - Section 1: table of Spearman correlations of PC1 to PC5 with stalk, size and grades for
-    all three representations at once.
-  - Section 4 (new): long sections of the grid, map and 1,024-cell spectrum linked both
-    ways, the four grade 0 corrections, PCA on the selected cells. Section 3 and 4 share
-    `pca_on_selection` and `grade0_correction`.
-  - Controls no longer reset when the representation changes (groups, corrections, the 2526
-    fruit and the axis position moved to cells that read no grid data).
-  - Checked: the CT run's body masks equal those of Hugo's run for all 940 open fruit; the
-    random encoder run is complete (940 × 32³, no NaN, no all-zero fruit; sealed part in
-    `derived/sealed/latents/random_init/`).
-  - Refactor (c03c965): new `pearlatent.fruit_table` (`open_fruit`, `cause`,
-    `attach_labels`, `drop_faulty_volumes`, 6 tests); notebooks 05, 06, 07 use it instead
-    of three own joins. `pearlatent.runs` lists the runs in use (`ENCODING_RUN_DIR`,
-    `RANDOM_INIT_RUN_DIR`, `RAW_CT_32_RUN_DIR`, `DESCRIPTORS_RUN_DIR`); notebooks and
-    `descriptors`, `decode_examples`, `feature_sets` read them from there. Checked: fruit
-    tables and grids identical to before in all three notebooks. Tests: 104 passed.
-  - Meeting document (09d67a2): "Questions to answer at the meeting" at the bottom, the
-    open questions for Hugo by number (33, 18, 38, 40 first).
-- **Found (exploratory, 315 open 2526 fruit, seen by Ruben):**
-  - PC1 follows body size and stalk length equally in all three representations (body voxels
-    |r| 0.97 / 0.97 / 1.00; stalk 0.78 / 0.74 / 0.77 for Hugo / random / CT): the stalk and
-    size structure is in the volumes, not added by Hugo's encoder.
-  - Only Hugo's latent has a component (PC4) that follows the grades more than size
-    (|r| 0.25 defective, 0.23 browning, 0.27 cavity); random encoder and CT reach about 0.16,
-    on PC1 (size). One component, no test.
-  - Only 78 of the 1,024 cells of the central long section lie in the body of every fruit;
-    a PCA on the plane drops the rest.
-- **Next step:** the meeting with Hugo on 29 Oct (Ruben), with notebook 07 open on Hugo's
-  latent (reload it in the browser first). Work through the list at the bottom of
-  `docs/meeting_2026-10-29.md`: the stalk route (questions 33, 18, 38) with the section 1
-  comparison table, then the Med3D choices (question 40). After the meeting: record the 28 October method rules
-  in `docs/methods_step0_and_maps.md`, then the first PLS-DA on `binary_23` with Hugo's full
-  flattened latent (`pearlatent.plsda`, box folds in `derived/outer_folds_20/`, test boxes
-  F, J, M sealed).
-- **Blocked on:** modelling on labels waits for the meeting (stalk reprocessing, original
-  fruit lengths, size and stalk in the maps). Med3D waits for the choices in question 40.
-- **Working note:** with `marimo edit --watch` open, the editor reloads and saves the file;
-  several quick file edits in a row were overwritten on 28 Oct. Make notebook edits in one
-  write, or through the live session (marimo-pair, needs the server token).
-- **Reference, still valid (from earlier sessions):**
-  - Encoding run `20261013T171306Z_hugo_vae` (code 0c9052f; `dirty: true` only because of an
-    untracked handoff file): open part `derived/latents/hugo_vae/20261013T171306Z_hugo_vae/`,
-    940 fruit (346 2526, 594 2425), 478 decoded (346 2526, Hugo's 66 validation, 66 of his
-    training fruit, seed 369); sealed part `derived/sealed/latents/...`, 153 fruit, encoded
-    only. Random encoder run `20261020T120336Z_random_init` (seed 0, same fruit and order).
-  - Descriptors run `derived/descriptors/20261023T155219Z_descriptors/` (with
-    `flat_face_share`, `stalk_present`).
-  - Test boxes drawn 13 Oct: **F, J, M** (87 fruit). Fold partitions of the 12 other boxes,
-    repeats: 1 ABI CGN DEO HKL; 2 ACE BGL DIN HKO; 3 AEH BGL CKO DIN; 4 AHN BDL CEI GKO;
-    5 AGK BCI DNO EHL. They stay as drawn after the exclusions (Ruben, 23 Oct); the balance
-    after exclusion is reported.
-  - Decoding: about 6 minutes per fruit on the Mac CPU (17 GB of memory), 56 s on the laptop.
-  - `pearlatent.plsda` and `pearlatent.feature_sets` (commit 4265761) are built and tested,
-    not run on real labels. One fit of 15 components on 260 × 32,768 takes about 0.1 s.
-  - Size and stalk (Ruben, 23 Oct): preferred route is reprocessing 2526 without the stalk
-    before the rescaling (question 33); otherwise a sensitivity row with stalk length and body
-    size regressed out inside each training fold and/or a check within stalk classes. Why it
-    matters: Ho et al. 2008 (PLoS Computational Biology 4, e1000023): fruit size changes
-    internal O₂ and CO₂, and low core O₂ leads to browning.
-  - Mac (main machine from 20 Oct): `/Users/rubenhoeven/code/pear-latent-thesis`, Python
-    3.12.15, torch 2.14.1 (`device = "cpu"` in `config/local.toml`), marimo 0.25.1; data in
-    `~/data/pear-thesis`; weights in `data/weights/hugo_vae/`; Hugo's repository at
-    `../Synthetic_CT_pear`, commit 183112f. `uv run pytest`: 104 passed on 28 Oct.
-    The workstation is only for the ResNet-18 baseline and is not set up. School PC not set
-    up: `uv sync`, copy `config/local.example.toml` to `config/local.toml`, run
-    `notebooks/00_environment_check.py`; for live pairing also
-    `npx skills add marimo-team/marimo-pair` and `jq`, `curl` on the PATH.
+- **Date:** 2026-11-03 (state at the end of the session of 2 November)
+- **Phase:** first models on labels. PLS-DA on `binary_23` (design A, 315 open 2526 fruit
+  after the faulty volumes, 12 open boxes, 20 repeats of 4-fold box cross-validation) runs for
+  four representations. Goal for the meeting with Hugo on **17 November**: PLS-DA and ordinal
+  models on the latent, CT at 32³ and Med3D (`docs/meeting_2026-10-29.md`, outcome section).
+- **Decided on 2 November (Ruben):**
+  - Number of LVs chosen by eye at the elbow of the mean RMSECV curve (replaces van der Voet).
+    Chosen: Hugo's latent 4, CT at 32³ 5, tissue features 7, Med3D 7.
+  - Random encoder row dropped (Hugo, 29 Oct). SVM not added.
+  - A second cut-off beside 0.5: the Youden cut-off (largest recall − false-positive rate),
+    chosen on the averaged out-of-fold predictions, saved in `run.json`, applied unchanged to
+    the test boxes (`pearlatent.plsda.youden_cutoff`; `docs/cv_explained.md` section 4).
+  - Comparison row with the 10 tissue features of Van De Looverbosch et al. (2020, Food
+    Control 113, 107170) on the 128³ volumes, window 31 voxels, scaled inside each fold.
+  - iPLS (notebook 09): selection stops at the layers (square rings of cells); the height
+    bins of 2 slices are description only, not a model row.
+  - Med3D: ResNet-18 `resnet_18_23dataset.pth` (Hugging Face, SHA-256 61224f93…), MedicalNet
+    code at 20f76aa in `../MedicalNet`; input z-scored on the fruit tissue, 0 outside the
+    fruit (nnU-Net rule), enclosed cavities keep their own value; `layer4` averaged over the
+    16³ grid = 512 features; open fruit only; `scale=True` in PLS-DA.
+- **Done on 2 November (Mac), commits fa6d559 to a655a75:**
+  - Notebook 08 (PLS-DA on `binary_23`): curves, LV choice, scores at both cut-offs per grade
+    and cause, save button. Saved runs: `results/20261102T110957Z_plsda_binary23_hugo_vae`
+    (4 LVs), `results/20261102T111004Z_plsda_binary23_ct_32` (5 LVs) — both saved before the
+    Youden cut-off existed, so their `run.json` has no `cutoff_youden`.
+  - VIP scores, nuisance checks A to C (`pearlatent.nuisance`), notebook 09 iPLS.
+  - `pearlatent.tissue_features` (run `derived/tissue_features/20261102T151947Z_tissue_features`)
+    and `pearlatent.med3d_features` (run `derived/med3d/20261102T185107Z_med3d_resnet18`;
+    the first run `20261102T180339Z` had the background at −6.5 and is not used).
+  - Figures (outside git, `derived/figures/`): `09_background_checks.png`,
+    `10_tissue_masks_examples.png`, `cutoff_explained.png`, `11_med3d_rmsecv.png`,
+    `12_med3d_input.png`.
+  - Tests: 123 passed (122 before the cavity test was added).
+- **Found (open boxes only, seen by Ruben):**
+  - Through InstanceNorm every latent cell carries whole-fruit intensity statistics; the
+    edge-layer latent follows body mean CT (Spearman 0.91). Layers 0 to 4 hold no fruit body.
+  - AUC, out-of-fold, average of 20 repeats: Hugo's latent 0.887 (box bootstrap 0.833–0.928);
+    CT at 32³ 0.839 (0.781–0.888); tissue features 0.938 (0.886–0.966; within-box 0.931).
+  - Tissue features at 7 LVs: 0.5 gives recall 0.73, precision 0.94; Youden 0.339 gives recall
+    0.89, precision 0.86, but 32 % of grade 1 fruit called non-consumable.
+  - Med3D RMSECV at 7 LVs 0.313 (tissue features 0.318). **No Med3D scores computed yet.**
+- **Next step:** in notebook 08 choose "Med3D ResNet-18", run the cross-validation, set 7
+  LVs, read the scores (AUC with box bootstrap, both cut-offs, per grade and cause), show Ruben,
+  then press save. Do the same for the tissue features at 7 LVs (not saved yet). Then: the
+  within-box AUC and nuisance checks (`pearlatent.nuisance`) for both rows, and the methods
+  record of 2 November in a `docs/methods_*.md` file (cut-off, tissue features, Med3D
+  normalisation with the small examples).
+- **Blocked on:** nothing for PLS-DA. The ResNet-18 baseline needs the lab workstation
+  (question 9 with Hugo: not known yet).
+- **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
+  overwritten; make notebook edits in one write. Notebooks 05, 07, 09 and their slide and grid
+  layouts (`notebooks/layouts/`) committed on 3 Nov; 07 has Ruben's new parallel-coordinates
+  section (plotly); 05 and 07 run as scripts, 09 gives the same results.
+- **Reference, still valid:**
+  - Encoding run `20261013T171306Z_hugo_vae`: open part 940 fruit (346 2526, 594 2425);
+    sealed part `derived/sealed/latents/...`, 153 fruit. CT at 32³ run `20261005T142026Z`.
+    All runs in use are listed in `pearlatent.runs`.
+  - Test boxes **F, J, M** (87 fruit), never opened. Fold partitions in
+    `derived/outer_folds_20/outer_folds.csv`.
+  - Faulty volumes: `derived/volume_decisions.csv` through `drop_faulty_volumes`; 346 → 315
+    open 2526 fruit. Feature extraction runs on all 940 open fruit; models use the 315.
+  - Mac: `/Users/rubenhoeven/code/pear-latent-thesis`, Python 3.12.15, torch 2.14.1 (CPU),
+    marimo 0.25.1; Hugo's repository `../Synthetic_CT_pear` at 183112f; MedicalNet
+    `../MedicalNet` at 20f76aa; Med3D encoding about 0.5 s per fruit (10 minutes for 940).
 
 ## Setting up the Mac (written 17 Oct, on the Windows laptop)
 
@@ -220,7 +198,7 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
-Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
+Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
 confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
 `docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
@@ -300,12 +278,15 @@ For Ruben, added 27 Oct:
     bin); a model row on the bins would also need a rule for empty bins. Leaning to the full
     grid for the models; to confirm.
 
+For Ruben, added 2 Nov:
+45. Tissue features: the partial-volume rim under the skin is always classed as low-density
+    tissue (darker than its local mean). Accepted for now; a sensitivity row that erodes the
+    tissue mask by one voxel would show whether it matters.
+46. Med3D: the same rim (voxels just above 0.1) enters as values around −5. Same question as 45.
+47. Optional extra row: the density-distribution-model residual of Van De Looverbosch et al.
+    (2022, anomaly detection, Youden threshold). Wanted?
+
 For Ruben and Hugo, added 28 Oct:
-40. Med3D (charter comparison row, frozen; no code yet): which network (ResNet-10 is the
-    realistic one on the CPU), which input normalisation (Med3D was trained on z-scored CT,
-    our volumes are min-max scaled), which layer and pooling (the last layer gives about
-    16³ × 512 for a 128³ input, not 32³), and the weights: source, version, checksum,
-    licence. Adding the package needs `uv add`.
 41. Stalk length and body size are measured on the 128³ volumes, but the body-stalk
     boundary is decided on the 32³ CT grid (slices with fewer than 4 cells), so it moves in
     steps of 4 voxels and the neck tip counts as stalk. Define the boundary at voxel level
@@ -341,6 +322,10 @@ For Ruben, added 13 Oct:
 
 ## Decided
 
+- 2 Nov (Ruben): LVs chosen by eye at the elbow of the mean RMSECV curve; Youden cut-off
+  reported beside 0.5; tissue-feature row (Van De Looverbosch et al. 2020); Med3D ResNet-18
+  with z-score on the fruit tissue and 0 outside the fruit; iPLS selection stops at the layers,
+  height bins description only; SVM not added; random encoder row dropped (Hugo, 29 Oct).
 - 26 Oct (Ruben): Step 0 reconstructs with `vae.decode(mu)`, not `vae(x)`, because the latent
   analysed downstream is `mu`, so Step 0 must test whether `mu` keeps the browning; `vae(x)`
   adds noise to z and gives a different output every run. No comparison with sampled z is run.
@@ -410,6 +395,7 @@ For Ruben, added 13 Oct:
 | `src/pearlatent/labels.py` `fruit_keys` | G_opt and I_opt fruit come from orchards G and I, so they share box `2425_G` / `2425_I` (decided with Ruben 3 Oct). Supported by the preprint, section 2.2, as summarised in Ruben's other Claude session on 5 Oct (the two orchards with optimal storage have fruit in three boxes); not yet read in the preprint itself | preprint section 2.2, Hugo |
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
 | `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`). Hugo sent only `best.pth` (epoch 430, seed 369) and `vae_hyperparameter.json`; the loader now defaults to `best.pth` | Hugo: is `best.pth` the model of the preprint? |
+| `src/pearlatent/tissue_features.py` `tissue_masks` | the paper's MATLAB adaptive threshold (no sensitivity given) means "below the plain local mean of the tissue in a 31³ window" | Van De Looverbosch et al. 2020 authors, or MATLAB `adaptthresh` defaults |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for the ResNet-18 baseline) | `nvidia-smi` on the workstation |
 
 Note on names: in 2425 the `box` column holds the orchard letter (60 to 90 fruit). Per the
@@ -419,6 +405,17 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-11-02 — first PLS-DA models, tissue features, Youden cut-off, Med3D
+- Decided (Ruben): LVs at the elbow (latent 4, CT 5, tissue features 7, Med3D 7); Youden
+  cut-off beside 0.5; iPLS selection stops at the layers; SVM out; Med3D input z-scored on the
+  fruit, 0 outside (nnU-Net), cavities kept.
+- Built: notebook 08 (PLS-DA), VIP, nuisance checks, notebook 09 (iPLS), tissue features,
+  Med3D features. Meeting of 29 Oct logged; next meeting 17 November.
+- Found: latent AUC 0.887, CT 0.839, tissue features 0.938; InstanceNorm puts whole-fruit
+  intensity into every latent cell. Med3D scores not computed yet.
+- Two Med3D input bugs found from the input figure (background −6.5; cavities set to 0),
+  fixed before any score was seen.
 
 ### 2026-10-28 — three representations side by side, long sections of the grid
 - Decided (Ruben): the height-radius map is exploratory; the real grid is shown as long

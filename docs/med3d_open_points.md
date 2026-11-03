@@ -1,5 +1,12 @@
 # Med3D as the frozen comparison row: open points (2 November 2026)
 
+**Status (3 November 2026).** The choices below were made by Ruben on 2 November and are in
+`src/pearlatent/med3d_features.py`: ResNet-18 (`resnet_18_23dataset.pth`), input z-scored on the
+fruit tissue with 0 outside the fruit and enclosed cavities kept, `layer4` averaged over the 16³
+grid (512 features), open fruit only. nnU-Net dropped as an alternative (Ruben, 3 November): it
+trains a segmentation network per dataset and is not a frozen comparison row. This file is kept
+as the record of how the choices were reached.
+
 Written before any Med3D code, so Ruben can search in parallel and check what is built.
 Hugo (29 October): the choices are Ruben's; features expected by 17 November.
 
@@ -75,7 +82,7 @@ against Tier 1. Please confirm or correct it from the sources:
 Read from the project pages on 2 November (README and documentation of github.com/MIC-DKFZ/nnUNet,
 README of the MONAI bundle `lung_nodule_ct_detection`).
 
-- **nnU-Net** (Isensee et al. 2021, *Nature Methods*). A framework, not a pretrained model:
+- **nnU-Net** (Isensee et al. 2021, *Nature Methods*). Dropped (Ruben, 3 November). A framework, not a pretrained model:
   "a semantic segmentation framework that automatically adapts its pipeline to a dataset". It
   trains a new U-Net per dataset and needs a voxel-wise label mask for every training image
   (`imagesTr`, `labelsTr`). No image-level classification. Planning measures a dataset
