@@ -404,7 +404,9 @@ def _(
             "n_fruit": predictions_table.height,
             "n_lv_chosen": chosen_lv,
             "lv_rule": "elbow of the mean RMSECV curve, chosen by Ruben by eye",
-            "scale": False,
+            # Must match `cross_validate`: unit-variance scaling inside each fold for the
+            # tissue features and Med3D, centring only for the cell grids.
+            "scale": representation_choice.value in ("tissue_features", "med3d"),
             "max_components": MAX_COMPONENTS,
             "cutoff": CUTOFF,
             # Chosen on the out-of-fold predictions above; apply unchanged to the test boxes.
