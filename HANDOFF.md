@@ -5,63 +5,68 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-03 (state at the end of the session of 2 November)
+- **Date:** 2026-11-03 (state at the end of the session of 3 November)
 - **Phase:** first models on labels. PLS-DA on `binary_23` (design A, 315 open 2526 fruit
-  after the faulty volumes, 12 open boxes, 20 repeats of 4-fold box cross-validation) runs for
-  four representations. Goal for the meeting with Hugo on **17 November**: PLS-DA and ordinal
-  models on the latent, CT at 32³ and Med3D (`docs/meeting_2026-10-29.md`, outcome section).
-- **Decided on 2 November (Ruben):**
-  - Number of LVs chosen by eye at the elbow of the mean RMSECV curve (replaces van der Voet).
-    Chosen: Hugo's latent 4, CT at 32³ 5, tissue features 7, Med3D 7.
-  - Random encoder row dropped (Hugo, 29 Oct). SVM not added.
-  - A second cut-off beside 0.5: the Youden cut-off (largest recall − false-positive rate),
-    chosen on the averaged out-of-fold predictions, saved in `run.json`, applied unchanged to
-    the test boxes (`pearlatent.plsda.youden_cutoff`; `docs/cv_explained.md` section 4).
-  - Comparison row with the 10 tissue features of Van De Looverbosch et al. (2020, Food
-    Control 113, 107170) on the 128³ volumes, window 31 voxels, scaled inside each fold.
-  - iPLS (notebook 09): selection stops at the layers (square rings of cells); the height
-    bins of 2 slices are description only, not a model row.
-  - Med3D: ResNet-18 `resnet_18_23dataset.pth` (Hugging Face, SHA-256 61224f93…), MedicalNet
-    code at 20f76aa in `../MedicalNet`; input z-scored on the fruit tissue, 0 outside the
-    fruit (nnU-Net rule), enclosed cavities keep their own value; `layer4` averaged over the
-    16³ grid = 512 features; open fruit only; `scale=True` in PLS-DA.
-- **Done on 2 November (Mac), commits fa6d559 to a655a75:**
-  - Notebook 08 (PLS-DA on `binary_23`): curves, LV choice, scores at both cut-offs per grade
-    and cause, save button. Saved runs: `results/20261102T110957Z_plsda_binary23_hugo_vae`
-    (4 LVs), `results/20261102T111004Z_plsda_binary23_ct_32` (5 LVs) — both saved before the
-    Youden cut-off existed, so their `run.json` has no `cutoff_youden`.
-  - VIP scores, nuisance checks A to C (`pearlatent.nuisance`), notebook 09 iPLS.
-  - `pearlatent.tissue_features` (run `derived/tissue_features/20261102T151947Z_tissue_features`)
-    and `pearlatent.med3d_features` (run `derived/med3d/20261102T185107Z_med3d_resnet18`;
-    the first run `20261102T180339Z` had the background at −6.5 and is not used).
-  - Figures (outside git, `derived/figures/`): `09_background_checks.png`,
-    `10_tissue_masks_examples.png`, `cutoff_explained.png`, `11_med3d_rmsecv.png`,
-    `12_med3d_input.png`.
-  - Tests: 123 passed (122 before the cavity test was added).
+  after the faulty volumes, 12 open boxes, 20 repeats of 4-fold box cross-validation) is saved
+  for all four representations with both cut-offs. Goal for the meeting with Hugo on
+  **17 November**: PLS-DA and ordinal models on the latent, CT at 32³ and Med3D
+  (`docs/meeting_2026-10-29.md`, outcome section).
+- **Decided on 3 November (Ruben):** Med3D fixed at 7 LVs (its mean RMSECV still falls slightly
+  to 8 and 10 LVs: 0.313, 0.309, 0.308). The other choices of 2 November stand (Hugo's latent
+  4, CT at 32³ 5, tissue features 7; Youden cut-off beside 0.5; Med3D input z-scored on the
+  fruit, 0 outside, cavities kept). Methods record: `docs/methods_plsda.md`.
+- **Done on 3 November (Mac), commits 57277c3 to f87b599:**
+  - Bug fixed in the save cell of notebook 08: `run.json` always said `"scale": false`;
+    tissue features and Med3D are scaled inside each fold. Computation was right, only the
+    record was wrong.
+  - All four PLS-DA runs saved (or resaved) by running notebook 08 headless with the choices
+    filled in (`app.run(defs=...)`, script in the session scratchpad, not in the repository),
+    from clean commits:
+    `results/20261103T101426Z_plsda_binary23_hugo_vae` (4 LVs),
+    `results/20261103T101429Z_plsda_binary23_ct_32` (5),
+    `results/20261103T100917Z_plsda_binary23_tissue_features` (7),
+    `results/20261103T100914Z_plsda_binary23_med3d` (7). The resaved latent and CT runs have
+    predictions identical to the runs of 2 November (`20261102T110957Z`, `20261102T111004Z`),
+    which stay in `results/` but are replaced (no `cutoff_youden`).
+  - Nuisance checks A to C computed for all four rows from the saved predictions (scratch
+    script, **not saved as a run**).
+  - `docs/methods_plsda.md`: scaling, LVs, cut-offs, tissue features, Med3D normalisation,
+    nuisance-check computation, run table, with small numeric examples.
 - **Found (open boxes only, seen by Ruben):**
-  - Through InstanceNorm every latent cell carries whole-fruit intensity statistics; the
-    edge-layer latent follows body mean CT (Spearman 0.91). Layers 0 to 4 hold no fruit body.
-  - AUC, out-of-fold, average of 20 repeats: Hugo's latent 0.887 (box bootstrap 0.833–0.928);
-    CT at 32³ 0.839 (0.781–0.888); tissue features 0.938 (0.886–0.966; within-box 0.931).
-  - Tissue features at 7 LVs: 0.5 gives recall 0.73, precision 0.94; Youden 0.339 gives recall
-    0.89, precision 0.86, but 32 % of grade 1 fruit called non-consumable.
-  - Med3D RMSECV at 7 LVs 0.313 (tissue features 0.318). **No Med3D scores computed yet.**
-- **Next step:** in notebook 08 choose "Med3D ResNet-18", run the cross-validation, set 7
-  LVs, read the scores (AUC with box bootstrap, both cut-offs, per grade and cause), show Ruben,
-  then press save. Do the same for the tissue features at 7 LVs (not saved yet). Then: the
-  within-box AUC and nuisance checks (`pearlatent.nuisance`) for both rows, and the methods
-  record of 2 November in a `docs/methods_*.md` file (cut-off, tissue features, Med3D
-  normalisation with the small examples).
+  - AUC (box bootstrap 95 %): Med3D 0.958 (0.934–0.973), tissue features 0.938
+    (0.886–0.966), Hugo's latent 0.887 (0.833–0.928), CT at 32³ 0.839 (0.781–0.888).
+  - Youden cut-offs: Med3D 0.432, tissue features 0.339, Hugo's latent 0.500, CT 0.402.
+    Med3D at 0.5: recall 0.81, precision 0.91; at Youden: recall 0.87, precision 0.88, 24 %
+    of grade 1 called non-consumable.
+  - Share called non-consumable rises with grade (Med3D at 0.5: grade 0 3 %, 1 17 %, 2 73 %,
+    3 87 %). Browning-only grade 2 (20 fruit) is the weakest group in every row (45 to 70 %
+    caught). Cavity-only: 3 fruit, too few.
+  - Check A, within-box AUC: Hugo's latent 0.857, CT 0.810, tissue features 0.931, Med3D 0.957;
+    close to the overall AUC in every row. Check B: within-box deviation clearly predictive in
+    every row; for CT at 32³ the box mean is stronger (2.48 against 1.47 log-odds per SD).
+    Check C (145 healthy fruit): no correlation with stalk or size whose interval excludes 0
+    (closest: Hugo's latent with stalk length, −0.20, −0.43 to 0.02).
+  - Not yet claimable: that Med3D beats Hugo's latent (needs the paired bootstrap,
+    `docs/cv_explained.md` section 7).
+- **Next step:** if Ruben agrees (question 49), a notebook 10 that compares the four saved
+  PLS-DA rows: reads the four `predictions.parquet`, runs nuisance checks A to C
+  (`pearlatent.nuisance`, as in `docs/methods_plsda.md` section 6) and the paired box
+  bootstrap of AUC differences on the same fruit, and saves both as a run in `results/`.
+  After that: the ordinal model (cumulative link, `OrderedModel`) on the PLS scores for the
+  defective grade, reported with Spearman and quadratic weighted kappa, for the meeting of
+  17 November.
 - **Blocked on:** nothing for PLS-DA. The ResNet-18 baseline needs the lab workstation
   (question 9 with Hugo: not known yet).
 - **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
-  overwritten; make notebook edits in one write. Notebooks 05, 07, 09 and their slide and grid
-  layouts (`notebooks/layouts/`) committed on 3 Nov; 07 has Ruben's new parallel-coordinates
-  section (plotly); 05 and 07 run as scripts, 09 gives the same results.
+  overwritten; make notebook edits in one write. To save a notebook-08 run without the UI:
+  load the notebook as a module and call `app.run(defs={"REPRESENTATIONS": ...,
+  "representation_choice": SimpleNamespace(value=...), "run_cv": SimpleNamespace(value=True),
+  "lv_choice": SimpleNamespace(value="7"), "save_button": SimpleNamespace(value=True)})`.
 - **Reference, still valid:**
   - Encoding run `20261013T171306Z_hugo_vae`: open part 940 fruit (346 2526, 594 2425);
     sealed part `derived/sealed/latents/...`, 153 fruit. CT at 32³ run `20261005T142026Z`.
-    All runs in use are listed in `pearlatent.runs`.
+    Tissue features `20261102T151947Z`, Med3D `20261102T185107Z`. All runs in use are listed
+    in `pearlatent.runs`.
   - Test boxes **F, J, M** (87 fruit), never opened. Fold partitions in
     `derived/outer_folds_20/outer_folds.csv`.
   - Faulty volumes: `derived/volume_decisions.csv` through `drop_faulty_volumes`; 346 → 315
@@ -286,6 +291,14 @@ For Ruben, added 2 Nov:
 47. Optional extra row: the density-distribution-model residual of Van De Looverbosch et al.
     (2022, anomaly detection, Youden threshold). Wanted?
 
+For Ruben, added 3 Nov:
+49. A notebook 10 for the comparison of the four PLS-DA rows (nuisance checks A to C and the
+    paired box bootstrap of AUC differences), saved as a run? The nuisance numbers of 3 Nov
+    come from a scratch script only.
+50. Delete the two replaced runs of 2 November (`results/20261102T110957Z_...hugo_vae`,
+    `results/20261102T111004Z_...ct_32`), or keep them? Their predictions are identical to
+    the resaved runs.
+
 For Ruben and Hugo, added 28 Oct:
 41. Stalk length and body size are measured on the 128³ volumes, but the body-stalk
     boundary is decided on the 32³ CT grid (slices with fewer than 4 cells), so it moves in
@@ -405,6 +418,15 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-11-03 — all four PLS-DA rows saved, nuisance checks, methods record
+- Decided (Ruben): Med3D at 7 LVs; the 2 Nov runs of the latent and CT resaved at 4 and 5 LVs
+  so every run has the Youden cut-off.
+- Fixed: `run.json` of notebook 08 always recorded `scale: false`; runs saved from clean
+  commits by running the notebook headless with the choices filled in.
+- Found: AUC Med3D 0.958, tissue features 0.938, latent 0.887, CT 0.839; within-box AUC close
+  to the overall AUC in every row; browning-only grade 2 the weakest group everywhere.
+- Written: `docs/methods_plsda.md`. Nuisance numbers not yet saved as a run (question 49).
 
 ### 2026-11-02 — first PLS-DA models, tissue features, Youden cut-off, Med3D
 - Decided (Ruben): LVs at the elbow (latent 4, CT 5, tissue features 7, Med3D 7); Youden
