@@ -64,7 +64,7 @@ def _():
         f"{_k}: {32 - 2 * _k}×{32 - 2 * _k} edge ({_columns[_k]} col.)" for _k in range(16)
     ]
     print("columns per layer, outside to centre:", _columns.tolist())
-    return cfg, layer_names, layers
+    return cfg, layer_names
 
 
 @app.cell(hide_code=True)
@@ -95,7 +95,7 @@ def _():
     return FULL_GRID_LV, representation_choice, run_ipls
 
 
-@app.function
+@app.function(hide_code=True)
 @mo.persistent_cache
 def run_layers(representation: str, fruit_ids: tuple) -> dict:
     """Stage 1 (layers) and stage 2 (height bins of 2 slices in the kept layers).
@@ -117,7 +117,9 @@ def run_layers(representation: str, fruit_ids: tuple) -> dict:
     x = load_features(cfg, representation, list(fruit_ids))
     y = fruit["binary_23"].to_numpy()
     boxes = fruit["box"].to_numpy()
-    folds = pl.read_csv(cfg.path("derived_dir") / "outer_folds_20" / "outer_folds.csv")
+    folds = pl.read_csv(
+        cfg.path("derived_dir") / "outer_folds_20" / "outer_folds.csv"
+    )
 
     layers = square_ring_labels()
     layers_alone, layers_path = forward_ipls(x, y, boxes, folds, layers)

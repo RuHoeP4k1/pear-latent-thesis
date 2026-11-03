@@ -1,7 +1,11 @@
 import marimo
 
 __generated_with = "0.25.1"
-app = marimo.App(width="medium", app_title="05 Latent sanity checks")
+app = marimo.App(
+    width="medium",
+    app_title="05 Latent sanity checks",
+    layout_file="layouts/05_latent_sanity.slides.json",
+)
 
 with app.setup:
     import altair as alt

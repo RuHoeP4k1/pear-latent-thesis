@@ -10,6 +10,7 @@ with app.setup(hide_code=True):
     import marimo as mo
     import matplotlib.pyplot as plt
     import numpy as np
+    import plotly.graph_objects as go
     import polars as pl
     from sklearn.decomposition import PCA
 
@@ -1454,12 +1455,136 @@ def _(
 
     # The width axis of a plane is one grid axis (x or y), 32 cells long.
     _cells = selected_cells(plane_linked.selections, grid_size, plane_flat.shape[1])
-    pca_on_selection(
-        plane_flat[:, _cells],
-        "cells",
+    # The selected cells (fruit, cells), also used by the parallel coordinates below.
+    plane_selection = plane_flat[:, _cells]
+    plane_description = (
         f"{representation_name}, plane {plane_direction.value} = {plane_index.value},"
-        f" correction: {plane_correction.value}",
+        f" correction: {plane_correction.value}"
     )
+    pca_on_selection(plane_selection, "cells", plane_description)
+    return plane_description, plane_selection
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ### Parallel coordinates of the PCA on the selected cells
+
+    The same PCA as above (the selected cells, after the correction, cells empty for any
+    fruit left out). Every 2526 fruit is one line over the defective grade, the cause and
+    PC1 to PCk; the slider sets k. Every axis has its own scale. Drag along an axis to keep
+    only the lines that pass through that range; this works on several axes at once. Click
+    next to a selected range on the axis to remove it.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    # Controls in a cell that reads no grid data, so they keep their values when the
+    # selection or the representation changes. Maximum 20, as the scree plot above.
+    parallel_n_components = mo.ui.slider(
+        start=2, stop=20, value=10, step=1, label="Components shown", show_value=True
+    )
+    parallel_colour = mo.ui.dropdown(
+        options=[
+            "defective",
+            "cause",
+            "browning",
+            "cavity",
+            "stalk_length",
+            "body_voxels",
+        ],
+        value="defective",
+        label="Colour by",
+    )
+    mo.hstack([parallel_n_components, parallel_colour], justify="start")
+    return parallel_colour, parallel_n_components
+
+
+@app.cell(hide_code=True)
+def _(
+    hr_fruit,
+    parallel_colour,
+    parallel_n_components,
+    plane_description,
+    plane_selection,
+):
+    # Same PCA as `pca_on_selection`: drop cells empty for any fruit, centred, not scaled,
+    # exact solver. Fewer components than the slider when the selection is smaller.
+    _complete = ~np.isnan(plane_selection).any(axis=0)
+    _table = plane_selection[:, _complete]
+    mo.stop(
+        _table.shape[1] < 2,
+        mo.md("_Fewer than 2 usable cells selected: select a larger region._"),
+    )
+    _k = min(parallel_n_components.value, *_table.shape)
+    _pca = PCA(n_components=_k, svd_solver="full").fit(_table)
+    _scores = _pca.transform(_table)
+    _explained = _pca.explained_variance_ratio_
+    print(f"cells used: {_table.shape[1]}; fruit: {_table.shape[0]}; components: {_k}")
+
+    def _as_codes(values: pl.Series) -> tuple[list[int], list[str]]:
+        """Turn a column of categories into numbers 0, 1, 2, ... for plotting.
+
+        Plotly's parallel coordinates only take numbers. Returns the number of every fruit
+        and the list of category names, so the axis can show the names again.
+        """
+        names = sorted(str(v) for v in values.unique().to_list())
+        codes = [names.index(str(v)) for v in values.to_list()]
+        return codes, names
+
+    # Label axes first, so they can be used as filters, then one axis per component.
+    _cause_codes, _cause_names = _as_codes(hr_fruit["cause"])
+    _axes = [
+        dict(
+            label="defective",
+            values=hr_fruit["defective"].to_list(),
+            tickvals=[0, 1, 2, 3],
+        ),
+        dict(
+            label="cause",
+            values=_cause_codes,
+            tickvals=list(range(len(_cause_names))),
+            ticktext=_cause_names,
+        ),
+    ]
+    _axes += [
+        dict(label=f"PC{_i + 1} ({_explained[_i]:.0%})", values=_scores[:, _i].tolist())
+        for _i in range(_k)
+    ]
+
+    # Measured numbers get a continuous colour scale; categories one colour per category.
+    if parallel_colour.value in ("stalk_length", "body_voxels"):
+        _colour_values = hr_fruit[parallel_colour.value].to_list()
+        _colourbar = dict(title=parallel_colour.value)
+        _colourscale = "Viridis"
+    else:
+        _colour_values, _colour_names = _as_codes(hr_fruit[parallel_colour.value])
+        _colourbar = dict(
+            title=parallel_colour.value,
+            tickvals=list(range(len(_colour_names))),
+            ticktext=_colour_names,
+        )
+        _colourscale = "Turbo"
+
+    _figure = go.Figure(
+        go.Parcoords(
+            dimensions=_axes,
+            line=dict(
+                color=_colour_values,
+                colorscale=_colourscale,
+                showscale=True,
+                colorbar=_colourbar,
+            ),
+        )
+    )
+    _figure.update_layout(
+        title=f"PCA of {_table.shape[1]} selected cells, {plane_description}",
+        height=450,
+        margin=dict(l=80, r=80, t=80, b=30),
+    )
+    _figure
     return
 
 
