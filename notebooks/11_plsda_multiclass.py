@@ -81,7 +81,7 @@ def _():
     SCALED = ("tissue_features", "med3d")
     target_choice = mo.ui.dropdown(
         options={_label: _key for _key, _label in TARGETS.items()},
-        value=TARGETS["browning"],
+        value=TARGETS["defective"],
         label="Target",
     )
     representation_choice = mo.ui.dropdown(
