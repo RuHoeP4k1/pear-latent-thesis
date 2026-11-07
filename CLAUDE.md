@@ -112,8 +112,10 @@ full; pool it during encoding.
    Decode `mu` with `vae.decode(mu)` for Step 0. Do not use `vae(x)`: its forward pass samples z.
    The random encoder row was dropped (Hugo, 29 October 2026; Ruben, 2 November).
 2. **Pool** (any machine). Array arithmetic on the saved latents. Options: the full 32³ grid, and
-   the deviation-from-healthy map with persistence summaries (high percentile as comparison). No
-   cylindrical bins (dropped 10 October 2026), no attention pooling, no 512-channel layer.
+   the deviation-from-healthy map with persistence summaries (high percentile as comparison). Height-radius
+   bins (dropped 10 October 2026, reopened as two model rows by Ruben on 7 November 2026: 20 height
+   × 8 radius bins, radius per slice, `pearlatent.height_radius`). No attention pooling, no
+   512-channel layer.
 3. **Model** (any machine). Statistics on that table. From here it is an ordinary dataset.
 
 Step 1 is cached to disk and never recomputed by a notebook. marimo reruns cells reactively; without
@@ -124,7 +126,8 @@ the cache, touching a downstream cell would rerun a forward pass over the whole 
 Preprocessing aligns the stem–calyx axis and rescales each fruit to 128 voxels in length, so height
 is comparable across fruit and rotation about that axis is not: the same cell (x, y, z) can lie at
 a different angle in different fruit. Cylindrical bins (height × radius, averaged over angle) were
-dropped on 10 October 2026; models use the full grid. For N-way partial least squares the charter
+dropped on 10 October 2026 and reopened on 7 November 2026 as two rows beside the full grid
+(`hugo_vae_hr`, `ct_32_hr`; `docs/methods_plsda.md` section 10). For N-way partial least squares the charter
 adds two checks for the free rotation (core crop, random rotation of the test fruit). The reference
 coordinates of the healthy fruit for the deviation map are still to settle (`CHARTER.md`, Methods).
 

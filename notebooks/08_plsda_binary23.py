@@ -106,6 +106,8 @@ def _():
         "ct_32": "CT averaged to 32³ (mean of 4 × 4 × 4 voxel blocks)",
         "tissue_features": "10 tissue features of Van De Looverbosch et al. 2020 (128³)",
         "med3d": "Med3D ResNet-18, 512 channels averaged over the grid (128³)",
+        "hugo_vae_hr": "Hugo's latent, 20 height × 8 radius bins (mean over angle)",
+        "ct_32_hr": "CT at 32³, 20 height × 8 radius bins (mean over angle)",
     }
     representation_choice = mo.ui.dropdown(
         options={_label: _key for _key, _label in REPRESENTATIONS.items()},

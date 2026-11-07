@@ -218,3 +218,31 @@ scores, each averaged over the 20 repeats:
 A score trained on the full grade, or on the 0 | 1 cut itself, does not separate grade 0 from
 grade 1 better than the `binary_23` score. The weak 0 | 1 and 2 | 3 separation is therefore not
 caused by the target the score was trained on.
+
+## 10. Height-radius rows (reopened 7 November 2026, Ruben)
+
+The decision of 10 October 2026 dropped the cylindrical bins everywhere. Ruben reopened them as
+two model rows on 7 November 2026, because the height-radius maps per grade (notebooks 06 and
+07) showed the grades in a clear order. Noted: the rows were added after seeing those maps
+(open boxes only; the sealed boxes F, J, M stay closed), and a clear order of group means does
+not by itself mean that single fruit separate; the box cross-validation decides.
+
+Rows: `hugo_vae_hr` (Hugo's latent `mu`) and `ct_32_hr` (CT at 32³, same bins on the same body
+cells), module `pearlatent.height_radius`, loaded through `load_features`. Per fruit the mean of
+all 32³ body cells in each of 20 height × 8 radius bins (`latent_map_sums`, radius per slice:
+a radius bin is a relative depth below the skin), 160 features, centred only like the grid
+rows. Reason beyond the maps: rotation about the stem-calyx axis is not aligned between fruit
+(CLAUDE.md section 6), and the mean over a ring does not depend on it.
+
+Empty bins (some height bins fall between slices, narrow slices do not reach every radius bin):
+each takes the mean of the nearest filled bins of the same fruit, in bin steps; no labels, no
+other fruit. On the 315 fruit: median 9, at most 22 of 160 bins filled per fruit. Example: a
+fruit with bin (height 0, radius 1) empty and neighbours 1.0, 3.0 (same height) and 6.0 (next
+height) gets (1 + 3 + 6) / 3 = 3.33.
+
+First look (7 November 2026, scratch run of the notebook 08 computation, `binary_23`, 315
+fruit, design A; LVs not yet chosen by Ruben). Mean RMSECV at 1 to 5 LVs: latent 0.398, 0.357,
+0.339, 0.354, 0.366; CT 0.431, 0.406, 0.381, 0.381, 0.395. AUC at 3 LVs: latent 0.927, CT
+0.884 (grid rows, saved runs: latent 0.887 at 4 LVs, CT 0.839 at 5 LVs). AUC between
+neighbouring grades at 3 LVs (0 | 1, 1 | 2, 2 | 3): latent 0.64, 0.88, 0.65; CT 0.66, 0.78,
+0.60.

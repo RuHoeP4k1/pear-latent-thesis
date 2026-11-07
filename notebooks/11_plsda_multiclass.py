@@ -76,6 +76,8 @@ def _():
         "ct_32": "CT averaged to 32³",
         "tissue_features": "10 tissue features (Van De Looverbosch et al. 2020)",
         "med3d": "Med3D ResNet-18, 512 channels",
+        "hugo_vae_hr": "Hugo's latent, 20 height × 8 radius bins (mean over angle)",
+        "ct_32_hr": "CT at 32³, 20 height × 8 radius bins (mean over angle)",
     }
     # Scaling as in notebook 08: cells centred only; features in different units scaled.
     SCALED = ("tissue_features", "med3d")

@@ -18,6 +18,10 @@ The CT run of 5 October was made before the test boxes were drawn and holds all 
 volumes, the sealed fruit included. `load_features` therefore always removes the sealed fruit
 (`pearlatent.sealed.drop_sealed`) unless `include_sealed=True`, which only the final test may
 pass. The 128³ input level (2,097,152 numbers per fruit) is not here yet.
+
+- `hugo_vae_hr`, `ct_32_hr`: `hugo_vae` and `ct_32` averaged over the angle in 20 height × 8
+  radius bins (radius per slice), 160 numbers per fruit (`pearlatent.height_radius`; Ruben,
+  7 November 2026). Computed on load from the grid and the encoder's 32³ body cells.
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ from __future__ import annotations
 import numpy as np
 import polars as pl
 
+from pearlatent.height_radius import height_radius_features
 from pearlatent.runs import (
     ENCODING_RUN_DIR,
     MED3D_RUN_DIR,
@@ -42,6 +47,9 @@ FEATURE_RUNS = {
     "med3d": (MED3D_RUN_DIR, "features.npy"),
 }
 
+# Height-radius sets: name -> the 32³ grid they are computed from.
+HEIGHT_RADIUS_SETS = {"hugo_vae_hr": "hugo_vae", "ct_32_hr": "ct_32"}
+
 
 def load_features(
     cfg, name: str, fruit_ids: list[str], include_sealed: bool = False
@@ -55,8 +63,10 @@ def load_features(
     """
     if name == "tissue_features":
         return _load_tissue_features(cfg, fruit_ids, include_sealed)
+    if name in HEIGHT_RADIUS_SETS:
+        return _load_height_radius(cfg, name, fruit_ids, include_sealed)
     if name not in FEATURE_RUNS:
-        known = sorted([*FEATURE_RUNS, "tissue_features"])
+        known = sorted([*FEATURE_RUNS, "tissue_features", *HEIGHT_RADIUS_SETS])
         raise ValueError(f"unknown feature set {name!r}; known: {known}")
     folder, array_file = FEATURE_RUNS[name]
     run = cfg.path("derived_dir") / folder
@@ -95,3 +105,33 @@ def _load_tissue_features(
             f"{len(missing)} fruit not available in tissue_features: {missing[:5]}"
         )
     return found.sort("order").select(FEATURE_NAMES).to_numpy().astype(np.float32)
+
+
+def _load_height_radius(
+    cfg, name: str, fruit_ids: list[str], include_sealed: bool
+) -> np.ndarray:
+    """160 height-radius means per fruit of the grid behind `name` (see module docstring).
+
+    The body cells come from the encoding run (`masks.npy`, the 32³ body of every fruit, row
+    order of its manifest), for the latent and the CT grid alike, so both are binned on the
+    same cells. Prints how many empty bins were filled.
+    """
+    grids = load_features(cfg, HEIGHT_RADIUS_SETS[name], fruit_ids, include_sealed)
+    grids = grids.reshape(len(fruit_ids), 32, 32, 32)
+    run = cfg.path("derived_dir") / ENCODING_RUN_DIR
+    manifest = pl.read_parquet(run / "manifest.parquet").with_row_index("position")
+    found = (
+        pl.DataFrame({"fruit_id": fruit_ids})
+        .with_row_index("order")
+        .join(manifest.select("fruit_id", "position"), on="fruit_id", how="left")
+    )
+    if found["position"].null_count():
+        raise ValueError(f"{found['position'].null_count()} fruit without body cells")
+    cells = np.load(run / "masks.npy", mmap_mode="r")
+    body = cells[found.sort("order")["position"].to_numpy()]
+    features, n_filled = height_radius_features(grids, body)
+    print(
+        f"{name}: {len(fruit_ids)} fruit, 160 bins; empty bins filled per fruit:"
+        f" median {np.median(n_filled):.0f}, max {n_filled.max()}"
+    )
+    return features
