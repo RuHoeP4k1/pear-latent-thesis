@@ -70,7 +70,8 @@ def cross_validated_predictions(
 ) -> np.ndarray:
     """Out-of-fold predictions for every repeat, fruit and number of latent variables.
 
-    In: features `x` (fruit × features), 0/1 labels `y`, the box of every fruit, the fold table
+    In: features `x` (fruit × features), the response `y` (0/1 labels for PLS-DA, or the grade
+    0 to 3 for PLS on the grade), the box of every fruit, the fold table
     (columns repeat, fold, box) and the scaling choice. Out: an array (repeats, fruit,
     max_components). Raises if a fruit's box is missing from a repeat, if a box sits in two folds
     of one repeat, or if a box is on both sides of a fit.
@@ -246,3 +247,47 @@ def paired_box_bootstrap_auc_difference(
         "share_a_better": float(np.mean(differences > 0)),
         "differences": differences,
     }
+
+
+def out_of_fold_scores(
+    x: np.ndarray,
+    y: np.ndarray,
+    boxes: np.ndarray,
+    folds: pl.DataFrame,
+    repeat: int,
+    scale: bool,
+    n_components: int,
+) -> np.ndarray:
+    """PLS scores (t1, t2, ...) of every fruit from the model that did not see its box.
+
+    In: as `cross_validated_predictions`, plus one `repeat` (one partition of the boxes) and
+    the number of components. Out: an array (fruit, n_components).
+
+    Why: with far more features than fruit, the scores of the fruit a model was fitted on
+    separate the classes almost by construction, so a score plot of those fruit says little.
+    Here each fruit is projected by the model of the fold in which its box was held out.
+
+    The fold models are fitted separately, so a component can come out with the opposite
+    sign in one fold. Each fold's component is therefore flipped when its weight vector
+    points away from the same component of one model fitted on all fruit (negative dot
+    product of the x rotations). The order of the components is not changed.
+    """
+    boxes = np.asarray(boxes)
+    y = np.asarray(y, dtype=float)
+    reference = PLSRegression(n_components=n_components, scale=scale).fit(x, y)
+    partition = folds.filter(pl.col("repeat") == repeat)
+    fold_of_box = dict(zip(partition["box"], partition["fold"], strict=True))
+    fold_of_fruit = np.array([fold_of_box[b] for b in boxes])
+    out = np.full((len(y), n_components), np.nan)
+    for fold in sorted(set(fold_of_fruit)):
+        held_out = fold_of_fruit == fold
+        sides = pl.DataFrame(
+            {"box": boxes, "side": np.where(held_out, "test", "train")}
+        )
+        assert_no_group_leakage(sides, "box", "side")
+        model = PLSRegression(n_components=n_components, scale=scale)
+        model.fit(x[~held_out], y[~held_out])
+        signs = np.sign((model.x_rotations_ * reference.x_rotations_).sum(axis=0))
+        signs[signs == 0] = 1
+        out[held_out] = model.transform(x[held_out]) * signs
+    return out

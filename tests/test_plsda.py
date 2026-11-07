@@ -9,6 +9,7 @@ from pearlatent.plsda import (
     classification_scores,
     cross_validated_predictions,
     mean_squared_errors,
+    out_of_fold_scores,
     paired_box_bootstrap_auc_difference,
     predict_each_h,
     vip_scores,
@@ -185,3 +186,23 @@ def test_paired_difference_refuses_unequal_lengths():
         paired_box_bootstrap_auc_difference(
             np.zeros(4), np.zeros(5), np.zeros(4), np.zeros(4)
         )
+
+
+def test_out_of_fold_scores_follow_the_signal_with_a_fixed_sign():
+    """One feature carries y; t1 of the held-out fruit must rise with y in every fold."""
+    rng = np.random.default_rng(3)
+    boxes = np.repeat(BOXES, 10)
+    y = rng.integers(0, 4, boxes.size).astype(float)
+    x = rng.normal(0, 1, (boxes.size, 50))
+    x[:, 0] += 2 * y
+    folds = pl.DataFrame(
+        {"repeat": 1, "fold": np.repeat([1, 2, 3, 4], 3), "box": BOXES}
+    )
+    scores = out_of_fold_scores(
+        x, y, boxes, folds, repeat=1, scale=False, n_components=2
+    )
+    assert scores.shape == (boxes.size, 2)
+    assert not np.isnan(scores).any()
+    for fold_boxes in np.array_split(np.array(BOXES), 4):
+        in_fold = np.isin(boxes, fold_boxes)
+        assert np.corrcoef(scores[in_fold, 0], y[in_fold])[0, 1] > 0.8
