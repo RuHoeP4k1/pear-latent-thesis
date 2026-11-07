@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.25.1"
-app = marimo.App(width="medium", app_title="11 PLS on the defective grade")
+app = marimo.App(width="medium", app_title="11 PLS on the grade")
 
 with app.setup(hide_code=True):
     import json
@@ -33,12 +33,18 @@ with app.setup(hide_code=True):
 @app.cell(hide_code=True)
 def _():
     mo.md(r"""
-    # 11 PLS on the defective grade: does the prediction follow the severity?
+    # 11 PLS on the grade: does the prediction follow the severity?
 
-    **Question.** Can PLS regression on the defective grade (0 to 3, the maximum of browning
-    and cavity) order the fruit by severity, on Hugo's latent, on CT at 32³, on the tissue
-    features and on Med3D? Charter rule 5 (`defective` first, split by cause) and rule 6
-    (report per grade).
+    **Question.** Can PLS regression on the grade (0 to 3) order the fruit by severity, on
+    Hugo's latent, on CT at 32³, on the tissue features and on Med3D? Charter rule 5 and
+    rule 6 (report per grade). Two targets, chosen in the first dropdown:
+
+    - **defective grade, all fruit** (the maximum of browning and cavity; results split by
+      cause);
+    - **browning grade, cavity-free fruit** (Ruben, 7 November 2026): only fruit with cavity
+      grade 0, so the model cannot lean on the gas voids. On these fruit the browning grade
+      equals the defective grade. This model also gives the direction for the
+      counterfactual images (notebook 12).
 
     **Why not the PLS-DA scores of notebook 08.** PLS-DA on `binary_23` gives grade 0 and
     grade 1 the same target (0) and grades 2 and 3 the same target (1). Its components are
@@ -49,22 +55,24 @@ def _():
     open 2526 fruit after the faulty volumes, the 12 open boxes, the same 20 repeats of a
     4-fold box cross-validation, 1 to 15 latent variables (LVs), centring only for the cell
     grids and unit-variance scaling inside each fold for the tissue features and Med3D.
-    Target `defective` as a number (0, 1, 2, 3): the distance between two neighbouring
-    grades counts as 1. Number of LVs: chosen by Ruben at the elbow of the mean RMSECV curve.
+    The target as a number (0, 1, 2, 3): the distance between two neighbouring grades
+    counts as 1. Number of LVs: chosen by Ruben at the elbow of the mean RMSECV curve.
 
     **Scores** (fixed before looking):
     - Spearman correlation between the out-of-fold prediction and the grade, with a 95 %
       interval from 2,000 draws of boxes (seed 369).
     - Quadratic weighted kappa between the grade and the prediction rounded to the nearest
       grade and clipped to 0 to 3 (rounding rule fixed in advance; the grade cut-points are
-      not tuned).
+      not tuned). Kappa is agreement corrected for chance: 1 is perfect, 0 is what random
+      guessing with the same grade counts gives. "Quadratic weighted": a miss by d grades
+      costs d², so calling a grade 3 fruit grade 2 costs 1, calling it grade 0 costs 9.
     - AUC of the same prediction for `binary_23`, to compare with notebook 08.
     - Per true grade, split by cause: the mean prediction and the share assigned to each
       rounded grade.
 
     **Inputs.** As notebook 08. The sealed test boxes F, J and M are never loaded.
 
-    **Outputs.** `results/<run_id>_pls_grade_<representation>/` (only when the save button
+    **Outputs.** `results/<run_id>_pls_<target>_grade_<representation>/` (only when the save button
     is pressed): per-fruit predictions, the curves, the scores and `run.json`.
 
     **Status.** draft (7 November 2026)
@@ -79,19 +87,48 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(cfg):
-    # The same fruit as notebook 08: open 2526 fruit without the faulty volumes.
+def _():
+    TARGETS = {
+        "defective": "defective grade, all fruit",
+        "browning": "browning grade, cavity-free fruit",
+    }
+    target_choice = mo.ui.dropdown(
+        options={_label: _key for _key, _label in TARGETS.items()},
+        value=TARGETS["defective"],
+        label="Target",
+    )
+    target_choice
+    return TARGETS, target_choice
+
+
+@app.cell(hide_code=True)
+def _(cfg, target_choice):
+    # The same fruit as notebook 08: open 2526 fruit without the faulty volumes. For the
+    # browning target, only fruit with cavity grade 0. The column `target` is the grade the
+    # model is fitted on.
     _open_2526 = open_fruit(cfg).filter(pl.col("season") == "2526")
-    fruit = drop_faulty_volumes(
+    _all = drop_faulty_volumes(
         _open_2526, cfg.path("derived_dir") / "volume_decisions.csv"
-    ).with_columns(binary_23=(pl.col("defective") >= 2).cast(pl.Int8))
-    print(f"open 2526 fruit {_open_2526.height}, after faulty volumes {fruit.height}")
+    )
+    _kept = (
+        _all.filter(pl.col("cavity") == 0)
+        if target_choice.value == "browning"
+        else _all
+    )
+    fruit = _kept.with_columns(
+        target=pl.col(target_choice.value),
+        binary_23=(pl.col(target_choice.value) >= 2).cast(pl.Int8),
+    )
+    print(f"open 2526 fruit {_open_2526.height}, after faulty volumes {_all.height}")
+    print(
+        f"target {target_choice.value}: {fruit.height} fruit, {fruit['box'].n_unique()} boxes"
+    )
     _cause_order = {_c: _k for _k, _c in enumerate(CAUSES)}
     (
-        fruit.group_by("defective", "cause")
+        fruit.group_by("target", "cause")
         .agg(n=pl.len())
         .with_columns(_order=pl.col("cause").replace_strict(_cause_order))
-        .sort("defective", "_order")
+        .sort("target", "_order")
         .drop("_order")
     )
     return (fruit,)
@@ -129,10 +166,13 @@ def _():
 
 @app.function(hide_code=True)
 @mo.persistent_cache
-def cross_validate_grade(representation: str, fruit_ids: tuple, scale: bool) -> dict:
+def cross_validate_grade(
+    representation: str, fruit_ids: tuple, scale: bool, target: str
+) -> dict:
     """Out-of-fold predictions of the grade and the calibration curve for one representation.
 
-    In: the feature set name, the fruit (in table order), the scaling choice. Out: a dict
+    In: the feature set name, the fruit (in table order), the scaling choice, the grade
+    column to fit (`defective` or `browning`). Out: a dict
     with `predictions` (repeats × fruit × LVs) and `rmsec` (one per number of LVs, from one
     fit on all fruit). Cached on disk, because the inputs are fixed.
     """
@@ -143,7 +183,7 @@ def cross_validate_grade(representation: str, fruit_ids: tuple, scale: bool) -> 
     ).filter(pl.col("fruit_id").is_in(list(fruit_ids)))
     assert tuple(fruit["fruit_id"].to_list()) == fruit_ids, "fruit order changed"
     x = load_features(cfg, representation, list(fruit_ids))
-    y = fruit["defective"].to_numpy().astype(float)
+    y = fruit[target].to_numpy().astype(float)
     folds = pl.read_csv(cfg.path("derived_dir") / "outer_folds_20" / "outer_folds.csv")
     # PLS has at most as many LVs as features: 10 for the tissue features, 15 otherwise.
     n_components = min(MAX_COMPONENTS, x.shape[1])
@@ -160,7 +200,7 @@ def cross_validate_grade(representation: str, fruit_ids: tuple, scale: bool) -> 
 
 
 @app.cell(hide_code=True)
-def _(SCALED, fruit, representation_choice, run_cv):
+def _(SCALED, fruit, representation_choice, run_cv, target_choice):
     # In script mode the button is never pressed; the cross-validation then runs directly.
     mo.stop(
         mo.running_in_notebook() and not run_cv.value,
@@ -170,8 +210,9 @@ def _(SCALED, fruit, representation_choice, run_cv):
         representation_choice.value,
         tuple(fruit["fruit_id"].to_list()),
         representation_choice.value in SCALED,
+        target_choice.value,
     )
-    grade = fruit["defective"].to_numpy()
+    grade = fruit["target"].to_numpy()
     print(
         f"{representation_choice.value}: predictions for {cv['predictions'].shape[0]}"
         f" repeats × {cv['predictions'].shape[1]} fruit × {cv['predictions'].shape[2]} LVs"
@@ -320,9 +361,9 @@ def _(cv, fruit, grade, lv_choice):
     )
 
     # Box bootstrap of the Spearman correlation: whole boxes drawn with replacement.
-    _table = fruit.select("box", "defective").with_columns(prediction=mean_prediction)
+    _table = fruit.select("box", "target").with_columns(prediction=mean_prediction)
     _low, _high = box_bootstrap(
-        lambda t: spearmanr(t["prediction"], t["defective"]).statistic, _table
+        lambda t: spearmanr(t["prediction"], t["target"]).statistic, _table
     )
     scores = {**_main, "spearman_box_bootstrap_95": [_low, _high], "n_lv": chosen_lv}
     _summary = pl.DataFrame(
@@ -350,11 +391,18 @@ def _(fruit, mean_prediction):
     # Charter rule 5: per true grade, split by cause. Columns `as_0` to `as_3`: the share of
     # the fruit whose rounded prediction is that grade (each row sums to 1).
     predictions_table = fruit.select(
-        "fruit_id", "box", "defective", "browning", "cavity", "cause", "binary_23"
+        "fruit_id",
+        "box",
+        "target",
+        "defective",
+        "browning",
+        "cavity",
+        "cause",
+        "binary_23",
     ).with_columns(prediction=mean_prediction, rounded=rounded_grade(mean_prediction))
     _cause_order = {_c: _k for _k, _c in enumerate(CAUSES)}
     (
-        predictions_table.group_by("cause", "defective")
+        predictions_table.group_by("cause", "target")
         .agg(
             n=pl.len(),
             mean_prediction=pl.col("prediction").mean().round(2),
@@ -364,7 +412,7 @@ def _(fruit, mean_prediction):
             },
         )
         .with_columns(_order=pl.col("cause").replace_strict(_cause_order))
-        .sort("_order", "defective")
+        .sort("_order", "target")
         .drop("_order")
     )
     return (predictions_table,)
@@ -377,7 +425,7 @@ def _(predictions_table):
         .mark_tick(thickness=2)
         .encode(
             x=alt.X("prediction:Q", title="out-of-fold predicted grade"),
-            y=alt.Y("defective:O", title="defective grade"),
+            y=alt.Y("target:O", title="grade (target)"),
             color=alt.Color("cause:N", sort=list(CAUSES)),
             tooltip=[
                 "fruit_id",
@@ -429,8 +477,8 @@ def _():
 @app.cell(hide_code=True)
 def _():
     colour_choice = mo.ui.dropdown(
-        options=["defective", "cause", "box", "browning", "cavity"],
-        value="defective",
+        options=["target", "defective", "cause", "box", "browning", "cavity"],
+        value="target",
         label="Colour by",
     )
     colour_choice
@@ -444,7 +492,7 @@ def _(SCALED, cfg, chosen_lv, folds, fruit, representation_choice):
     # At least 2 components, so that t2 exists even when 1 LV was chosen.
     _pls = out_of_fold_scores(
         _x,
-        fruit["defective"].to_numpy(),
+        fruit["target"].to_numpy(),
         fruit["box"].to_numpy(),
         folds,
         repeat=1,
@@ -459,19 +507,19 @@ def _(SCALED, cfg, chosen_lv, folds, fruit, representation_choice):
         np.round(_pca.explained_variance_ratio_, 3).tolist(),
     )
     score_table = fruit.select(
-        "fruit_id", "box", "defective", "cause", "browning", "cavity"
+        "fruit_id", "box", "target", "defective", "cause", "browning", "cavity"
     ).with_columns(t1=_pls[:, 0], t2=_pls[:, 1], pc1=_pcs[:, 0], pc2=_pcs[:, 1])
     return (score_table,)
 
 
 @app.cell(hide_code=True)
 def _(colour_choice, score_table):
-    _is_grade = colour_choice.value in ("defective", "browning", "cavity")
+    _is_grade = colour_choice.value in ("target", "defective", "browning", "cavity")
     _colour = alt.Color(
         f"{colour_choice.value}:{'O' if _is_grade else 'N'}",
         scale=alt.Scale(scheme="viridis") if _is_grade else alt.Undefined,
     )
-    _tooltip = ["fruit_id", "box", "defective", "cause"]
+    _tooltip = ["fruit_id", "box", "target", "defective", "cause"]
 
     def _panel(x, y, title):
         return (
@@ -498,6 +546,7 @@ def _():
 def _(
     REPRESENTATIONS,
     SCALED,
+    TARGETS,
     cfg,
     chosen_lv,
     curves,
@@ -506,10 +555,12 @@ def _(
     save_button,
     score_table,
     scores,
+    target_choice,
 ):
     mo.stop(not save_button.value, mo.md("_Not saved._"))
     _run_dir = new_run_dir(
-        cfg.path("results_dir"), f"pls_grade_{representation_choice.value}"
+        cfg.path("results_dir"),
+        f"pls_{target_choice.value}_grade_{representation_choice.value}",
     )
     predictions_table.write_parquet(_run_dir / "predictions.parquet")
     score_table.write_parquet(_run_dir / "score_plot_repeat1.parquet")
@@ -518,7 +569,12 @@ def _(
     write_run_record(
         _run_dir,
         {
-            "what": "PLS regression on the defective grade (0 to 3), design A, 12 open 2526 boxes",
+            "what": "PLS regression on the grade (0 to 3), design A, 12 open 2526 boxes",
+            "target": target_choice.value,
+            "target_label": TARGETS[target_choice.value],
+            "fruit_filter": "cavity == 0"
+            if target_choice.value == "browning"
+            else "none",
             "representation": representation_choice.value,
             "representation_label": REPRESENTATIONS[representation_choice.value],
             "n_fruit": predictions_table.height,
