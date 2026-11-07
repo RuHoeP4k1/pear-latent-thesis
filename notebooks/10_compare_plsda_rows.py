@@ -19,7 +19,6 @@ with app.setup(hide_code=True):
         box_bootstrap,
         healthy_fruit_correlations,
         score_icc,
-        within_between_logit,
         within_box_auc,
     )
     from pearlatent.plsda import (
@@ -37,7 +36,7 @@ def _():
 
     **Question.** Is one representation better than another at telling consumable from
     non-consumable fruit, by more than the variation between orchards (boxes)? And does any
-    row owe its score to the box rather than to the fruit (nuisance checks A to C)?
+    row owe its score to the box rather than to the fruit (nuisance checks A and C)?
 
     **What is compared.** The four PLS-DA runs of notebook 08 (saved 3 November 2026):
     Hugo's latent (full 32³ grid, 4 latent variables), CT averaged to 32³ (5), tissue
@@ -49,8 +48,9 @@ def _():
     - Paired box bootstrap of the difference in AUC (area under the ROC curve), for all six
       pairs of rows (`docs/cv_explained.md`, section 7;
       `pearlatent.plsda.paired_box_bootstrap_auc_difference`).
-    - Nuisance checks A to C on each row (`docs/methods_plsda.md`, section 6;
-      `pearlatent.nuisance`).
+    - Nuisance checks A (with the intraclass correlation beside it) and C on each row
+      (`docs/methods_plsda.md`, section 6; `pearlatent.nuisance`). The box-mean against
+      within-box logistic regression (old check B) was dropped on 7 November 2026 (Ruben).
 
     **Inputs.** `results/<run>/predictions.parquet`, `run.json` and `scores.json` of the four
     runs in `pearlatent.runs.PLSDA_BINARY23_RUN_DIRS`; the fruit table with the descriptors
@@ -58,14 +58,15 @@ def _():
     boxes are not in these runs.
 
     **Outputs.** `results/<run_id>_compare_plsda_binary23/` (only when the save button is
-    pressed): the pair table, the bootstrap differences, the nuisance tables and `run.json`.
+    pressed): the pair table, the bootstrap differences, the two nuisance tables and
+    `run.json`.
 
     **Status.** draft (7 November 2026)
     """)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     cfg = load_config()
     ROW_LABELS = {
@@ -89,7 +90,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(ROW_LABELS, cfg):
     _results = cfg.path("results_dir")
     _label_columns = ["fruit_id", "box", "defective", "browning", "cavity", "cause", "binary_23"]
@@ -134,7 +135,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(ROW_LABELS, predictions, run_records, stored_scores):
     _y = predictions["binary_23"].to_numpy()
     auc_check = pl.DataFrame(
@@ -174,7 +175,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(predictions):
     _y = predictions["binary_23"].to_numpy()
     _boxes = predictions["box"].to_numpy()
@@ -211,7 +212,7 @@ def _():
     return (run_bootstrap,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(ROW_LABELS, predictions, run_bootstrap):
     # In script mode the button is never pressed, so the cell runs without it.
     mo.stop(mo.running_in_notebook() and not run_bootstrap.value)
@@ -280,19 +281,21 @@ def _(pair_choice, pair_differences):
 @app.cell(hide_code=True)
 def _():
     mo.md(r"""
-    ## 4. Nuisance checks A to C
+    ## 4. Nuisance checks A and C
 
     The "score" of a fruit is its out-of-fold prediction. Same computation as on 3 November
     (`docs/methods_plsda.md`, section 6), now saved as a run:
 
     - **A. Within-box AUC.** The AUC using only pairs (one non-consumable, one consumable
       fruit) from the same box. Close to the overall AUC: the row does not need differences
-      between boxes to rank the fruit. Interval: 2,000 box draws, seed 369.
-    - **B. Box mean against within-box deviation.** Logistic regression of `binary_23` on
-      the box mean of the score and the fruit's deviation from it, both per standard
-      deviation of the score, standard errors clustered by box. The within-box coefficient
-      should be clearly above 0. ICC: share of the score's variation between boxes given the
-      grade (linear mixed model, random intercept per box).
+      between boxes to rank the fruit. Interval: 2,000 box draws, seed 369. Beside it the
+      **intraclass correlation (ICC) given the grade**: among fruit of the same defective
+      grade, the share of the score's variation that is a shift per box (linear mixed
+      model, random intercept per box). Near 0: the score does not carry the orchard.
+    - The old check B (logistic regression on the box mean and the within-box deviation of
+      the score) is not reported (Ruben, 7 November 2026): its within-box part repeats
+      check A, and its box-mean part cannot separate a box effect in the features from real
+      differences in defect rate between orchards.
     - **C. Healthy fruit only (grade 0).** Spearman correlation of the score (minus its box
       median) with stalk length and with body size. Should be near 0: the score should not
       follow the stalk or the size. Interval: 1,000 box draws.
@@ -300,7 +303,7 @@ def _():
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(cfg, predictions):
     # Stalk length, body size and stalk presence from the descriptors run, joined one to
     # one on fruit_id. Only fruit in the predictions are kept (inner join on the right side).
@@ -317,14 +320,14 @@ def _(cfg, predictions):
     return (fruit_with_descriptors,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(ROW_LABELS, fruit_with_descriptors, run_bootstrap):
     mo.stop(mo.running_in_notebook() and not run_bootstrap.value)
     # Check C interval with 1,000 draws (as on 3 November): it refits nothing, but the
     # box median is recomputed in every draw, which is slower than an AUC.
     _check_c_resamples = 1000
 
-    _rows_a, _rows_b, _rows_c = [], [], []
+    _rows_a, _rows_c = [], []
     for _row, _label in ROW_LABELS.items():
         _table = fruit_with_descriptors.with_columns(score=pl.col(f"prediction_{_row}"))
 
@@ -340,14 +343,8 @@ def _(ROW_LABELS, fruit_with_descriptors, run_bootstrap):
                 "within_box_auc": _within(_table),
                 "lower_95": _lower,
                 "upper_95": _upper,
+                "icc_given_grade": score_icc(_table),
             }
-        )
-
-        # Check B
-        _rows_b.append(
-            within_between_logit(_table).with_columns(
-                row=pl.lit(_label), icc_given_grade=pl.lit(score_icc(_table))
-            )
         )
 
         # Check C
@@ -371,19 +368,16 @@ def _(ROW_LABELS, fruit_with_descriptors, run_bootstrap):
             )
 
     check_a = pl.DataFrame(_rows_a)
-    check_b = pl.concat(_rows_b).select("row", pl.exclude("row"))
     check_c = pl.DataFrame(_rows_c)
     mo.vstack(
         [
-            mo.md("**A. Within-box AUC**"),
+            mo.md("**A. Within-box AUC, and the ICC of the score given the grade**"),
             check_a,
-            mo.md("**B. Box mean against within-box deviation (log-odds per SD)**"),
-            check_b,
             mo.md("**C. Grade 0 fruit: Spearman correlation with stalk and size**"),
             check_c,
         ]
     )
-    return check_a, check_b, check_c
+    return check_a, check_c
 
 
 @app.cell
@@ -397,7 +391,6 @@ def _():
 def _(
     cfg,
     check_a,
-    check_b,
     check_c,
     pair_differences,
     pair_table,
@@ -410,13 +403,12 @@ def _(
     pair_table.write_parquet(_dir / "pair_differences.parquet")
     np.savez(_dir / "bootstrap_differences.npz", **pair_differences)
     check_a.write_parquet(_dir / "check_a_within_box_auc.parquet")
-    check_b.write_parquet(_dir / "check_b_box_mean_vs_within.parquet")
     check_c.write_parquet(_dir / "check_c_healthy_correlations.parquet")
     write_run_record(
         _dir,
         {
-            "what": "paired box bootstrap of AUC differences and nuisance checks A to C "
-            "for the four PLS-DA rows on binary_23 (open 2526 boxes)",
+            "what": "paired box bootstrap of AUC differences and nuisance checks A (with the ICC) "
+            "and C for the four PLS-DA rows on binary_23 (open 2526 boxes)",
             "plsda_runs": PLSDA_BINARY23_RUN_DIRS,
             "plsda_run_commits": {
                 _row: _record["git"]["commit"] for _row, _record in run_records.items()

@@ -89,7 +89,7 @@ set cavities to 0 as well made a cavity look like average tissue and was replace
 1911753). Because of step 2 the features do not carry the fruit's overall brightness, unlike
 Hugo's latent through InstanceNorm. Open: the skin rim enters at about −5 (question 46).
 
-## 6. Nuisance checks (`docs/nuisance_check.md` section 3; computed 3 November 2026)
+## 6. Nuisance checks (`docs/nuisance_check.md` section 3; computed 3 November 2026, saved by notebook 10)
 
 On the averaged out-of-fold score of each row, for all four rows:
 
@@ -97,11 +97,16 @@ On the averaged out-of-fold score of each row, for all four rows:
   box with non-consumable scores 0.8, 0.4 and consumable 0.5, 0.1: of the 4 pairs, 3 have the
   non-consumable fruit higher (0.8 > 0.5, 0.8 > 0.1, 0.4 > 0.1), so 0.75. Interval: 2,000
   draws of 12 boxes with replacement, seed 369; a box drawn twice counts as two boxes.
-- B. Logistic regression of `binary_23` on the box mean of the score and the fruit's deviation
-  from it, both divided by the SD of the score, standard errors clustered by box (not a
-  random-intercept model: statsmodels has none for a binary outcome; same within-box effect by
-  the Mundlak argument). Plus the intraclass correlation of the score given the grade (linear
-  mixed model, random intercept per box).
+- B. Intraclass correlation of the score given the grade (linear mixed model, score ~ grade as
+  categories + random intercept per box): the share of the score's variation that is a shift per
+  box among fruit of the same grade. Reported beside check A.
+  Dropped on 7 November 2026 (Ruben): the logistic regression of `binary_23` on the box mean
+  of the score and the fruit's deviation from it (computed on 3 November). Its within-box
+  coefficient repeats check A; its box-mean coefficient cannot tell a box effect in the
+  features from real differences in defect rate between orchards (example: a box with 20
+  non-consumable fruit out of 30 has a high mean score whether or not the features carry the
+  orchard), and it rests on 12 boxes. `pearlatent.nuisance.within_between_logit` stays in the
+  code but is not used.
 - C. Grade 0 fruit only (145): Spearman correlation of the score minus its box median with
   stalk length and with body size (`derived/descriptors/20261023T155219Z_descriptors`);
   interval from 1,000 box draws.

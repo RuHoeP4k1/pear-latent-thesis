@@ -96,9 +96,11 @@ training). Dropped on 29 October (Hugo): the random frozen encoder.
 6. Report per grade: recall per grade, a severity score fitted on grade 0 vs 3 only, binary_23 with
    binary_123 beside it. Two curves: any defect, and cavity-free browning.
 7. Recall and precision beside accuracy.
-8. Orchard check: mixed model with a random intercept per box and the score split into box mean
-   and within-box deviation; report the intraclass correlation. Fruit dimensions enter this check
-   as covariates.
+8. Orchard check: the within-box AUC and the intraclass correlation of the score given the grade
+   (mixed model, random intercept per box). The split of the score into box mean and within-box
+   deviation is not reported (Ruben, 7 November 2026: the within-box part repeats the within-box
+   AUC; the box-mean part cannot separate a box effect from real differences in defect rate
+   between orchards). Fruit dimensions enter this check as covariates.
 9. Normalisation from training folds only, without reference to class.
 10. Exclusions: the 17 unscanned 2526 fruit. Rot: Hugo (13 October) says rot is not really a
     problem in 2526 (storage conditions less extreme), so the 24 fruit with browning 3 and cavity 3
