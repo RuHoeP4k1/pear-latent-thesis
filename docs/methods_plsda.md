@@ -205,3 +205,16 @@ First result (7 November 2026, headless run of notebook 12, not yet saved as a r
 
 Always grade 0: error rate 0.540. No representation assigns a grade 1 fruit to grade 1; most
 grade 1 fruit are assigned grade 0, and grade 2 fruit mostly to grade 3.
+
+Check on the limit "the score was trained on grade ≥ 2 or not" (7 November 2026, scratch run,
+same design A). AUC between neighbouring grades (0 | 1, 1 | 2, 2 | 3) of three out-of-fold
+scores, each averaged over the 20 repeats:
+
+| | `binary_23` (saved run) | PLS on the grade 0 to 3, 3 to 7 LVs | PLS on `binary_123`, 3 to 7 LVs |
+|---|---|---|---|
+| Hugo's latent | 0.65, 0.81, 0.62 | 0.61 to 0.65, 0.78 to 0.79, 0.60 to 0.63 | 0.63 to 0.65, 0.72 to 0.78, 0.56 to 0.62 |
+| Med3D | 0.72, 0.86, 0.64 | 0.67 to 0.70, 0.86 to 0.89, 0.59 to 0.65 | 0.66 to 0.70, 0.87 to 0.88, 0.57 to 0.62 |
+
+A score trained on the full grade, or on the 0 | 1 cut itself, does not separate grade 0 from
+grade 1 better than the `binary_23` score. The weak 0 | 1 and 2 | 3 separation is therefore not
+caused by the target the score was trained on.
