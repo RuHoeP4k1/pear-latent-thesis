@@ -146,3 +146,62 @@ not sum to 1.
 Targets: the browning grade on the cavity-free fruit (cavity grade 0; 233 of the 315 fruit), or
 the defective grade on all 315 fruit. A single PLS regression on the grade as a number
 (notebook 11 of the first hours of 7 November) was deleted the same day (Ruben).
+
+**Result and why it fails (7 November 2026, all 315 fruit, defective grade; seen in a scratch
+run of the same computation as notebook 11).** For every class model, RMSECV compared with the
+RMSE of no model (every fruit predicted at the class share, that is the standard deviation of
+the dummy):
+
+| Hugo's latent | no model | best RMSECV | AUC at 3 LVs |
+|---|---|---|---|
+| grade 0 against the rest | 0.498 | 0.416 (3 LVs) | 0.84 |
+| grade 1 against the rest | 0.336 | 0.348 (1 LV) | 0.55 |
+| grade 2 against the rest | 0.371 | 0.381 (1 LV) | 0.67 |
+| grade 3 against the rest | 0.430 | 0.386 (3 LVs) | 0.82 |
+
+The models of grades 1 and 2 never predict better than no model, at any number of LVs, for any
+of the four representations, and on the browning target (cavity-free fruit) as well. The
+spread of RMSECV over the 20 repeats is 0.003 to 0.008, so this is no instability between
+repeats but absence of signal. Highest-membership assignment (latent, LVs at the minimum):
+error rate 0.394 against 0.540 for always grade 0; 2 fruit assigned to grade 1 and 10 to
+grade 2, out of 315.
+
+Reason: on the binary PLS-DA prediction (section 3) the grades lie in order (latent, median
+per grade 0.15, 0.28, 0.61, 0.75; same order for the other three rows). A linear model cannot
+give a middle grade a high value while both neighbours get a low one. One-versus-rest PLS-DA
+fits classes that are separate groups (varieties, origins), not steps on one scale. Kept as a
+reported negative result (Ruben, 7 November 2026). Notebook 11, section 1, shows the four
+curves in one plot as RMSECV divided by the no-model RMSE (dashed line at 1). For grades 1 and
+2 Ruben takes 1 LV (no elbow, minimum at 1).
+
+## 9. Ordinal model on the binary PLS-DA prediction (7 November 2026, Ruben)
+
+Notebook 12, module `pearlatent.ordinal`. Input: the saved out-of-fold prediction of the four
+`binary_23` runs (section 7), no new PLS model and no new choice of LVs. Model: cumulative
+logit (`statsmodels` `OrderedModel`, `distr="logit"`, no constant),
+P(grade ≤ j) = logistic(c_j − β · prediction), j = 0, 1, 2. Fitted per repeat and fold of the
+same 20 × 4-fold box design on the training boxes, applied to the held-out boxes, probabilities
+averaged over the repeats; assignment to the most probable grade. Reported: error rate,
+quadratic weighted kappa, Spearman correlation of the expected grade with the true grade,
+share within one grade, recall per grade, split by cause.
+
+Limit: the saved prediction of a training fruit is an average of fold models, some fitted on
+the held-out boxes. The ordinal step has four parameters, so the effect is small, but the
+scheme is not fully nested.
+
+Example (latent, fit on all 315 fruit): β = 4.91, boundaries on the prediction axis
+c_j / β = 0.325 (grade 0 | 1), 0.500 (1 | 2), 0.749 (2 | 3). A fruit with prediction 0.40
+lies between the first two boundaries; because grade 0 holds 145 fruit and grade 1 only 41
+and their predictions overlap, its most probable grade is still 0.
+
+First result (7 November 2026, headless run of notebook 12, not yet saved as a run):
+
+| | error rate | recall grade 0 | 1 | 2 | 3 |
+|---|---|---|---|---|---|
+| Hugo's latent | 0.406 | 0.924 | 0.000 | 0.019 | 0.675 |
+| CT at 32³ | 0.416 | 0.931 | 0.000 | 0.000 | 0.636 |
+| tissue features | 0.349 | 0.986 | 0.000 | 0.212 | 0.662 |
+| Med3D | 0.349 | 0.966 | 0.000 | 0.269 | 0.662 |
+
+Always grade 0: error rate 0.540. No representation assigns a grade 1 fruit to grade 1; most
+grade 1 fruit are assigned grade 0, and grade 2 fruit mostly to grade 3.
