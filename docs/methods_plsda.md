@@ -132,7 +132,7 @@ predictions (largest difference 0.0) and replace them. The two first runs were d
 
 ## 8. PLS-DA with one model per grade (decided 7 November 2026, Ruben)
 
-Notebook 12. Following the chemometrics course (chapter 4, "Discrimination via regression"):
+Notebook 11. Following the chemometrics course (chapter 4, "Discrimination via regression"):
 one 0/1 dummy per grade (0, 1, 2, 3), one PLS model per dummy (one-versus-rest), each with its
 own number of LVs chosen by Ruben at the elbow of its mean RMSECV curve, under the same design A
 as section 1. A fruit is assigned to the class whose model gives the highest predicted
@@ -144,5 +144,5 @@ Example: a fruit with predicted memberships 0.10 (grade 0), 0.35 (grade 1), 0.55
 not sum to 1.
 
 Targets: the browning grade on the cavity-free fruit (cavity grade 0; 233 of the 315 fruit), or
-the defective grade on all 315 fruit. Notebook 11 (one PLS regression on the grade as a number)
-stays as a comparison.
+the defective grade on all 315 fruit. A single PLS regression on the grade as a number
+(notebook 11 of the first hours of 7 November) was deleted the same day (Ruben).

@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.25.1"
-app = marimo.App(width="medium", app_title="12 PLS-DA per grade")
+app = marimo.App(width="medium", app_title="11 PLS-DA per grade")
 
 with app.setup(hide_code=True):
     import json
@@ -26,7 +26,7 @@ with app.setup(hide_code=True):
 @app.cell(hide_code=True)
 def _():
     mo.md(r"""
-    # 12 PLS-DA with one model per grade
+    # 11 PLS-DA with one model per grade
 
     **Question.** Can the four grades be told apart with PLS-DA, one class per grade, on
     Hugo's latent, CT at 32³, the tissue features and Med3D? Charter rules 5 and 6.
