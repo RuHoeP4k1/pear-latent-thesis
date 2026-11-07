@@ -246,3 +246,23 @@ fruit, design A; LVs not yet chosen by Ruben). Mean RMSECV at 1 to 5 LVs: latent
 0.884 (grid rows, saved runs: latent 0.887 at 4 LVs, CT 0.839 at 5 LVs). AUC between
 neighbouring grades at 3 LVs (0 | 1, 1 | 2, 2 | 3): latent 0.64, 0.88, 0.65; CT 0.66, 0.78,
 0.60.
+
+Saved runs (Ruben, 7 November 2026, 3 LVs each, clean commit b8af65a):
+`results/20261107T165738Z_plsda_binary23_hugo_vae_hr` (AUC 0.927) and
+`results/20261107T165755Z_plsda_binary23_ct_32_hr` (AUC 0.884); added to
+`PLSDA_BINARY23_RUN_DIRS`, so notebooks 10 and 12 include them.
+
+Seen in headless runs of notebooks 10 and 12 (7 November 2026, not yet saved as runs):
+- Paired AUC difference, height-radius minus full grid: latent +0.040 (0.005 to 0.077), CT
+  +0.045 (−0.007 to 0.102). Latent height-radius minus CT height-radius +0.043 (0.008 to
+  0.082); Med3D minus latent height-radius +0.031 (−0.008 to 0.073); tissue features minus
+  latent height-radius +0.011 (−0.018 to 0.042).
+- Check A: within-box AUC latent height-radius 0.904 (0.841 to 0.949), CT height-radius 0.867;
+  ICC given grade 0.101 and 0.094 (grid rows 0.097 and 0.062).
+- Check C, latent height-radius, 145 healthy fruit: Spearman of the score with stalk length
+  −0.306 (−0.491 to −0.203) and with body size (body voxels) +0.342 (0.189 to 0.523); both
+  intervals exclude 0. The CT height-radius row does not show this (−0.021 and +0.037). On
+  healthy fruit, the latent height-radius score therefore rises with fruit size and falls with
+  stalk length: part of it describes the fruit, not the defect. Not yet explained.
+- Ordinal model (notebook 12): latent height-radius error rate 0.365, weighted kappa 0.697,
+  recall per grade 0.945, 0.000, 0.250, 0.649; CT height-radius 0.406, 0.590.

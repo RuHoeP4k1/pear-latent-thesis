@@ -1,7 +1,10 @@
 import marimo
 
 __generated_with = "0.25.1"
-app = marimo.App(width="medium", app_title="12 Ordinal model on the PLS-DA prediction")
+app = marimo.App(
+    width="medium",
+    app_title="12 Ordinal model on the PLS-DA prediction",
+)
 
 with app.setup:
     import altair as alt
@@ -39,9 +42,9 @@ def _():
     with one slope β and three cut-points c_0 < c_1 < c_2. On the score axis the boundary
     between grade j and j + 1 lies at c_j / β. No new PLS model and no new choice of LVs: the
     prediction comes from the saved runs at Ruben's LVs (latent 4, CT at 32³ 5, tissue
-    features 7, Med3D 7).
+    features 7, Med3D 7; height-radius rows of the latent and of CT 3 each).
 
-    **Inputs.** `results/<run>/predictions.parquet` of the four runs in
+    **Inputs.** `results/<run>/predictions.parquet` of the six runs in
     `PLSDA_BINARY23_RUN_DIRS`; `derived/outer_folds_20/outer_folds.csv`.
 
     **Outputs.** On request: `results/<run_id>_ordinal_defective/` with the class

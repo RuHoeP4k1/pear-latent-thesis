@@ -26,6 +26,9 @@ PLSDA_BINARY23_RUN_DIRS = {
     "ct_32": "20261103T101429Z_plsda_binary23_ct_32",
     "tissue_features": "20261103T100917Z_plsda_binary23_tissue_features",
     "med3d": "20261103T100914Z_plsda_binary23_med3d",
+    # Height-radius rows, 3 LVs each (Ruben, 7 November 2026).
+    "hugo_vae_hr": "20261107T165738Z_plsda_binary23_hugo_vae_hr",
+    "ct_32_hr": "20261107T165755Z_plsda_binary23_ct_32_hr",
 }
 
 
