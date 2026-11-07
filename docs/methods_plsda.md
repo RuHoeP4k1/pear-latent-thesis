@@ -279,7 +279,7 @@ at the first step without improvement.
 
 First result (`binary_23`, 315 fruit, design A; seen in a headless run, figures only):
 - Latent, heights alone: lowest RMSECV in bins 7, 8, 6, 9 (0.357, 0.360, 0.367, 0.379; all
-  160 features at 3 LVs 0.339, no model 0.484); bins 0 to 2 and 14 to 19 alone are near
+  160 features at 3 LVs 0.339, no model 0.492: 129 of 315 non-consumable); bins 0 to 2 and 14 to 19 alone are near
   no model (0.47 to 0.50). Forward path: 0.357 with bin 7, 0.338 after three bins, lowest
   0.330 with ten bins.
 - Latent, depths alone: bins 3, 2, 4 best (0.362, 0.363, 0.371); axis (0) 0.438, the two
