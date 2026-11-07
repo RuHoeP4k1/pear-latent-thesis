@@ -187,11 +187,13 @@ def _():
     mo.md(r"""
     ## 1. One error curve per class: choose the number of LVs of each class model
 
-    Per class: RMSECV(h) of its 0/1 dummy, for PRESS averaged over the 20 repeats (black,
-    left axis), and, as a check on the elbow, the error rate of that model alone at a
-    cut-off of 0.5 (orange, right axis: share of fruit on the wrong side of 0.5 for "this
-    class or not"). The RMSECV curve decides (as in notebook 08); the error-rate curve shows
-    whether the classification would choose differently.
+    One line per class model: RMSECV(h) of its 0/1 dummy (PRESS averaged over the 20
+    repeats), divided by the RMSE of no model at all, that is predicting the class share
+    for every fruit (the standard deviation of the dummy). The raw RMSECV values differ per
+    class because the shares differ (46 % against 13 %); the ratio puts all four on one
+    scale. Below 1 (dashed line): the model predicts that class better than no model.
+    At or above 1 for every number of LVs: the class is not recognised. Example: grade 1,
+    41 of 315 fruit, no-model RMSE 0.336, RMSECV at 1 LV 0.348, ratio 1.04.
     """)
     return
 
@@ -202,50 +204,61 @@ def _(CLASSES, class_predictions, grade):
     for _k in CLASSES:
         _dummy = (grade == _k).astype(float)
         _press = mean_squared_errors(class_predictions[_k], _dummy).sum(axis=0)
-        _mean_prediction = class_predictions[_k].mean(axis=0)  # (fruit, LVs)
-        _wrong = (_mean_prediction >= 0.5) != (_dummy[:, None] == 1)
+        # RMSE when every fruit gets the class share as its prediction.
+        _no_model_rmse = float(_dummy.std())
         for _h in range(_press.size):
+            _rmsecv = float(np.sqrt(_press[_h] / _dummy.size))
             _rows.append(
                 {
                     "class": _k,
                     "n_lv": _h + 1,
-                    "rmsecv": float(np.sqrt(_press[_h] / _dummy.size)),
-                    "error_rate_at_0_5": float(_wrong[:, _h].mean()),
+                    "rmsecv": _rmsecv,
+                    "no_model_rmse": _no_model_rmse,
+                    "rmsecv_ratio": _rmsecv / _no_model_rmse,
                     "share_in_class": float(_dummy.mean()),
                 }
             )
     class_curves = pl.DataFrame(_rows)
+    print(
+        "no-model RMSE per class:",
+        {
+            _k: round(_v, 3)
+            for _k, _v in class_curves.group_by("class")
+            .agg(pl.col("no_model_rmse").first())
+            .sort("class")
+            .iter_rows()
+        },
+    )
 
-    def _panel(k):
-        _data = class_curves.filter(pl.col("class") == k)
-        _base = alt.Chart(_data).encode(x=alt.X("n_lv:O", title="number of LVs"))
-        _rmse = _base.mark_line(point=True, color="black").encode(
-            y=alt.Y("rmsecv:Q", title="RMSECV", scale=alt.Scale(zero=False))
+    _lines = (
+        alt.Chart(
+            class_curves.with_columns(pl.format("grade {}", "class").alias("model"))
         )
-        _error = _base.mark_line(point=True, color="#e6550d").encode(
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("n_lv:O", title="number of LVs"),
             y=alt.Y(
-                "error_rate_at_0_5:Q",
-                title="error rate at 0.5",
+                "rmsecv_ratio:Q",
+                title="RMSECV / RMSE of no model",
                 scale=alt.Scale(zero=False),
-            )
+            ),
+            color=alt.Color("model:N", title="class model"),
+            tooltip=[
+                "model",
+                "n_lv",
+                alt.Tooltip("rmsecv:Q", format=".3f"),
+                alt.Tooltip("rmsecv_ratio:Q", format=".3f"),
+            ],
         )
-        _share = _data["share_in_class"][0]
-        return (
-            alt.layer(_rmse, _error)
-            .resolve_scale(y="independent")
-            .properties(
-                width=260,
-                height=200,
-                title=f"grade {k} against the rest ({_share:.0%} in class)",
-            )
-        )
-
+    )
+    _one = (
+        alt.Chart(pl.DataFrame({"y": [1.0]}))
+        .mark_rule(strokeDash=[4, 4])
+        .encode(y="y:Q")
+    )
     mo.vstack(
         [
-            alt.vconcat(
-                alt.hconcat(_panel(CLASSES[0]), _panel(CLASSES[1])),
-                alt.hconcat(_panel(CLASSES[2]), _panel(CLASSES[3])),
-            ),
+            alt.layer(_lines, _one).properties(width=560, height=320),
             class_curves.pivot(on="class", index="n_lv", values="rmsecv").rename(
                 {str(_k): f"rmsecv grade {_k}" for _k in CLASSES}
             ),
