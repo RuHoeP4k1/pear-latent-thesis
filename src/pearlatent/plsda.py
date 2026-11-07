@@ -194,3 +194,55 @@ def box_bootstrap_auc(
             aucs.append(roc_auc_score(y[index], prediction[index]))
     aucs = np.array(aucs)
     return float(np.percentile(aucs, 2.5)), float(np.percentile(aucs, 97.5)), aucs
+
+
+def paired_box_bootstrap_auc_difference(
+    prediction_a: np.ndarray,
+    prediction_b: np.ndarray,
+    y: np.ndarray,
+    boxes: np.ndarray,
+    n_resamples: int = BOOTSTRAP_RESAMPLES,
+    seed: int = BOOTSTRAP_SEED,
+) -> dict:
+    """AUC of method A minus AUC of method B, with a paired 95 % interval over boxes.
+
+    In: the out-of-fold predictions of two methods for the same fruit (same order), the 0/1
+    label and the box of every fruit. Out: a dict with `auc_a`, `auc_b`, `difference`
+    (A minus B on all fruit), `lower_95`, `upper_95`, `share_a_better` (share of draws in
+    which A has the higher AUC) and `differences` (one value per draw).
+
+    Why paired (`docs/cv_explained.md`, section 7): in every draw both AUCs are computed on
+    the same drawn boxes, and only their difference is kept. A box that is hard for both
+    methods lowers both AUCs in that draw and drops out of the difference, so the interval
+    of the difference is narrower than the two separate intervals suggest. The same seed as
+    `box_bootstrap_auc` draws the same boxes in the same order. A draw without both classes
+    is skipped (it has no AUC).
+    """
+    prediction_a, prediction_b = np.asarray(prediction_a), np.asarray(prediction_b)
+    y, boxes = np.asarray(y), np.asarray(boxes)
+    if not (prediction_a.shape == prediction_b.shape == y.shape == boxes.shape):
+        raise ValueError("predictions, labels and boxes must have one value per fruit")
+    names = np.unique(boxes)
+    members = {b: np.flatnonzero(boxes == b) for b in names}
+    rng = np.random.default_rng(seed)
+    differences = []
+    for _ in range(n_resamples):
+        drawn = rng.choice(names, size=len(names), replace=True)
+        index = np.concatenate([members[b] for b in drawn])
+        if len(np.unique(y[index])) < 2:
+            continue
+        auc_a = roc_auc_score(y[index], prediction_a[index])
+        auc_b = roc_auc_score(y[index], prediction_b[index])
+        differences.append(auc_a - auc_b)
+    differences = np.array(differences)
+    auc_a_all = float(roc_auc_score(y, prediction_a))
+    auc_b_all = float(roc_auc_score(y, prediction_b))
+    return {
+        "auc_a": auc_a_all,
+        "auc_b": auc_b_all,
+        "difference": auc_a_all - auc_b_all,
+        "lower_95": float(np.percentile(differences, 2.5)),
+        "upper_95": float(np.percentile(differences, 97.5)),
+        "share_a_better": float(np.mean(differences > 0)),
+        "differences": differences,
+    }

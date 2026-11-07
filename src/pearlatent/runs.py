@@ -19,6 +19,15 @@ DESCRIPTORS_RUN_DIR = "descriptors/20261023T155219Z_descriptors"
 TISSUE_FEATURES_RUN_DIR = "tissue_features/20261102T151947Z_tissue_features"
 MED3D_RUN_DIR = "med3d/20261102T185107Z_med3d_resnet18"
 
+# The PLS-DA runs on binary_23 in use (folders under `results_dir`, saved 3 November 2026 by
+# notebook 08; `docs/methods_plsda.md`, section 7). Notebook 10 compares them.
+PLSDA_BINARY23_RUN_DIRS = {
+    "hugo_vae": "20261103T101426Z_plsda_binary23_hugo_vae",
+    "ct_32": "20261103T101429Z_plsda_binary23_ct_32",
+    "tissue_features": "20261103T100917Z_plsda_binary23_tissue_features",
+    "med3d": "20261103T100914Z_plsda_binary23_med3d",
+}
+
 
 def git_state(root: Path | None = None) -> dict:
     """Commit hash and whether the working tree has uncommitted changes."""

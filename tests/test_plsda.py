@@ -9,6 +9,7 @@ from pearlatent.plsda import (
     classification_scores,
     cross_validated_predictions,
     mean_squared_errors,
+    paired_box_bootstrap_auc_difference,
     predict_each_h,
     vip_scores,
     youden_cutoff,
@@ -143,3 +144,44 @@ def test_youden_cutoff_separates_two_clean_groups():
     scores = classification_scores(prediction, y, y, cutoff=cutoff)
     assert scores["recall"] == 1.0 and scores["precision"] == 1.0
     assert classification_scores(prediction, y, y)["recall"] == 0.0
+
+
+def test_paired_difference_of_identical_methods_is_zero():
+    """The same predictions twice: every draw gives a difference of exactly 0."""
+    rng = np.random.default_rng(0)
+    y = np.tile([0, 1], 60)
+    boxes = np.repeat([f"box_{k}" for k in range(12)], 10)
+    prediction = y + rng.normal(0, 1, y.size)
+    result = paired_box_bootstrap_auc_difference(prediction, prediction, y, boxes, 200)
+    assert result["difference"] == 0.0
+    assert result["lower_95"] == result["upper_95"] == 0.0
+
+
+def test_paired_interval_finds_the_better_method_and_is_narrower():
+    """A has a stronger signal than B; both share a box effect that cancels in the pair."""
+    rng = np.random.default_rng(1)
+    y = np.tile([0, 1], 120)
+    boxes = np.repeat([f"box_{k}" for k in range(12)], 20)
+    shared = rng.normal(0, 1, y.size)  # noise both methods see on the same fruit
+    prediction_a = 1.5 * y + shared + rng.normal(0, 0.3, y.size)
+    prediction_b = 0.8 * y + shared + rng.normal(0, 0.3, y.size)
+    result = paired_box_bootstrap_auc_difference(
+        prediction_a, prediction_b, y, boxes, 500
+    )
+    assert result["difference"] > 0
+    assert result["lower_95"] > 0
+    assert result["share_a_better"] > 0.975
+    _, _, aucs_a = box_bootstrap_auc(prediction_a, y, boxes, 500)
+    _, _, aucs_b = box_bootstrap_auc(prediction_b, y, boxes, 500)
+    # Unpaired: shuffle B's draws so A and B no longer come from the same boxes.
+    unpaired = aucs_a - np.random.default_rng(2).permutation(aucs_b)
+    paired_width = result["upper_95"] - result["lower_95"]
+    unpaired_width = np.percentile(unpaired, 97.5) - np.percentile(unpaired, 2.5)
+    assert paired_width < unpaired_width
+
+
+def test_paired_difference_refuses_unequal_lengths():
+    with pytest.raises(ValueError):
+        paired_box_bootstrap_auc_difference(
+            np.zeros(4), np.zeros(5), np.zeros(4), np.zeros(4)
+        )
