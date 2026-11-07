@@ -172,7 +172,7 @@ give a middle grade a high value while both neighbours get a low one. One-versus
 fits classes that are separate groups (varieties, origins), not steps on one scale. Kept as a
 reported negative result (Ruben, 7 November 2026). Notebook 11, section 1, shows the four
 curves in one plot as RMSECV divided by the no-model RMSE (dashed line at 1). For grades 1 and
-2 Ruben takes 1 LV (no elbow, minimum at 1).
+2 the proposal is 1 LV (no elbow, minimum at 1); Ruben to choose.
 
 ## 9. Ordinal model on the binary PLS-DA prediction (7 November 2026, Ruben)
 
