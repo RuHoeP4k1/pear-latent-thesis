@@ -122,4 +122,5 @@ filled in (`app.run(defs=...)`: representation, number of LVs, save), from clean
 (57277c3 for tissue features and Med3D, a4b318f for the other two). The first runs of Hugo's
 latent and CT at 32³ (`20261102T110957Z`, `20261102T111004Z`) were saved before the Youden
 cut-off existed and have no `cutoff_youden` in `run.json`; the resaved runs have identical
-predictions (largest difference 0.0) and replace them.
+predictions (largest difference 0.0) and replace them. The two first runs were deleted on
+7 November 2026 (Ruben, question 50).
