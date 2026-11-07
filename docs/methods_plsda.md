@@ -129,3 +129,20 @@ latent and CT at 32³ (`20261102T110957Z`, `20261102T111004Z`) were saved before
 cut-off existed and have no `cutoff_youden` in `run.json`; the resaved runs have identical
 predictions (largest difference 0.0) and replace them. The two first runs were deleted on
 7 November 2026 (Ruben, question 50).
+
+## 8. PLS-DA with one model per grade (decided 7 November 2026, Ruben)
+
+Notebook 12. Following the chemometrics course (chapter 4, "Discrimination via regression"):
+one 0/1 dummy per grade (0, 1, 2, 3), one PLS model per dummy (one-versus-rest), each with its
+own number of LVs chosen by Ruben at the elbow of its mean RMSECV curve, under the same design A
+as section 1. A fruit is assigned to the class whose model gives the highest predicted
+membership (averaged over the 20 repeats). Reported: error rate per class and in total, the
+4 × 4 table of true against assigned class, AUC of each class model against the rest.
+
+Example: a fruit with predicted memberships 0.10 (grade 0), 0.35 (grade 1), 0.55 (grade 2),
+0.20 (grade 3) is assigned to grade 2. The four values come from four separate models and need
+not sum to 1.
+
+Targets: the browning grade on the cavity-free fruit (cavity grade 0; 233 of the 315 fruit), or
+the defective grade on all 315 fruit. Notebook 11 (one PLS regression on the grade as a number)
+stays as a comparison.
