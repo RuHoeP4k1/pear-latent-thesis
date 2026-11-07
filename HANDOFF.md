@@ -5,75 +5,81 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-03 (state at the end of the session of 3 November)
-- **Phase:** first models on labels. PLS-DA on `binary_23` (design A, 315 open 2526 fruit
-  after the faulty volumes, 12 open boxes, 20 repeats of 4-fold box cross-validation) is saved
-  for all four representations with both cut-offs. Goal for the meeting with Hugo on
-  **17 November**: PLS-DA and ordinal models on the latent, CT at 32³ and Med3D
-  (`docs/meeting_2026-10-29.md`, outcome section).
-- **Decided on 3 November (Ruben):** Med3D fixed at 7 LVs (its mean RMSECV still falls slightly
-  to 8 and 10 LVs: 0.313, 0.309, 0.308). The other choices of 2 November stand (Hugo's latent
-  4, CT at 32³ 5, tissue features 7; Youden cut-off beside 0.5; Med3D input z-scored on the
-  fruit, 0 outside, cavities kept). Methods record: `docs/methods_plsda.md`.
-- **Done on 3 November (Mac), commits 57277c3 to f87b599:**
-  - Bug fixed in the save cell of notebook 08: `run.json` always said `"scale": false`;
-    tissue features and Med3D are scaled inside each fold. Computation was right, only the
-    record was wrong.
-  - All four PLS-DA runs saved (or resaved) by running notebook 08 headless with the choices
-    filled in (`app.run(defs=...)`, script in the session scratchpad, not in the repository),
-    from clean commits:
-    `results/20261103T101426Z_plsda_binary23_hugo_vae` (4 LVs),
-    `results/20261103T101429Z_plsda_binary23_ct_32` (5),
-    `results/20261103T100917Z_plsda_binary23_tissue_features` (7),
-    `results/20261103T100914Z_plsda_binary23_med3d` (7). The resaved latent and CT runs have
-    predictions identical to the runs of 2 November (`20261102T110957Z`, `20261102T111004Z`),
-    which stay in `results/` but are replaced (no `cutoff_youden`).
-  - Nuisance checks A to C computed for all four rows from the saved predictions (scratch
-    script, **not saved as a run**).
-  - `docs/methods_plsda.md`: scaling, LVs, cut-offs, tissue features, Med3D normalisation,
-    nuisance-check computation, run table, with small numeric examples.
-- **Found (open boxes only, seen by Ruben):**
-  - AUC (box bootstrap 95 %): Med3D 0.958 (0.934–0.973), tissue features 0.938
-    (0.886–0.966), Hugo's latent 0.887 (0.833–0.928), CT at 32³ 0.839 (0.781–0.888).
-  - Youden cut-offs: Med3D 0.432, tissue features 0.339, Hugo's latent 0.500, CT 0.402.
-    Med3D at 0.5: recall 0.81, precision 0.91; at Youden: recall 0.87, precision 0.88, 24 %
-    of grade 1 called non-consumable.
-  - Share called non-consumable rises with grade (Med3D at 0.5: grade 0 3 %, 1 17 %, 2 73 %,
-    3 87 %). Browning-only grade 2 (20 fruit) is the weakest group in every row (45 to 70 %
-    caught). Cavity-only: 3 fruit, too few.
-  - Check A, within-box AUC: Hugo's latent 0.857, CT 0.810, tissue features 0.931, Med3D 0.957;
-    close to the overall AUC in every row. Check B: within-box deviation clearly predictive in
-    every row; for CT at 32³ the box mean is stronger (2.48 against 1.47 log-odds per SD).
-    Check C (145 healthy fruit): no correlation with stalk or size whose interval excludes 0
-    (closest: Hugo's latent with stalk length, −0.20, −0.43 to 0.02).
-  - Not yet claimable: that Med3D beats Hugo's latent (needs the paired bootstrap,
-    `docs/cv_explained.md` section 7).
-- **Next step:** if Ruben agrees (question 49), a notebook 10 that compares the four saved
-  PLS-DA rows: reads the four `predictions.parquet`, runs nuisance checks A to C
-  (`pearlatent.nuisance`, as in `docs/methods_plsda.md` section 6) and the paired box
-  bootstrap of AUC differences on the same fruit, and saves both as a run in `results/`.
-  After that: the ordinal model (cumulative link, `OrderedModel`) on the PLS scores for the
-  defective grade, reported with Spearman and quadratic weighted kappa, for the meeting of
-  17 November.
-- **Blocked on:** nothing for PLS-DA. The ResNet-18 baseline needs the lab workstation
-  (question 9 with Hugo: not known yet).
+- **Date:** 2026-11-07 (state at the end of the session of 7 November, Mac)
+- **Phase:** models on labels for the meeting with Hugo on **17 November**. Six PLS-DA rows on
+  `binary_23` saved (design A, 315 open 2526 fruit, 12 open boxes, 20 × 4-fold box
+  cross-validation); their comparison, the per-grade analysis and the ordinal model are saved
+  as runs. Ruben has at most two days at the laptop before the meeting (trip).
+- **Decided on 7 November (Ruben):**
+  - Nuisance check B (box mean against within-box deviation) dropped; the ICC of the score
+    given the grade (random intercept per box) is reported beside check A (CHARTER rule 8).
+  - The two replaced runs of 2 November deleted.
+  - The three runs of 7 November saved with a dirty working tree deleted
+    (`20261107T114658Z` and `20261107T165957Z` compare, `20261107T165902Z` ordinal); the
+    clean runs `20261107T170510Z` and `20261107T170442Z` replace them.
+  - Per-grade analysis = one-versus-rest PLS-DA (chemometrics course, chapter 4), one PLS model
+    per grade with its own LVs, assignment to the highest membership; target the defective
+    grade on all fruit. It fails for grades 1 and 2 and is kept as a reported negative result.
+    LVs (grade 0/1/2/3): latent 3/1/1/3, CT 5/1/1/5, tissue features 10/1/1/7, Med3D 8/3/2/7.
+  - The PLS regression on the grade as a number deleted (notebook 11 replaced).
+  - Height-radius bins reopened as two model rows (decision of 10 October reversed): 20 height
+    × 8 radius bins, radius per slice, empty bins filled from the nearest filled bins of the
+    same fruit; both at 3 LVs.
+  - Counterfactuals stay on the full latent grid (the height-radius features cannot be
+    decoded); direction from the general model (one fit on all 12 open boxes), not averaged
+    fold models; 2 grade 3 and 2 grade 0 fruit drawn with a fixed seed from different open
+    boxes, Ruben checks their CT slices first.
+- **Done on 7 November, commits 22f7d14 to 82a1aab (not pushed):**
+  - `pearlatent.plsda.paired_box_bootstrap_auc_difference`; notebook 10 (paired AUC
+    differences of all 15 pairs, checks A with ICC and C); run
+    `results/20261107T170510Z_compare_plsda_binary23`.
+  - Notebook 11 (one-versus-rest per grade; section 1 now one plot of RMSECV divided by the
+    no-model RMSE); runs `results/20261107T16*_plsda_classes_defective_*` (four rows).
+  - `pearlatent.ordinal` + notebook 12 (cumulative logit on the saved binary prediction, per
+    box fold); run `results/20261107T170442Z_ordinal_defective`.
+  - `pearlatent.height_radius`, feature sets `hugo_vae_hr` and `ct_32_hr` in
+    `load_features`; runs `results/20261107T165738Z_plsda_binary23_hugo_vae_hr` and
+    `results/20261107T165755Z_plsda_binary23_ct_32_hr`.
+  - Notebook 13: forward iPLS on the height-radius bins (20 height or 8 depth intervals);
+    `pearlatent.ipls.forward_ipls` checked against the SOLO description.
+  - `docs/methods_plsda.md` sections 6 to 11.
+- **Found (open boxes only):**
+  - AUC: Med3D 0.958, tissue features 0.938, latent height-radius 0.927, latent grid 0.887,
+    CT height-radius 0.884, CT grid 0.839. Paired: latent height-radius − latent grid +0.040
+    (0.005 to 0.077); latent grid − CT grid +0.048 (0.019 to 0.082); Med3D − latent
+    height-radius +0.031 (−0.008 to 0.073).
+  - Grade 0 against 1 and grade 2 against 3 hardly separate on any row (pairwise AUC about
+    0.6 to 0.7; 1 against 2: 0.8 to 0.9). Not caused by the `binary_23` target: PLS on the
+    full grade or on `binary_123` does no better. Ordinal model: no fruit of any row assigned
+    to grade 1; weighted kappa 0.51 (CT) to 0.80 (Med3D), latent height-radius 0.70.
+  - Check C: the latent height-radius score on 145 healthy fruit correlates with stalk length
+    (−0.31, −0.49 to −0.20) and body size (+0.34, 0.19 to 0.52). Not explained yet.
+  - iPLS: the information sits at mid height (about 30 to 50 % from the calyx end) and mid
+    depth, for latent and CT; selecting intervals barely lowers RMSECV (0.339 to 0.330).
+- **Next step:** b maps (regression vector of the general `binary_23` model on the full
+  latent grid at 4 LVs, and CT at 32³ at 5 LVs, drawn on the 32³ grid), then the
+  counterfactual notebook: draw the 2 + 2 fruit (fixed seed, different open boxes), show their
+  CT slices to Ruben, time one decode on the Mac, then move `mu` along the normalised b
+  direction at three steps and decode. Ask Ruben before any run longer than a few minutes.
+- **Blocked on:** nothing for the models. The ResNet-18 baseline needs the lab workstation
+  (question 9 with Hugo).
 - **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
-  overwritten; make notebook edits in one write. To save a notebook-08 run without the UI:
-  load the notebook as a module and call `app.run(defs={"REPRESENTATIONS": ...,
-  "representation_choice": SimpleNamespace(value=...), "run_cv": SimpleNamespace(value=True),
-  "lv_choice": SimpleNamespace(value="7"), "save_button": SimpleNamespace(value=True)})`.
+  overwritten; make notebook edits in one write. A notebook can be run headless with
+  `app.run(defs=...)`; every definition of an overridden cell must be passed. Runs saved while
+  the working tree had uncommitted edits record `dirty: true` (the notebook 11 runs of today).
 - **Reference, still valid:**
   - Encoding run `20261013T171306Z_hugo_vae`: open part 940 fruit (346 2526, 594 2425);
     sealed part `derived/sealed/latents/...`, 153 fruit. CT at 32³ run `20261005T142026Z`.
     Tissue features `20261102T151947Z`, Med3D `20261102T185107Z`. All runs in use are listed
-    in `pearlatent.runs`.
+    in `pearlatent.runs` (`PLSDA_BINARY23_RUN_DIRS` holds the six rows).
   - Test boxes **F, J, M** (87 fruit), never opened. Fold partitions in
     `derived/outer_folds_20/outer_folds.csv`.
   - Faulty volumes: `derived/volume_decisions.csv` through `drop_faulty_volumes`; 346 → 315
-    open 2526 fruit. Feature extraction runs on all 940 open fruit; models use the 315.
+    open 2526 fruit.
   - Mac: `/Users/rubenhoeven/code/pear-latent-thesis`, Python 3.12.15, torch 2.14.1 (CPU),
     marimo 0.25.1; Hugo's repository `../Synthetic_CT_pear` at 183112f; MedicalNet
-    `../MedicalNet` at 20f76aa; Med3D encoding about 0.5 s per fruit (10 minutes for 940).
+    `../MedicalNet` at 20f76aa. A decode took about 6 minutes on the Mac (handoff of 23
+    October); time it again before the counterfactuals.
 
 ## Setting up the Mac (written 17 Oct, on the Windows laptop)
 
@@ -203,7 +209,7 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
-Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
+Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
 confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
 `docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
@@ -275,14 +281,6 @@ For Hugo (meeting 29 Oct), added 27 Oct:
     in boxes O and A). Ruben discusses with Hugo how to separate browning from size and stalk
     in the maps (linked to questions 18 and 33).
 
-For Ruben, added 27 Oct:
-39. After the meeting: fit the models on the height-radius bins, on the full flattened
-    latent, or both? A height-radius row reopens the decision of 10 October that dropped the
-    cylindrical bins (and item 20, removing the old cylindrical code in `pooling.py`).
-    28 Oct: Ruben agrees the height-radius map is exploratory (unequal number of cells per
-    bin); a model row on the bins would also need a rule for empty bins. Leaning to the full
-    grid for the models; to confirm.
-
 For Ruben, added 2 Nov:
 45. Tissue features: the partial-volume rim under the skin is always classed as low-density
     tissue (darker than its local mean). Accepted for now; a sensitivity row that erodes the
@@ -291,13 +289,16 @@ For Ruben, added 2 Nov:
 47. Optional extra row: the density-distribution-model residual of Van De Looverbosch et al.
     (2022, anomaly detection, Youden threshold). Wanted?
 
-For Ruben, added 3 Nov:
-49. A notebook 10 for the comparison of the four PLS-DA rows (nuisance checks A to C and the
-    paired box bootstrap of AUC differences), saved as a run? The nuisance numbers of 3 Nov
-    come from a scratch script only.
-50. Delete the two replaced runs of 2 November (`results/20261102T110957Z_...hugo_vae`,
-    `results/20261102T111004Z_...ct_32`), or keep them? Their predictions are identical to
-    the resaved runs.
+For Ruben, added 7 Nov:
+52. The latent height-radius score follows fruit size and stalk length on healthy fruit
+    (check C). Check: PLS-DA with size and stalk length as covariates (or regressed out inside
+    the folds), to see whether the AUC holds. Wanted before the meeting?
+
+For Hugo (meeting 17 Nov), added 7 Nov:
+53. Grade 0 against grade 1 and grade 2 against grade 3 hardly separate on every
+    representation (pairwise AUC 0.6 to 0.7), grade 1 against 2 does (0.8 to 0.9). Is grade 1
+    browning too small for the CT resolution, or is the 0/1 boundary of the visual grading
+    uncertain? Can the cut-open photographs show it?
 
 For Ruben and Hugo, added 28 Oct:
 41. Stalk length and body size are measured on the 128³ volumes, but the body-stalk
@@ -332,6 +333,7 @@ For Ruben, added 13 Oct:
 
 20. Remove `cylindrical_coordinates`, `cylindrical_profile` and the profile part of `pool_grid`
     from `src/pearlatent/pooling.py`, with their tests? Notebook 03 no longer uses them (1e5d1f1).
+    7 Nov: the height-radius rows use `pearlatent.step0.latent_map_sums`, not this code.
 
 ## Decided
 
@@ -418,6 +420,16 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-11-07 — comparison saved, per-grade PLS-DA fails for grades 1 and 2, height-radius rows
+- Decided (Ruben): check B dropped (ICC beside check A); one-versus-rest PLS-DA per grade kept as
+  a negative result; height-radius bins reopened as two rows (3 LVs each); counterfactuals on
+  the full latent with the general model.
+- Built: notebooks 10 (paired comparison), 11 (per grade), 12 (ordinal), 13 (iPLS on
+  height-radius); modules `ordinal`, `height_radius`; all saved as runs.
+- Found: grades 0/1 and 2/3 hardly separate on any row; latent height-radius AUC 0.927, +0.040
+  over the grid; its score follows size and stalk on healthy fruit (question 52).
+- Next: b maps, then counterfactuals.
 
 ### 2026-11-03 — all four PLS-DA rows saved, nuisance checks, methods record
 - Decided (Ruben): Med3D at 7 LVs; the 2 Nov runs of the latent and CT resaved at 4 and 5 LVs
