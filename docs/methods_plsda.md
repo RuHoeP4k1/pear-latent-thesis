@@ -266,3 +266,29 @@ Seen in headless runs of notebooks 10 and 12 (7 November 2026, not yet saved as 
   stalk length: part of it describes the fruit, not the defect. Not yet explained.
 - Ordinal model (notebook 12): latent height-radius error rate 0.365, weighted kappa 0.697,
   recall per grade 0.945, 0.000, 0.250, 0.649; CT height-radius 0.406, 0.590.
+
+## 11. Interval PLS on the height-radius rows (7 November 2026, Ruben)
+
+Notebook 13. Forward iPLS (Nørgaard et al. 2000; the SOLO description checked on 7 November:
+same forward mode, non-overlapping intervals, each model at the lowest point of its own RMSECV
+curve, `pearlatent.ipls.forward_ipls` as notebook 09) on the 160 height-radius features, with
+two ways to cut them: 20 height intervals (8 radius bins each; bin 0 calyx end, 19 stalk end)
+and 8 depth intervals (20 height bins each; bin 0 axis, 7 skin). One difference from SOLO: the
+path runs to the end and its lowest point is taken, where SOLO with `numintervals = inf` stops
+at the first step without improvement.
+
+First result (`binary_23`, 315 fruit, design A; seen in a headless run, figures only):
+- Latent, heights alone: lowest RMSECV in bins 7, 8, 6, 9 (0.357, 0.360, 0.367, 0.379; all
+  160 features at 3 LVs 0.339, no model 0.484); bins 0 to 2 and 14 to 19 alone are near
+  no model (0.47 to 0.50). Forward path: 0.357 with bin 7, 0.338 after three bins, lowest
+  0.330 with ten bins.
+- Latent, depths alone: bins 3, 2, 4 best (0.362, 0.363, 0.371); axis (0) 0.438, the two
+  outer bins (6, 7) 0.489 and 0.490. Lowest path point 0.337.
+- CT, heights alone: bins 7, 8, 6 best (0.420, 0.421, 0.429); depths: bin 3 best (0.384).
+  Lowest path points 0.368 (heights) and 0.372 (depths), all features 0.381.
+
+Reading: the information sits in the middle of the body height (about 30 to 50 % of the way
+from the calyx end) and at middle depth, not at the axis and not under the skin, for the
+latent and the CT alike. Selecting intervals lowers RMSECV only slightly (latent 0.339 to
+0.330), within the optimism of choosing on the same cross-validation, so no interval
+selection is proposed as a model; the result is a location map.
