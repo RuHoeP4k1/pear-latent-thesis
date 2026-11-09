@@ -1,6 +1,25 @@
+import numpy as np
 import polars as pl
 
-from pearlatent.counterfactual import draw_example_fruit
+from pearlatent.counterfactual import (
+    draw_example_fruit,
+    plsda_direction,
+    shift_to_score,
+)
+
+
+def test_shift_reaches_the_target_score_with_the_smallest_change():
+    rng = np.random.default_rng(0)
+    x = rng.normal(0, 1, (60, 30))
+    y = (x[:, 0] + 0.3 * rng.normal(0, 1, 60) > 0).astype(float)
+    direction = plsda_direction(x, y, n_components=3)
+    row = x[5]
+    moved = shift_to_score(row, direction, target=0.9)
+    assert np.isclose(direction.predict(moved), 0.9)
+    # The change lies along b: the smallest change that gives this score.
+    change = moved - row
+    b = direction.coefficients
+    assert np.isclose(abs(change @ b), np.linalg.norm(change) * np.linalg.norm(b))
 
 
 def _fruit():

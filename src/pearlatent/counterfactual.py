@@ -11,8 +11,11 @@ the image cannot come from an existing cavity. Ruben looks at their CT slices be
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import polars as pl
+from sklearn.cross_decomposition import PLSRegression
 
 DRAW_SEED = 369
 N_PER_GROUP = 2
@@ -61,3 +64,55 @@ def draw_example_fruit(
         if taken < n_per_group:
             raise ValueError(f"{group}: not enough boxes left for {n_per_group} fruit")
     return pl.DataFrame(picked).select("group", *fruit.columns)
+
+
+@dataclass(frozen=True)
+class Direction:
+    """A fitted PLS-DA model reduced to what a counterfactual needs.
+
+    For a centred-only model (`scale=False`) the prediction of a fruit is
+    y_mean + (x - x_mean) · b, with b the regression vector (one number per cell).
+    """
+
+    coefficients: np.ndarray  # b, one per feature
+    x_mean: np.ndarray
+    y_mean: float
+    n_components: int
+
+    def predict(self, x: np.ndarray) -> np.ndarray | float:
+        """Prediction of one row or of rows (fruit, features)."""
+        return self.y_mean + (np.asarray(x) - self.x_mean) @ self.coefficients
+
+
+def plsda_direction(x: np.ndarray, y: np.ndarray, n_components: int) -> Direction:
+    """Fit one PLS-DA model (centred only) on all given fruit and keep its regression vector.
+
+    In: features (fruit, cells), 0/1 labels, number of LVs. Out: a `Direction`. One fit on all
+    12 open boxes (HANDOFF, 7 November 2026: the general model, not averaged fold models).
+    """
+    model = PLSRegression(n_components=n_components, scale=False).fit(
+        x, np.asarray(y, dtype=float)
+    )
+    # scikit-learn stores coef_ as (targets, features); one target here.
+    coefficients = np.asarray(model.coef_).reshape(-1)
+    direction = Direction(
+        coefficients, model._x_mean, float(model._y_mean[0]), n_components
+    )
+    # Check: the reduced form gives the same prediction as scikit-learn.
+    if not np.allclose(direction.predict(x), model.predict(x).ravel(), atol=1e-6):
+        raise AssertionError("regression vector does not reproduce the predictions")
+    return direction
+
+
+def shift_to_score(row: np.ndarray, direction: Direction, target: float) -> np.ndarray:
+    """The fruit's features moved along b until the model predicts `target`.
+
+    In: one row (cells), the direction, the target score. Out: the moved row.
+    Change = (target - current prediction) × b / (b · b). This is the smallest change (in the
+    Euclidean sense) that gives exactly that prediction; every other change with the same
+    prediction adds a part that the model does not see. Example: b = (2, 0), prediction 0.2,
+    target 1.0: change = 0.8 × (2, 0) / 4 = (0.4, 0), and the prediction rises by 2 × 0.4 = 0.8.
+    """
+    b = direction.coefficients
+    step = (target - direction.predict(row)) / (b @ b)
+    return np.asarray(row, dtype=float) + step * b
