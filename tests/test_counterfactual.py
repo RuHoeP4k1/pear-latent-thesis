@@ -30,6 +30,16 @@ def test_four_fruit_from_four_boxes_cavity_free():
     assert drawn.filter(pl.col("group") == "grade 0")["defective"].to_list() == [0, 0]
 
 
+def test_excluded_fruit_is_replaced_and_the_rest_stays():
+    fruit = _fruit()
+    first = draw_example_fruit(fruit, seed=369)
+    rejected = first["fruit_id"][1]
+    second = draw_example_fruit(fruit, seed=369, exclude=(rejected,))
+    assert rejected not in second["fruit_id"].to_list()
+    assert second["fruit_id"][0] == first["fruit_id"][0]
+    assert second.height == 4 and second["box"].n_unique() == 4
+
+
 def test_same_seed_same_fruit_whatever_the_row_order():
     fruit = _fruit()
     a = draw_example_fruit(fruit, seed=369)["fruit_id"].to_list()

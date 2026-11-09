@@ -63,6 +63,8 @@ def _():
 
     Rule (`pearlatent.counterfactual.draw_example_fruit`, seed 369): among the 315 open fruit,
     2 with browning 3 and cavity 0, then 2 with defective grade 0, every fruit from its own box.
+    A fruit Ruben rejects on its CT is skipped and the next one of the same shuffled list takes
+    its place (rejected: 2526_I09, browning not visible). These are examples only.
     Beside each fruit: its out-of-fold prediction in the two latent models whose direction will
     be used (average of the 20 repeats; a cavity-free prediction exists for cavity-free fruit only).
     """)
@@ -76,7 +78,10 @@ def _(cfg):
         _open_2526, cfg.path("derived_dir") / "volume_decisions.csv"
     )
     print(f"open 2526 fruit {_open_2526.height}, after faulty volumes {_kept.height}")
-    _drawn = draw_example_fruit(_kept, seed=DRAW_SEED)
+    # Rejected by Ruben on 9 November 2026 after seeing the CT: 2526_I09 (grade 3, but no
+    # visible browning on the sections; the neck end also looked cut).
+    REJECTED = ("2526_I09",)
+    _drawn = draw_example_fruit(_kept, seed=DRAW_SEED, exclude=REJECTED)
 
     _results = cfg.path("results_dir")
     _general = pl.read_parquet(
@@ -104,7 +109,7 @@ def _(cfg):
         "stalk_length",
         "body_voxels",
     )
-    return (examples,)
+    return REJECTED, examples
 
 
 @app.cell(hide_code=True)

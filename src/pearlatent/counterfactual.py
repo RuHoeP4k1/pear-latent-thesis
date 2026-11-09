@@ -19,7 +19,10 @@ N_PER_GROUP = 2
 
 
 def draw_example_fruit(
-    fruit: pl.DataFrame, n_per_group: int = N_PER_GROUP, seed: int = DRAW_SEED
+    fruit: pl.DataFrame,
+    n_per_group: int = N_PER_GROUP,
+    seed: int = DRAW_SEED,
+    exclude: tuple[str, ...] = (),
 ) -> pl.DataFrame:
     """The example fruit: `n_per_group` of grade 3 and of grade 0, every fruit from its own box.
 
@@ -29,7 +32,9 @@ def draw_example_fruit(
     Grade 3 = browning 3 and cavity 0; grade 0 = defective 0. Each candidate list is sorted by
     fruit_id (so the row order of `fruit` does not matter) and shuffled with one generator
     `default_rng(seed)`; walking down the shuffled list, a fruit is taken when its box is not used
-    yet. Grade 3 first, because it has fewer candidates and boxes.
+    yet. Grade 3 first, because it has fewer candidates and boxes. Fruit in `exclude` are
+    skipped (rejected by Ruben on their CT), so the next fruit of the same shuffled list takes
+    their place.
     """
     rng = np.random.default_rng(seed)
     groups = {
@@ -46,7 +51,7 @@ def draw_example_fruit(
         taken = 0
         for index in rng.permutation(candidates.height):
             row = candidates.row(int(index), named=True)
-            if row["box"] in used_boxes:
+            if row["box"] in used_boxes or row["fruit_id"] in exclude:
                 continue
             picked.append({**row, "group": group})
             used_boxes.add(row["box"])
