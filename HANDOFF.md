@@ -35,7 +35,9 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     differences of all 15 pairs, checks A with ICC and C); run
     `results/20261107T170510Z_compare_plsda_binary23`.
   - Notebook 11 (one-versus-rest per grade; section 1 now one plot of RMSECV divided by the
-    no-model RMSE); runs `results/20261107T16*_plsda_classes_defective_*` (four rows).
+    no-model RMSE); runs `results/20261107T163925Z_..._tissue_features`,
+    `20261107T164009Z_..._med3d`, and, re-saved from clean commits on 9 Nov with identical
+    predictions, `20261109T165807Z_..._hugo_vae` and `20261109T170153Z_..._ct_32`.
   - `pearlatent.ordinal` + notebook 12 (cumulative logit on the saved binary prediction, per
     box fold); run `results/20261107T170442Z_ordinal_defective`.
   - `pearlatent.height_radius`, feature sets `hugo_vae_hr` and `ct_32_hr` in
