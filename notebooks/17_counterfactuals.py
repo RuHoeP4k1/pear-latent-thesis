@@ -4,6 +4,8 @@ __generated_with = "0.25.1"
 app = marimo.App(width="medium", app_title="17 Counterfactual images")
 
 with app.setup(hide_code=True):
+    import json
+
     import marimo as mo
     import matplotlib.pyplot as plt
     import nibabel as nib
@@ -157,6 +159,105 @@ def _(cfg, examples):
     fruit_figure.savefig(_out, dpi=120, bbox_inches="tight")
     print(f"saved {_out}")
     fruit_figure
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 3. Steps along the model direction
+
+    Made by `python -m pearlatent.counterfactual_run` (one decode about 5 minutes). t = 0 is the
+    mean score of grade 0 fruit, t = 1 that of grade 3 (`pearlatent.counterfactual.GradeScale`).
+    A step moves `mu` only along the regression vector b of the model, by the smallest change
+    that gives the target score.
+
+    Table: the target score of each step, and the score of the decoded image after encoding it
+    again. "plain" is the reconstruction without a shift; its re-encoded score shows what the
+    decode-encode round trip alone does. Figure, per step: the long section through the body
+    centre, and the step minus the plain reconstruction (blue = brighter, red = darker than the
+    plain reconstruction), on one colour scale for all steps, set by the voxels inside the fruit
+    (CT above 0.1) so that a change outside the fruit does not hide the change inside it.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    counterfactual_choice = mo.ui.dropdown(
+        options=["2526_C23_cavity_free"],
+        value="2526_C23_cavity_free",
+        label="Fruit and direction",
+    )
+    counterfactual_choice
+    return (counterfactual_choice,)
+
+
+@app.cell(hide_code=True)
+def _(cfg, counterfactual_choice):
+    _run = latest_run_dir(cfg.path("derived_dir") / "counterfactuals", counterfactual_choice.value)
+    mo.stop(_run is None, mo.md("_No counterfactual run for this fruit yet._"))
+    _record = json.loads((_run / "run.json").read_text())["params"]
+    steps = pl.read_parquet(_run / "steps.parquet")
+    _scale = (_record["grade0_mean_score"], _record["grade3_mean_score"])
+    steps_shown = steps.with_columns(
+        t_reencoded=(pl.col("score_reencoded") - _scale[0]) / (_scale[1] - _scale[0])
+    )
+    print(
+        f"run {_run.name}; start score {_record['start_score']:.3f};"
+        f" grade 0 mean {_scale[0]:.3f}, grade 3 mean {_scale[1]:.3f}"
+    )
+    counterfactual_run = _run
+    counterfactual_record = _record
+    steps_shown
+    return counterfactual_record, counterfactual_run, steps
+
+
+@app.cell(hide_code=True)
+def _(cfg, counterfactual_record, counterfactual_run, steps):
+    with np.load(cfg.root / counterfactual_record["plain_reconstruction"] / "volumes.npz") as _f:
+        _k = list(_f["fruit_id"]).index(counterfactual_record["fruit"])
+        _ct = _f["ct"][_k].astype(np.float32)
+        _plain = _f["reconstruction"][_k].astype(np.float32)
+    _images = {"CT": _ct, "plain reconstruction": _plain}
+    for _t in steps.filter(pl.col("t_target").is_not_null())["t_target"].to_list():
+        _file = counterfactual_run / f"step_t{_t}.npz"
+        if _file.exists():
+            with np.load(_file) as _f:
+                _images[f"t = {_t}"] = _f["reconstruction"].astype(np.float32)
+    # Long section through the body centre (first array axis fixed), stem-calyx axis upwards.
+    _centre = body_centre(_ct > 0.1)
+    _steps = [_k for _k in _images if _k.startswith("t =")]
+    _inside = _ct[_centre[0]] > 0.1
+    _limit = max(
+        [float(np.abs(_images[_s] - _plain)[_centre[0]][_inside].max()) for _s in _steps]
+        + [1e-3]
+    )
+    step_figure, _axes = plt.subplots(
+        2, len(_images), figsize=(2.6 * len(_images), 5.6), squeeze=False
+    )
+    for _j, (_name, _volume) in enumerate(_images.items()):
+        _axes[0, _j].imshow(_volume[_centre[0]].T, cmap="gray", vmin=0, vmax=1, origin="lower")
+        _axes[0, _j].set_title(_name, fontsize=9)
+        if _name in _steps:
+            _shown = _axes[1, _j].imshow(
+                (_volume - _plain)[_centre[0]].T,
+                cmap="RdBu",
+                vmin=-_limit,
+                vmax=_limit,
+                origin="lower",
+            )
+        else:
+            _axes[1, _j].axis("off")
+    for _ax in _axes.ravel():
+        _ax.set_xticks([])
+        _ax.set_yticks([])
+    if _steps:
+        step_figure.colorbar(_shown, ax=_axes[1, :], shrink=0.8, label="step − plain")
+    _out = cfg.path("derived_dir") / "figures" / f"17_{counterfactual_run.name}.png"
+    step_figure.savefig(_out, dpi=120, bbox_inches="tight")
+    print(f"saved {_out}; colour limit ±{_limit:.3f}")
+    step_figure
     return
 
 
