@@ -60,6 +60,23 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     (−0.31, −0.49 to −0.20) and body size (+0.34, 0.19 to 0.52). Not explained yet.
   - iPLS: the information sits at mid height (about 30 to 50 % from the calyx end) and mid
     depth, for latent and CT; selecting intervals barely lowers RMSECV (0.339 to 0.330).
+- **Done on 9 November, session on spread (commits 43549a3 to b75a75a, not pushed; methods
+  section 13):**
+  - Decided (Ruben): mean + SD height-radius rows at 3 LVs each; the encoder SD (`logvar`) is
+    one descriptive number, not fused into a model (scratch: adds nothing); no z-score row;
+    Step 0 set aside for now; ordinal model parked; `binary_123`, the browning 3 + cavity 3
+    row and box prediction not wanted; few, simple meeting figures.
+  - Runs: `20261109T173414Z_plsda_binary23_hugo_vae_hr_sd`, `..173415Z_.._ct_32_hr_sd`,
+    `..173617Z_compare_plsda_binary23` (8 rows, 28 pairs), `..171633Z_interior_spread`,
+    `..173656Z_all_volumes_reverse_check`, `..174016Z_meeting_figures`; derived
+    `logvar/20261109T171513Z_logvar`. Figures `derived/figures/15_interior_spread.png`,
+    `18_auc_rows.png`, `18_auc_by_cause.png`.
+  - Found: latent mean + SD AUC 0.957 (0.939 to 0.971), level with Med3D (0.001, −0.029 to
+    0.023); CT mean + SD 0.931. Check C still shows size and stalk in the latent mean + SD score
+    (−0.29, +0.30), not in the CT one. Browning alone is detected about as well as cavity.
+    Grade 0 against 1 (cavity-free): CT interior SD 0.82 (0.74 to 0.90), latent interior SD
+    0.50, encoder SD 0.57: grade 1 is visible in the CT at 32³ and lost in the latent. All 346
+    volumes: same order of rows. Reverse check: AUC 0.97 to 1.00 except tissue features 0.71.
 - **Next step:** b maps (regression vector of the general `binary_23` model on the full
   latent grid at 4 LVs, and CT at 32³ at 5 LVs, drawn on the 32³ grid), then the
   counterfactual notebook: draw the 2 + 2 fruit (fixed seed, different open boxes), show their
@@ -433,6 +450,14 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-11-09 — mean and SD rows, interior spread, encoder SD, meeting figures
+- Audit before the meeting: the six saved rows reproduce exactly; signals not followed up listed.
+- Built: SD per height-radius bin (two rows, 3 LVs), `pearlatent.interior`, `pearlatent.logvar_run`,
+  notebooks 15 (interior spread), 16 (all volumes, reverse check), 18 (two AUC figures).
+- Found: latent mean + SD level with Med3D; grade 1 visible in the CT interior SD, not in the
+  latent; the encoder SD adds nothing to `mu`.
+- Next: ResNet-18 design note and the workstation mail to Hugo.
 
 ### 2026-11-07 — comparison saved, per-grade PLS-DA fails for grades 1 and 2, height-radius rows
 - Decided (Ruben): check B dropped (ICC beside check A); one-versus-rest PLS-DA per grade kept as
