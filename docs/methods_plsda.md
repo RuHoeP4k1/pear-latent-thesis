@@ -352,3 +352,48 @@ Reading:
   centring only (background cells would gain weight, section 2) does not apply to height-radius
   bins, which hold body cells only. These are extra tries on the same folds, with the LVs kept at
   3, so the gains are optimistic. Not a decision: question 54 in `HANDOFF.md`.
+
+## 13. Mean and SD of each height-radius bin, the fruit interior, the encoder SD (9 November 2026, Ruben)
+
+**Mean and SD rows** (`hugo_vae_hr_sd`, `ct_32_hr_sd`; `pearlatent.height_radius`,
+`with_sd=True`). The same 20 height × 8 radius bins as section 10. Per bin: the mean of the
+body cells, and their SD (divided by n), so how uneven that ring is. 320 numbers per fruit,
+centred only. A bin with one cell gets SD 0; empty bins are filled as in section 10.
+
+Example: a ring of 4 cells with values 2, 2, 2, 2 has mean 2 and SD 0; a ring with 1, 3, 1, 3
+has the same mean 2 and SD 1. The mean row cannot tell the two apart.
+
+Found by looking (a scratch run of 9 November, after all the earlier rows had been seen), so
+it is an idea the sealed boxes must test, not a pre-registered row. LVs chosen by Ruben at the
+elbow (9 November 2026): latent 3 (mean RMSECV 0.377, 0.335, 0.311, 0.319 at 1 to 4 LVs), CT 3
+(0.406, 0.363, 0.353, 0.364). Runs `results/20261109T173414Z_plsda_binary23_hugo_vae_hr_sd`
+(AUC 0.957, box bootstrap 0.939 to 0.971) and `20261109T173415Z_plsda_binary23_ct_32_hr_sd`
+(0.931, 0.903 to 0.947); comparison `results/20261109T173617Z_compare_plsda_binary23` (28
+pairs). Scratch checks, not saved as runs: fewer SD features do not keep the gain (one SD per
+height bin 0.929, per depth bin 0.933, one per fruit 0.928, against 0.927 for the means
+alone); a z-score of each fruit's body cells first adds +0.002 (−0.014 to +0.014); adding the
+encoder SD per bin gives −0.008 (−0.028 to +0.008).
+
+**Interior spread** (notebook 15, `pearlatent.interior`; run
+`results/20261109T171633Z_interior_spread`). One number per fruit, no model: the SD of the grid
+over the body cells without their outer layer (6-neighbour erosion, one cell, about 2.5 mm). The
+outer layer straddles skin and air and varies in every fruit. Chosen by looking: CT SD over all
+body cells, grade 0 against 1 on cavity-free fruit, AUC 0.53; without 1, 2 or 3 layers 0.82.
+
+Example: a fruit whose interior cells are 0.84 everywhere except a patch of 0.78 has a larger
+interior SD than a fruit at 0.84 everywhere, even if its mean hardly moves.
+
+**Encoder SD** (`pearlatent.logvar_run`, run `derived/logvar/20261109T171513Z_logvar`, 346 open
+2526 fruit and Hugo's 66 validation fruit). The encoder gives a second 32³ grid beside `mu`,
+`logvar`; its SD exp(logvar / 2) is about 0.001 inside the fruit against a spread of `mu` of
+about 5 (KL weight 1e-6), so it cannot scale `mu`. Used only as one number per fruit: the median
+over the interior cells. `mu` recomputed in the same run matches the saved `mu` to 1.4e-4. The
+run records `dirty: true`: notebook 15 was untracked when it finished; `logvar_run.py` itself
+is unchanged since commit 868af71.
+
+**All volumes and reverse check** (notebook 16, run
+`results/20261109T173656Z_all_volumes_reverse_check`). Every saved `binary_23` row refitted
+under design A on all 346 open 2526 volumes (faulty volumes kept), its saved LVs and scaling;
+and each row's general model (fit on the 315 fruit) applied to Hugo's 61 validation fruit left
+after the faulty volumes. In those 61, all 29 non-consumable fruit have a cavity and the defect
+follows the storage group, so the reverse check tests the change of season, not browning.
