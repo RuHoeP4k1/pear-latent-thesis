@@ -116,3 +116,25 @@ def shift_to_score(row: np.ndarray, direction: Direction, target: float) -> np.n
     b = direction.coefficients
     step = (target - direction.predict(row)) / (b @ b)
     return np.asarray(row, dtype=float) + step * b
+
+
+@dataclass(frozen=True)
+class GradeScale:
+    """Position t on the model's score: t = 0 at the mean score of grade 0, t = 1 at grade 3.
+
+    Ruben, 9 November 2026: steps are counted in this normalised distance, as Keicher et al.
+    (2023) calibrate severity between the grade 0 and grade 3 means. The means are the fitted
+    predictions of the training fruit of each grade. Example: means 0.04 and 0.88; t = 0.5 is the
+    score 0.04 + 0.5 × 0.84 = 0.46. A step to t moves the fruit along b only (`shift_to_score`),
+    so it is the part of the line between the two group centroids that the model uses; the part
+    the model does not use (mostly fruit size and stalk, 9 November) is left out.
+    """
+
+    grade0_mean: float
+    grade3_mean: float
+
+    def score(self, t: float) -> float:
+        return self.grade0_mean + t * (self.grade3_mean - self.grade0_mean)
+
+    def t(self, score: float) -> float:
+        return (score - self.grade0_mean) / (self.grade3_mean - self.grade0_mean)

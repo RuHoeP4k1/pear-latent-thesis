@@ -64,3 +64,13 @@ def test_same_seed_same_fruit_whatever_the_row_order():
     a = draw_example_fruit(fruit, seed=369)["fruit_id"].to_list()
     b = draw_example_fruit(fruit.reverse(), seed=369)["fruit_id"].to_list()
     assert a == b
+
+
+def test_t_scale_runs_from_the_grade_0_mean_to_the_grade_3_mean():
+    from pearlatent.counterfactual import GradeScale
+
+    scale = GradeScale(grade0_mean=0.04, grade3_mean=0.88)
+    assert np.isclose(scale.score(0.0), 0.04)
+    assert np.isclose(scale.score(1.0), 0.88)
+    assert np.isclose(scale.score(0.5), 0.46)
+    assert np.isclose(scale.t(0.46), 0.5)
