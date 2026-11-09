@@ -33,6 +33,9 @@ PLSDA_BINARY23_RUN_DIRS = {
     # Height-radius rows, 3 LVs each (Ruben, 7 November 2026).
     "hugo_vae_hr": "20261107T165738Z_plsda_binary23_hugo_vae_hr",
     "ct_32_hr": "20261107T165755Z_plsda_binary23_ct_32_hr",
+    # Height-radius bins with the SD of each bin, 3 LVs each (Ruben, 9 November 2026).
+    "hugo_vae_hr_sd": "20261109T173414Z_plsda_binary23_hugo_vae_hr_sd",
+    "ct_32_hr_sd": "20261109T173415Z_plsda_binary23_ct_32_hr_sd",
 }
 
 

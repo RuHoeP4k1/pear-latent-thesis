@@ -38,22 +38,23 @@ def _():
     non-consumable fruit, by more than the variation between orchards (boxes)? And does any
     row owe its score to the box rather than to the fruit (nuisance checks A and C)?
 
-    **What is compared.** The six PLS-DA runs of notebook 08: Hugo's latent (full 32³
+    **What is compared.** The eight PLS-DA runs of notebook 08: Hugo's latent (full 32³
     grid, 4 latent variables), CT averaged to 32³ (5), tissue features (7), Med3D (7), all
     saved 3 November 2026; and the height-radius rows (20 height × 8 radius bins) of the
-    latent (3) and of CT at 32³ (3), saved 7 November 2026. Nothing is refitted here: the notebook only reads the
+    latent (3) and of CT at 32³ (3), saved 7 November 2026; and the same bins with the SD of
+    each bin added (latent 3, CT 3), saved 9 November 2026. Nothing is refitted here: the notebook only reads the
     out-of-fold predictions (one number per fruit: the prediction averaged over the 20
     repeats of the box cross-validation).
 
     **Method.**
-    - Paired box bootstrap of the difference in AUC (area under the ROC curve), for all 15
+    - Paired box bootstrap of the difference in AUC (area under the ROC curve), for all 28
       pairs of rows (`docs/cv_explained.md`, section 7;
       `pearlatent.plsda.paired_box_bootstrap_auc_difference`).
     - Nuisance checks A (with the intraclass correlation beside it) and C on each row
       (`docs/methods_plsda.md`, section 6; `pearlatent.nuisance`). The box-mean against
       within-box logistic regression (old check B) was dropped on 7 November 2026 (Ruben).
 
-    **Inputs.** `results/<run>/predictions.parquet`, `run.json` and `scores.json` of the six
+    **Inputs.** `results/<run>/predictions.parquet`, `run.json` and `scores.json` of the eight
     runs in `pearlatent.runs.PLSDA_BINARY23_RUN_DIRS`; the fruit table with the descriptors
     (`pearlatent.fruit_table`) for check C. Only the 12 open 2526 boxes; the sealed test
     boxes are not in these runs.
@@ -77,6 +78,8 @@ def _():
         "med3d": "Med3D",
         "hugo_vae_hr": "Latent, height-radius",
         "ct_32_hr": "CT, height-radius",
+        "hugo_vae_hr_sd": "Latent, height-radius mean and SD",
+        "ct_32_hr_sd": "CT, height-radius mean and SD",
     }
     return ROW_LABELS, cfg
 
@@ -84,10 +87,10 @@ def _():
 @app.cell(hide_code=True)
 def _():
     mo.md(r"""
-    ## 1. Load the six runs and check that they cover the same fruit
+    ## 1. Load the eight runs and check that they cover the same fruit
 
     The paired comparison only makes sense when both rows predicted the same fruit with the
-    same labels. The cell below joins the six prediction tables on `fruit_id` (one-to-one)
+    same labels. The cell below joins the eight prediction tables on `fruit_id` (one-to-one)
     and stops if any fruit is missing in one run or if a label differs between runs.
     """)
     return
@@ -113,7 +116,7 @@ def _(ROW_LABELS, cfg):
             )
         )
 
-    # Join the six tables. The labels are part of the join key, so a fruit whose label
+    # Join the eight tables. The labels are part of the join key, so a fruit whose label
     # differs between two runs would not match and the count check below would fail.
     predictions = _tables[0]
     for _table in _tables[1:]:
@@ -411,7 +414,7 @@ def _(
         _dir,
         {
             "what": "paired box bootstrap of AUC differences and nuisance checks A (with the ICC) "
-            "and C for the six PLS-DA rows on binary_23 (open 2526 boxes)",
+            "and C for the eight PLS-DA rows on binary_23 (open 2526 boxes)",
             "plsda_runs": PLSDA_BINARY23_RUN_DIRS,
             "plsda_run_commits": {
                 _row: _record["git"]["commit"] for _row, _record in run_records.items()
