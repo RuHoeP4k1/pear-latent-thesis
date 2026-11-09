@@ -28,7 +28,10 @@ so they can never be test boxes. They are still used in the cross-validation bel
 
 ## 3. Step 2 — outer cross-validation on the other 12 boxes
 
-The 12 boxes are divided into 4 folds of 3 boxes. Then 4 rounds:
+The 12 boxes are divided into 4 folds of 3 boxes. Then 4 rounds (fruit counts here are from
+before the faulty volumes; the models use 315 of the 346 fruit, and the folds were judged on the
+346. On the 315, 23 of the 80 folds lie outside ±30 %, 4 outside ±40 %, none outside ±50 %; worst
+deviation 43 %, checked 9 November 2026; the folds stay as drawn):
 
 | Round | Fit the model on | Predict |
 |---|---|---|
@@ -107,9 +110,10 @@ With about 15 candidate values and a rule that prefers fewer LVs the optimism is
 the same for every representation compared on the same folds. The sealed test boxes give the
 independent check (RMSEP), as the test set does in the classic scheme.
 
-The cumulative-link (ordinal) model for the grade 0 to 3 uses the same scheme: PLS with the grade
-as response, the scores of the chosen number of LVs as predictors of `OrderedModel`, the
-held-out fruit projected with the round's PLS model. N-way PLS: the same, with its own scores.
+The cumulative-link (ordinal) model for the grade 0 to 3 (as built on 7 November 2026, Ruben;
+`docs/methods_plsda.md` section 9): `OrderedModel` on the saved out-of-fold `binary_23` prediction,
+fitted per repeat and fold on the training boxes. The earlier plan here was PLS with the grade as
+response and its scores as predictors. N-way PLS: the same design, with its own scores.
 
 What is reported for classification: area under the ROC curve (AUC) as the main score (it does
 not depend on a cut-off), with recall per grade and precision at a fixed cut-off of 0.5 on the
@@ -192,7 +196,8 @@ removes that shared part, so the comparison is sharper than comparing two separa
 ## 8. At the very end — the sealed test, once
 
 1. Freeze everything: features, model, how settings are chosen, exclusions, threshold.
-2. The number of LVs chosen in section 4; fit once on all 12 boxes (346 fruit). Nothing is
+2. The number of LVs chosen in section 4; fit once on all 12 boxes (315 fruit after the faulty
+   volumes; this document's 346 counts them in). Nothing is
    averaged over folds or repeats: the 80 cross-validation models only served to draw the curve
    and estimate the score.
 3. Predict the 3 sealed boxes and Hugo's 66 test fruit, once. Report the result, whatever it is,

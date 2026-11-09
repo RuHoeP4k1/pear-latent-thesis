@@ -91,7 +91,8 @@ Hugo's latent through InstanceNorm. Open: the skin rim enters at about −5 (que
 
 ## 6. Nuisance checks (`docs/nuisance_check.md` section 3; computed 3 November 2026, saved by notebook 10)
 
-On the averaged out-of-fold score of each row, for all four rows:
+On the averaged out-of-fold score of each row, for all six rows (the four below in section 7 and
+the two height-radius rows of section 10):
 
 - A. Within-box AUC: only pairs (one non-consumable, one consumable) from the same box. Example:
   box with non-consumable scores 0.8, 0.4 and consumable 0.5, 0.1: of the 4 pairs, 3 have the
@@ -159,10 +160,21 @@ the dummy):
 | grade 2 against the rest | 0.371 | 0.381 (1 LV) | 0.67 |
 | grade 3 against the rest | 0.430 | 0.386 (3 LVs) | 0.82 |
 
-The models of grades 1 and 2 never predict better than no model, at any number of LVs, for any
-of the four representations, and on the browning target (cavity-free fruit) as well. The
-spread of RMSECV over the 20 repeats is 0.003 to 0.008, so this is no instability between
-repeats but absence of signal. Highest-membership assignment (latent, LVs at the minimum):
+Lowest ratio RMSECV / no model over all LVs, from the saved runs of 7 November (corrected on
+9 November 2026; this text first said that grades 1 and 2 never beat no model in any row):
+
+| | grade 1 | grade 2 |
+|---|---|---|
+| Hugo's latent | 1.035 | 1.027 |
+| CT at 32³ | 1.029 | 1.024 |
+| tissue features | 0.999 (1 LV only) | 0.938 (7 LVs; 0.938 to 0.954 at every LV) |
+| Med3D | 1.001 | 0.962 (2 LVs) |
+
+So grade 1 is not recognised by any row. Grade 2 is not recognised on the latent and CT, and
+weakly on the two rows that carry whole-fruit features (AUC of their own model 0.73 and 0.75).
+The browning target (cavity-free fruit) was only seen in the scratch run of 7 November. The
+spread of RMSECV over the 20 repeats is 0.003 to 0.008, so the values above 1 are no instability
+between repeats but absence of signal. Highest-membership assignment (latent, LVs at the minimum):
 error rate 0.394 against 0.540 for always grade 0; 2 fruit assigned to grade 1 and 10 to
 grade 2, out of 315.
 
@@ -171,8 +183,9 @@ per grade 0.15, 0.28, 0.61, 0.75; same order for the other three rows). A linear
 give a middle grade a high value while both neighbours get a low one. One-versus-rest PLS-DA
 fits classes that are separate groups (varieties, origins), not steps on one scale. Kept as a
 reported negative result (Ruben, 7 November 2026). Notebook 11, section 1, shows the four
-curves in one plot as RMSECV divided by the no-model RMSE (dashed line at 1). For grades 1 and
-2 the proposal is 1 LV (no elbow, minimum at 1); Ruben to choose.
+curves in one plot as RMSECV divided by the no-model RMSE (dashed line at 1). LVs chosen by
+Ruben on 7 November (grade 0/1/2/3): latent 3/1/1/3, CT 5/1/1/5, tissue features 10/1/1/7, Med3D
+8/3/2/7.
 
 ## 9. Ordinal model on the binary PLS-DA prediction (7 November 2026, Ruben)
 
@@ -194,7 +207,7 @@ c_j / β = 0.325 (grade 0 | 1), 0.500 (1 | 2), 0.749 (2 | 3). A fruit with predi
 lies between the first two boundaries; because grade 0 holds 145 fruit and grade 1 only 41
 and their predictions overlap, its most probable grade is still 0.
 
-First result (7 November 2026, headless run of notebook 12, not yet saved as a run):
+First result (7 November 2026; saved as `results/20261107T170442Z_ordinal_defective`, six rows):
 
 | | error rate | recall grade 0 | 1 | 2 | 3 |
 |---|---|---|---|---|---|
@@ -203,7 +216,8 @@ First result (7 November 2026, headless run of notebook 12, not yet saved as a r
 | tissue features | 0.349 | 0.986 | 0.000 | 0.212 | 0.662 |
 | Med3D | 0.349 | 0.966 | 0.000 | 0.269 | 0.662 |
 
-Always grade 0: error rate 0.540. No representation assigns a grade 1 fruit to grade 1; most
+Always grade 0: error rate 0.540. No representation assigns a grade 1 fruit to grade 1 (Med3D
+assigns 3 fruit of other grades to grade 1, the other rows none); most
 grade 1 fruit are assigned grade 0, and grade 2 fruit mostly to grade 3.
 
 Check on the limit "the score was trained on grade ≥ 2 or not" (7 November 2026, scratch run,
@@ -234,9 +248,12 @@ a radius bin is a relative depth below the skin), 160 features, centred only lik
 rows. Reason beyond the maps: rotation about the stem-calyx axis is not aligned between fruit
 (CLAUDE.md section 6), and the mean over a ring does not depend on it.
 
-Empty bins (some height bins fall between slices, narrow slices do not reach every radius bin):
+Empty bins (a slice has few cells and may not reach every radius bin; no fruit of the 315 has a
+whole height bin empty, corrected 9 November 2026):
 each takes the mean of the nearest filled bins of the same fruit, in bin steps; no labels, no
-other fruit. On the 315 fruit: median 9, at most 22 of 160 bins filled per fruit. Example: a
+other fruit. On the 315 fruit: median 9, at most 22 of 160 bins filled per fruit; mean number of
+filled bins per radius bin, axis to skin, 3.37, 1.72, 1.43, 1.00, 0.87, 0.66, 0.58, 0.00 (of 20),
+so the axis bin is the most filled. Example: a
 fruit with bin (height 0, radius 1) empty and neighbours 1.0, 3.0 (same height) and 6.0 (next
 height) gets (1 + 3 + 6) / 3 = 3.33.
 
@@ -252,7 +269,8 @@ Saved runs (Ruben, 7 November 2026, 3 LVs each, clean commit b8af65a):
 `results/20261107T165755Z_plsda_binary23_ct_32_hr` (AUC 0.884); added to
 `PLSDA_BINARY23_RUN_DIRS`, so notebooks 10 and 12 include them.
 
-Seen in headless runs of notebooks 10 and 12 (7 November 2026, not yet saved as runs):
+Saved on 7 November 2026 as `results/20261107T170510Z_compare_plsda_binary23` and
+`results/20261107T170442Z_ordinal_defective`:
 - Paired AUC difference, height-radius minus full grid: latent +0.040 (0.005 to 0.077), CT
   +0.045 (−0.007 to 0.102). Latent height-radius minus CT height-radius +0.043 (0.008 to
   0.082); Med3D minus latent height-radius +0.031 (−0.008 to 0.073); tissue features minus
@@ -288,7 +306,49 @@ First result (`binary_23`, 315 fruit, design A; seen in a headless run, figures 
   Lowest path points 0.368 (heights) and 0.372 (depths), all features 0.381.
 
 Reading: the information sits in the middle of the body height (about 30 to 50 % of the way
-from the calyx end) and at middle depth, not at the axis and not under the skin, for the
+from the calyx end) and at middle depth, for the
 latent and the CT alike. Selecting intervals lowers RMSECV only slightly (latent 0.339 to
 0.330), within the optimism of choosing on the same cross-validation, so no interval
 selection is proposed as a model; the result is a location map.
+
+Limit on the depth reading (9 November 2026): the axis bin is the weakest alone, but it also holds
+the fewest cells (a ring near the axis is small) and the most filled values (about 3.4 of its 20
+bins per fruit), so a poor score there does not show that the axis carries no information. For the
+latent, one cell also sees about 8 cells around it (receptive field 31 voxels), much wider than
+one bin.
+
+## 12. Fruit-wide level and grade 0 corrections (scratch, 9 November 2026)
+
+Question 52 asked why the latent height-radius score follows size and stalk on healthy fruit.
+Scratch run: not saved as a run, 315 fruit, design A, 3 LVs, height-radius rows. "Stalk" and "size" are
+check C on the 145 grade 0 fruit. The last column is the paired difference with the base row.
+
+| Latent height-radius | AUC | within-box | stalk | size | minus base |
+|---|---|---|---|---|---|
+| base | 0.927 | 0.904 | −0.306 | +0.342 | |
+| minus the fruit's own mean | 0.923 | 0.900 | −0.230 | +0.279 | −0.004 (−0.017 to 0.007) |
+| minus grade 0 mean of the training boxes | 0.927 | 0.904 | −0.306 | +0.342 | 0.000 (exactly) |
+| same, divided by the grade 0 SD | 0.934 | 0.920 | −0.251 | +0.348 | +0.007 (−0.005 to 0.023) |
+
+| CT height-radius | AUC | within-box | stalk | size | minus base |
+|---|---|---|---|---|---|
+| base | 0.884 | 0.867 | −0.021 | +0.037 | |
+| minus the fruit's own mean | 0.884 | 0.862 | −0.065 | +0.052 | 0.000 (−0.028 to 0.028) |
+| minus grade 0 mean of the training boxes | 0.884 | 0.867 | −0.021 | +0.037 | 0.000 (exactly) |
+| same, divided by the grade 0 SD | 0.909 | 0.892 | +0.098 | −0.008 | +0.026 (0.006 to 0.052) |
+
+Reading:
+
+- Own mean: the AUC does not depend on the fruit-wide level, but the size and stalk link only
+  shrinks and its interval still excludes 0 (stalk −0.230, −0.381 to −0.139; size +0.279, 0.155
+  to 0.446). The level is not the main route of that link; question 52 stays open. After this
+  correction the RMSECV curve has its lowest point at 2 LVs (0.336), not 3 (0.346).
+- Minus the grade 0 mean of the training boxes (decision of 27 October 2026,
+  `docs/methods_step0_and_maps.md` section 9): no effect on PLS at all. It subtracts one constant
+  from a bin for all fruit, and PLS centres each bin anyway. Numeric example: bin values 5, 7, 9
+  centre to −2, 0, 2; minus a grade 0 mean of 6 they become −1, 1, 3, which centre to −2, 0, 2.
+- Divided by the grade 0 SD: this is scaling per bin, not centring, so it does change the model.
+  It is close to `scale=True`, using the SD of the grade 0 training fruit. The reason for
+  centring only (background cells would gain weight, section 2) does not apply to height-radius
+  bins, which hold body cells only. These are extra tries on the same folds, with the LVs kept at
+  3, so the gains are optimistic. Not a decision: question 54 in `HANDOFF.md`.

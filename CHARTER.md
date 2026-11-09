@@ -102,9 +102,10 @@ training). Dropped on 29 October (Hugo): the random frozen encoder.
    AUC; the box-mean part cannot separate a box effect from real differences in defect rate
    between orchards). Fruit dimensions enter this check as covariates.
 9. Normalisation from training folds only, without reference to class.
-10. Exclusions: the 17 unscanned 2526 fruit. Rot: Hugo (13 October) says rot is not really a
+10. Exclusions: the 17 unscanned 2526 fruit, and faulty volumes under `docs/outlier_rule.md`
+    (31 of the 346 open 2526 fruit). Rot: Hugo (13 October) says rot is not really a
     problem in 2526 (storage conditions less extreme), so the 24 fruit with browning 3 and cavity 3
-    stay in; one sensitivity row without them.
+    stay in (17 of them among the 315 open fruit of the models); one sensitivity row without them.
 
 ## Methods
 
@@ -113,7 +114,8 @@ summaries (high percentile as comparison). Reference coordinates of the healthy 
 deviation map *(to settle: the same cell (x, y, z) is affected by the free rotation around the
 stem–calyx axis)*.
 
-Models, each on the unfolded array: PLS-DA, cumulative-link (mixed) models on PLS scores
+Models, each on the unfolded array: PLS-DA, cumulative-link models on the out-of-fold PLS-DA
+prediction (Ruben, 7 November 2026; before: on PLS scores)
 (penalised logistic regression dropped 21 October 2026, Ruben: in p ≫ n data it does about what
 PLS-DA does). Number of PLS components: chosen by eye at the elbow of the mean RMSECV curve over the 20
 repeats (Ruben, 2 November 2026), then one fit on the 12 boxes (`docs/cv_explained.md`, section 4). Plus one extra model row after the core study: N-way partial least squares (Bro 1996) on
@@ -139,8 +141,9 @@ No attention pooling, no 512-channel layer.
 
 Counterfactual images (Hugo positive, 13 October): the gate — are browned cores reconstructed —
 is part of Step 0 and runs in October now that the decoder is here; the work itself
-January–February. Direction from full-grid PLS, cavity-free core browning only; severity
-calibrated on the distance to the decision boundary as in Keicher et al. 2023 / Atad et al. 2024.
+January–February. Direction from full-grid PLS: the cavity-free model and the general `binary_23`
+model, compared on the same fruit (Ruben, 9 November 2026; before: cavity-free core browning
+only); severity calibrated on the distance to the decision boundary as in Keicher et al. 2023 / Atad et al. 2024.
 
 ## Do not
 

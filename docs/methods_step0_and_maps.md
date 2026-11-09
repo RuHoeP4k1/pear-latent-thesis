@@ -120,7 +120,8 @@ bin; elsewhere the corrected value is empty.
 
 **Decision for the models (Ruben, 27 October 2026):** inside cross-validation, subtract the
 grade 0 mean of the training boxes only. A held-out box cannot use its own grade 0 fruit,
-because picking them out needs their labels.
+because picking them out needs their labels. Found on 9 November 2026: this subtraction changes
+nothing in PLS, because PLS centres each bin anyway (`docs/methods_plsda.md` section 12).
 
 ## 10. Spectrum
 

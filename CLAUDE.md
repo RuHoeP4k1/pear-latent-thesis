@@ -17,7 +17,7 @@ it, and at which severity does detection stop working?
 GPU is too small). One network is trained from scratch: the ResNet-18 baseline, architecture
 imported from Hugo's pinned clone, on the lab workstation with our box folds. Everything else is a
 small model on frozen features: partial least squares discriminant analysis (PLS-DA), ordinal
-models on PLS scores (penalised logistic regression dropped 21 October 2026), N-way partial least squares (one extra row after the core
+models on the out-of-fold PLS-DA prediction (penalised logistic regression dropped 21 October 2026), N-way partial least squares (one extra row after the core
 study, see `CHARTER.md`, Methods). If a task seems to need training a network from scratch other
 than the ResNet-18 baseline, the plan has drifted: stop and check `CHARTER.md`.
 

@@ -1,7 +1,8 @@
 # Latent space is all you need
 
-Code for the master's thesis on classifying internal quality of pears (browning, cavity, rot) from
-X-ray CT using the latent space of a self-supervised encoder. KU Leuven, MeBioS, 2026–2027.
+Code for the master's thesis on detecting internal disorders of pears (browning, cavity) from
+X-ray CT using the latent space of a frozen, pretrained 3D variational autoencoder. KU Leuven,
+MeBioS, 2026–2027.
 
 No data is stored in this repository.
 

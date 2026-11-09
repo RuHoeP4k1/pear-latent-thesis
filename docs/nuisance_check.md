@@ -1,7 +1,10 @@
 # Nuisance check — does a model detect the defect, or the orchard, stalk or size?
 
-Written 26 October 2026. Status: design only, nothing built or run. To be built together with
-the first PLS-DA run (binary_23, Hugo's latent), then applied unchanged to every model row.
+Written 26 October 2026 as the design; kept for the record. What was built differs: check A and
+check C are saved by notebook 10, with the intraclass correlation beside A; the random encoder row,
+the logistic regression of check B (Ruben, 7 November 2026) and check D (Ruben, 2 November 2026)
+were dropped. The current version is `docs/methods_plsda.md` section 6. The reading thresholds of
+section 5 were never fixed.
 
 ## 1. Why
 

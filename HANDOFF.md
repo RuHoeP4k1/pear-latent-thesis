@@ -19,7 +19,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     clean runs `20261107T170510Z` and `20261107T170442Z` replace them.
   - Per-grade analysis = one-versus-rest PLS-DA (chemometrics course, chapter 4), one PLS model
     per grade with its own LVs, assignment to the highest membership; target the defective
-    grade on all fruit. It fails for grades 1 and 2 and is kept as a reported negative result.
+    grade on all fruit. It fails for grade 1 and is weak for grade 2 (below no model only for
+    tissue features and Med3D; corrected 9 Nov) and is kept as a reported negative result.
     LVs (grade 0/1/2/3): latent 3/1/1/3, CT 5/1/1/5, tissue features 10/1/1/7, Med3D 8/3/2/7.
   - The PLS regression on the grade as a number deleted (notebook 11 replaced).
   - Height-radius bins reopened as two model rows (decision of 10 October reversed): 20 height
@@ -48,10 +49,11 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     CT height-radius 0.884, CT grid 0.839. Paired: latent height-radius − latent grid +0.040
     (0.005 to 0.077); latent grid − CT grid +0.048 (0.019 to 0.082); Med3D − latent
     height-radius +0.031 (−0.008 to 0.073).
-  - Grade 0 against 1 and grade 2 against 3 hardly separate on any row (pairwise AUC about
-    0.6 to 0.7; 1 against 2: 0.8 to 0.9). Not caused by the `binary_23` target: PLS on the
-    full grade or on `binary_123` does no better. Ordinal model: no fruit of any row assigned
-    to grade 1; weighted kappa 0.51 (CT) to 0.80 (Med3D), latent height-radius 0.70.
+  - Grade 0 against 1 and grade 2 against 3 hardly separate on any row (pairwise AUC 0.59 to
+    0.72 and 0.57 to 0.65; 1 against 2: 0.76 to 0.88). Not caused by the `binary_23` target: PLS
+    on the full grade or on `binary_123` does no better. Ordinal model: no grade 1 fruit assigned
+    to grade 1 in any row (Med3D assigns 3 other fruit there, the rest none); weighted kappa
+    0.51 (CT) to 0.80 (Med3D), latent height-radius 0.70.
   - Check C: the latent height-radius score on 145 healthy fruit correlates with stalk length
     (−0.31, −0.49 to −0.20) and body size (+0.34, 0.19 to 0.52). Not explained yet.
   - iPLS: the information sits at mid height (about 30 to 50 % from the calyx end) and mid
@@ -291,8 +293,16 @@ For Ruben, added 2 Nov:
 
 For Ruben, added 7 Nov:
 52. The latent height-radius score follows fruit size and stalk length on healthy fruit
-    (check C). Check: PLS-DA with size and stalk length as covariates (or regressed out inside
-    the folds), to see whether the AUC holds. Wanted before the meeting?
+    (check C). 9 Nov, scratch (`docs/methods_plsda.md` section 12): removing each fruit's own mean
+    keeps the AUC (0.927 to 0.923) but only shrinks the link (stalk −0.23, size +0.28, intervals
+    still exclude 0), so the fruit-wide level is not the main route. Cause still open. Covariates
+    conflict with the decision of 2 November (check D: measures not accurate enough).
+
+For Ruben, added 9 Nov:
+54. Scale the height-radius rows per bin? The reason for centring only (background cells) does
+    not apply to them, because their bins hold body cells only. Scratch, dividing by the grade 0
+    SD of the training boxes: CT height-radius +0.026 (0.006 to 0.052), latent +0.007 (−0.005 to
+    0.023), LVs kept at 3 (`docs/methods_plsda.md` section 12). A decision about the model rows.
 
 For Hugo (meeting 17 Nov), added 7 Nov:
 53. Grade 0 against grade 1 and grade 2 against grade 3 hardly separate on every
@@ -309,9 +319,10 @@ For Ruben and Hugo, added 28 Oct:
 42. Two exclusion mechanisms exist: `derived/exclusions.csv` with
     `pearlatent.exclusions.apply_exclusions` (documented as the one every notebook uses) and
     `derived/volume_decisions.csv`, read by `pearlatent.fruit_table.drop_faulty_volumes` in
-    notebooks 06 and 07. They agree on 28 Oct (the same 35 faulty volumes). Choose one for
-    the model notebooks; notebook 06 keeps Hugo's training sample on purpose, which
-    `apply_exclusions` in mode "primary" would drop.
+    notebooks 06 and 07. `exclusions.csv` had fallen behind (35 against 41 faulty volumes) and
+    was rebuilt on 9 Nov by notebook 02. The model notebooks use `drop_faulty_volumes`;
+    notebook 06 keeps Hugo's training sample on purpose, which `apply_exclusions` in mode
+    "primary" would drop. `test_box_draw` now uses `drop_unscanned`.
 43. Remaining refactors (28 Oct): one shared map-and-spectrum chart for sections 3 and 4 of
     notebook 07; `pca_on_selection` into `src/pearlatent/` with a test; 8 ruff warnings in
     the notebooks; "Status: draft" in notebooks 00 to 04.
