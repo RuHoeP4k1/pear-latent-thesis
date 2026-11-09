@@ -101,12 +101,13 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     0.5 and 0); the core browning does not visibly disappear (core +0.008), and at t = 0 a stalk
     appears above the neck. The direction carries stalk and shape, not only browning
     (question 55).
-- **Running at the end of the session:** plain reconstructions of K07, A03, N17 and their two
-  steps each (K07, A03 to t = 0.5 and 1.0; N17 to 0.5 and 0.0), cavity-free direction, about
-  45 minutes; results in `derived/counterfactuals/` and notebook 17 section 3.
-- **Next step:** look at the K07, A03 and N17 steps in notebook 17 section 3 (dropdown); check
-  whether healthy fruit lose their stalk towards t = 1. Then Ruben decides on question 55
-  (removing the stalk part of the direction) and the meeting material for 17 November.
+  - K07, A03 (to t = 1) and N17 (to t = 0), cavity-free direction: the decoded images keep
+    44 % (K07), 73 % (A03), 71 % (N17) of the shift; re-encoded t at the last step 0.22, 0.60,
+    0.10. The images change mostly at the outline (shape), with slight darkening around the
+    core of the grade 0 fruit; a small bright spot above the neck of K07 at t = 1. Table in
+    `docs/methods_plsda.md` section 14; figures `derived/figures/17_<run>.png`.
+- **Next step:** Ruben looks at the four step figures (notebook 17 section 3, dropdown). Then the
+  meeting material for 17 November. Question 55 (stalk part of the direction) after the meeting.
 - **Blocked on:** nothing for the models. The ResNet-18 baseline needs the lab workstation
   (question 9 with Hugo).
 - **Working note:** with `marimo edit --watch` open, quick file edits in a row can be

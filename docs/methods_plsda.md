@@ -465,6 +465,28 @@ Options to remove the stalk part (question 55, not decided):
   standard chemometric tool for a known nuisance; costs a new model row.
 All three depend on the stalk measure, which Ruben judged not accurate enough as a covariate on
 2 November (check D).
+
+The other three fruit (9 November 2026; `derived/counterfactuals/20261109T190441Z_2526_K07_*`,
+`20261109T194041Z_2526_A03_*`, `20261109T195712Z_2526_N17_*`; figures
+`derived/figures/17_<run>.png`). Re-encoded score, t in brackets:
+
+| Fruit (start t) | plain | t = 0.5 | last step | kept of the shift |
+|---|---|---|---|---|
+| K07, grade 0 (0.01), to t = 1 | −0.146 (−0.23) | 0.040 (0.00) | 0.223 (0.22) | 44 % |
+| A03, grade 0 (0.11), to t = 1 | 0.003 (−0.05) | 0.234 (0.23) | 0.546 (0.60) | 73 % |
+| N17, grade 3 (0.87), to t = 0 | 0.643 (0.72) | 0.420 (0.45) | 0.127 (0.10) | 71 % |
+| C23, grade 3 (1.38), to t = 0 | 1.089 (1.25) | 0.709 (0.80) | 0.431 (0.47) | 57 % |
+
+"Kept of the shift": change of the re-encoded score from the plain reconstruction to the last
+step, divided by the change of the target score from the start score (K07: 0.369 / 0.830). The
+decode-encode round trip alone moves the score by −0.19 to −0.13. No fruit reaches the other
+grade mean in the re-encoded score.
+
+What changes in the images (long section through the body centre, step minus plain):
+mostly the outline (edge voxels brighter on one side, darker on the other: a shift of shape),
+and a slight darkening around the core of the two grade 0 fruit towards t = 1. At t = 1 a small
+bright spot appears above the neck of K07, the same place as the stalk of C23 at t = 0; N17 and
+A03 show none. The direction changes shape and the neck region more than the tissue.
 Ruben, 9 November 2026: the projection and EPO are preferred, as part of the counterfactual work,
 in a session after the meeting of 17 November. First a better stalk length is needed (questions
 41 and 18 in `HANDOFF.md`).
