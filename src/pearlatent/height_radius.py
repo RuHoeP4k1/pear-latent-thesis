@@ -12,9 +12,10 @@ Radius per slice (`latent_map_sums(..., "slice")`): distance to the centre of th
 of the same slice divided by the outermost body cell of that slice, so a radius bin is a
 relative depth below the skin.
 
-Empty bins: the body spans 21 to 32 slices, so some of the 20 height bins hold no slice, and a
-narrow slice may not reach every radius bin (median 7, at most 18 of 160 per fruit in a sample
-of 2526 and 2425 fruit). PLS needs a value in every bin, so an empty bin takes the mean of the
+Empty bins: the body spans 21 to 32 slices, so each of the 20 height bins holds at least one
+slice (no fruit of the 315 has an empty height bin, checked 9 November 2026). A slice has few
+cells, though, so it may not reach every radius bin, most often near the axis (median 9, at most
+22 of 160 per fruit in the 315 fruit). PLS needs a value in every bin, so an empty bin takes the mean of the
 nearest filled bins of the same fruit (distance in bin steps). No label and no other fruit is
 used, so the filling cannot leak between boxes.
 """

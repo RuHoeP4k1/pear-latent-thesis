@@ -7,6 +7,7 @@ from pearlatent.exclusions import (
     HUGO_TRAINING_REASON,
     apply_exclusions,
     build_exclusions,
+    drop_unscanned,
     read_volume_decisions,
 )
 from pearlatent.volume_qc import flag_volumes, volume_stats
@@ -119,6 +120,25 @@ def test_apply_exclusions_modes(labels, volumes):
     assert len(primary) == 4 and len(sensitivity) == 3
     with pytest.raises(ValueError, match="mode"):
         apply_exclusions(labels, ex, "all")
+
+
+def test_drop_unscanned_keeps_fruit_excluded_for_other_reasons(labels, volumes):
+    """The draw of the test boxes counts all scanned fruit, faulty volumes included."""
+    decisions = pl.DataFrame(
+        {
+            "fruit_id": ["2526_A01"],
+            "season": ["2526"],
+            "decision": ["missing_part"],
+            "note": [""],
+        }
+    )
+    ex = build_exclusions(labels, volumes, volume_decisions=decisions)
+    # 2526_A04 has no volume and goes; the faulty 2526_A01 was scanned and stays.
+    kept = drop_unscanned(labels, ex)["fruit_id"].to_list()
+    assert kept == ["2526_A01", "2526_A02", "2526_A03", "2425_A01"]
+    assert (
+        "2526_A01" not in apply_exclusions(labels, ex, "primary")["fruit_id"].to_list()
+    )
 
 
 def test_hugo_training_fruit_excluded_validation_and_test_not(labels, volumes):

@@ -4,7 +4,7 @@ Each feature set gives one row of 32,768 numbers per fruit:
 
 - `hugo_vae`: `mu` of Hugo's encoder (encoding run `20261013T171306Z_hugo_vae`, open part);
 - `random_init`: `mu` of the same architecture with random weights, seed 0 (run
-  `20261020T120336Z_random_init`, open part); separates the training from the architecture;
+  `20261020T120336Z_random_init`, open part); row dropped (Hugo, 29 October 2026), still loadable;
 - `ct_32`: the CT volume averaged in blocks of 4³ voxels (run `20261005T142026Z_raw_ct_32`);
   places a loss in the resolution;
 - `tissue_features`: the 10 global intensity features of Van De Looverbosch et al. (2020) on the

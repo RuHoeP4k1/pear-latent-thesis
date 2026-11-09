@@ -14,7 +14,7 @@ from itertools import combinations
 
 import polars as pl
 
-from pearlatent.exclusions import apply_exclusions, read_exclusions
+from pearlatent.exclusions import drop_unscanned, read_exclusions
 from pearlatent.labels import read_label_file
 from pearlatent.runs import write_run_record
 from pearlatent.sealed import write_sealed_fruit
@@ -50,10 +50,10 @@ def rule_commit() -> str:
 
 
 def scanned_2526_labels(cfg) -> pl.DataFrame:
-    """Section 2: the 433 scanned 2526 fruit (the primary exclusions drop the 17 unscanned)."""
+    """Section 2: the 433 scanned 2526 fruit (the 17 unscanned dropped, faulty volumes kept)."""
     labels = read_label_file(cfg.path("labels_2526"), "2526")
     exclusions = read_exclusions(cfg.path("derived_dir") / "exclusions.csv")
-    scanned = apply_exclusions(labels, exclusions, "primary")
+    scanned = drop_unscanned(labels, exclusions)
     print(f"2526 labels: {labels.height} fruit in, {scanned.height} scanned fruit out")
     if scanned.height != 433:
         raise ValueError(f"expected 433 scanned 2526 fruit, got {scanned.height}")

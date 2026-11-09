@@ -7,13 +7,14 @@ descriptors, so the same checks apply to every model row whatever is inside the 
   the same box) in which the non-consumable fruit gets the higher score.
 - `box_bootstrap` : 95 % interval of any of these statistics by drawing boxes with
   replacement (charter rule 4).
-- `within_between_logit` (check B): `binary_23` on the box mean of the score and the fruit's
+- `within_between_logit` (not used; dropped by Ruben on 7 November 2026, kept for the record):
+  `binary_23` on the box mean of the score and the fruit's
   deviation from it. A logistic regression with standard errors clustered by box, not the
   random-intercept model the note asks for: statsmodels has no frequentist mixed logistic
   model and R's lme4 is not installed (2 November 2026). With the box mean as a predictor the
   two models estimate the same within-box effect (the Mundlak argument); to be repeated with
   lme4 `glmer` if Ruben wants the mixed model itself.
-- `score_icc` (check B): share of the variation of the score between boxes once the defective
+- `score_icc` (reported beside check A): share of the variation of the score between boxes once the defective
   grade is accounted for (linear mixed model, random intercept per box).
 - `healthy_fruit_correlations` (check C): on grade 0 fruit only, Spearman correlation of the
   score (minus its box median) with stalk length and body size, and the difference in median
@@ -96,7 +97,7 @@ def split_score(table: pl.DataFrame) -> pl.DataFrame:
 
 
 def within_between_logit(table: pl.DataFrame) -> pl.DataFrame:
-    """Check B. In: a table with `score`, `box`, `binary_23`. Out: one row per predictor.
+    """Not used (see the module docstring). In: a table with `score`, `box`, `binary_23`. Out: one row per predictor.
 
     Both parts of the score are divided by the standard deviation of the score over all fruit,
     so the two coefficients are on the same scale (change in log-odds per standard deviation
@@ -124,7 +125,7 @@ def within_between_logit(table: pl.DataFrame) -> pl.DataFrame:
 
 
 def score_icc(table: pl.DataFrame) -> float:
-    """Check B. Share of the score's variation between boxes, given the defective grade.
+    """Share of the score's variation between boxes, given the defective grade.
 
     Linear mixed model score ~ grade (as categories) + random intercept per box, fitted by
     restricted maximum likelihood. Out: box variance / (box variance + residual variance).

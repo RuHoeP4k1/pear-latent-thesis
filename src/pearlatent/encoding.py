@@ -71,8 +71,8 @@ def load_vae(
 
     model_dir: run folder with `vae_hyperparameter.json` and the checkpoint, as Hugo's
     `utils/load_models.py` `load_vae` expects. None gives a randomly initialised model with
-    `random_init_seed` (the lower-bound reference point, rule 7 of CHARTER.md); its decoder is
-    random too and is not used.
+    `random_init_seed` (the random encoder row, dropped by Hugo on 29 October 2026); its decoder
+    is random too and is not used.
     """
     import torch
 

@@ -6,6 +6,7 @@ import json
 import platform
 import subprocess
 from datetime import UTC, datetime
+from importlib import metadata
 from pathlib import Path
 
 # The runs in use, as folders under `derived_dir` (28 October 2026). After a rerun (for example
@@ -66,12 +67,22 @@ def write_run_record(run_dir: Path, params: dict, root: Path | None = None) -> P
     except ImportError:
         torch_info = {}
 
+    # The model results depend on these too; read from the installed packages, not imported.
+    model_libraries = {
+        name: metadata.version(name)
+        for name in ("scikit-learn", "scipy", "statsmodels")
+    }
     record = {
         "created_utc": datetime.now(UTC).isoformat(),
         "host": platform.node(),
         "python": platform.python_version(),
         "git": git_state(root),
-        "versions": {"numpy": np.__version__, "polars": pl.__version__, **torch_info},
+        "versions": {
+            "numpy": np.__version__,
+            "polars": pl.__version__,
+            **model_libraries,
+            **torch_info,
+        },
         "params": params,
     }
     out = Path(run_dir) / "run.json"

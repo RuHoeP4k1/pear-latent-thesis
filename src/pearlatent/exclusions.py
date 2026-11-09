@@ -34,6 +34,7 @@ MODES = {
     "all_volumes": ("exclude",),
 }
 HUGO_TRAINING_REASON = "Hugo VAE training fruit: Step 0 comparison only"
+NO_VOLUME_REASON = "no CT volume (Hugo: poor scan setup)"
 
 # Faulty volumes (docs/outlier_rule.md). Every reason for such a row starts with this text, so
 # mode "all_volumes" can keep these fruit.
@@ -71,7 +72,7 @@ def build_exclusions(
         .select(
             "fruit_id",
             "season",
-            pl.lit("no CT volume (Hugo: poor scan setup)").alias("reason"),
+            pl.lit(NO_VOLUME_REASON).alias("reason"),
             pl.lit("exclude").alias("action"),
         ),
         labels.filter(
@@ -154,6 +155,18 @@ def read_volume_decisions(path) -> pl.DataFrame:
             f"Fruit decided more than once: {twice['fruit_id'].unique().to_list()}"
         )
     return out
+
+
+def drop_unscanned(df: pl.DataFrame, exclusions: pl.DataFrame) -> pl.DataFrame:
+    """`df` without the fruit that have no CT volume; every scanned fruit stays.
+
+    In: a table with `fruit_id` and the exclusion table. Out: the rows of scanned fruit, in
+    their order. Why not mode "primary": that mode also drops the faulty volumes, while the
+    balance counts of the test boxes and folds are defined on all scanned fruit
+    (`docs/test_box_rule.md`, section 2).
+    """
+    no_volume = exclusions.filter(pl.col("reason") == NO_VOLUME_REASON)
+    return df.join(no_volume.select("fruit_id"), on="fruit_id", how="anti")
 
 
 def apply_exclusions(

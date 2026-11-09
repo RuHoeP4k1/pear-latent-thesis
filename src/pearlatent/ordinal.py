@@ -1,7 +1,7 @@
 """Ordinal (cumulative-link) model of the grade on one PLS-DA prediction per fruit.
 
 Why: the four grades lie in order on the out-of-fold prediction of the binary PLS-DA model
-(`binary_23`, notebook 08), but one PLS model per grade fails for the middle grades (notebook
+(`binary_23`, notebook 08), but one PLS model per grade does poorly on the middle grades (notebook
 11, `docs/methods_plsda.md` section 8). A cumulative logit model on that one number keeps the
 order: P(grade <= j) = logistic(c_j - beta * score), with three cut-points c_0 < c_1 < c_2 and
 one slope beta. The grade probabilities are the differences of these cumulative ones.

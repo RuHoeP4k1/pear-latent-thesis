@@ -8,8 +8,8 @@ Design A, in the order the functions are used:
    variables. Every fruit is predicted once per repeat.
 2. `mean_squared_errors`: per fruit and number of latent variables, the squared error averaged
    over the repeats. Its column sums are the mean PRESS curve.
-3. `pearlatent.component_choice.choose_n_components`: the number of latent variables (van der
-   Voet randomisation test, signs flipped per box).
+3. The number of latent variables: chosen by Ruben by eye at the elbow of the mean RMSECV curve
+   (2 November 2026; replaces the van der Voet test of `pearlatent.component_choice`).
 4. `classification_scores` and `box_bootstrap_auc`: area under the ROC curve (AUC), recall per
    grade and precision at a cut-off, and the 95 % interval by a bootstrap over boxes.
 5. `youden_cutoff`: the second cut-off reported beside 0.5 (Ruben, 2 November 2026), chosen on
