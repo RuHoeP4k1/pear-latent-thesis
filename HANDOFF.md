@@ -351,6 +351,9 @@ For Ruben, added 9 Nov (audit session):
     section 14): fit on body cells only; project b orthogonal to the latent direction that
     predicts stalk length on healthy fruit; or external parameter orthogonalisation (EPO) of the
     latent before PLS. The stalk measure has the limits of check D (2 November).
+    Ruben, 9 Nov: options 2 (projection) and 3 (EPO) preferred, under the counterfactuals;
+    after the meeting of 17 November, together with a better stalk length (question 41:
+    body-stalk boundary at voxel level; question 18: fruit length before rescaling).
 56. 2526_I09 and 2526_N17 end in a flat, slanted neck in the CT, like the neck cuts excluded on
     26 October, but were kept then. Were some small neck cuts missed? Changes no result now.
 

@@ -465,3 +465,6 @@ Options to remove the stalk part (question 55, not decided):
   standard chemometric tool for a known nuisance; costs a new model row.
 All three depend on the stalk measure, which Ruben judged not accurate enough as a covariate on
 2 November (check D).
+Ruben, 9 November 2026: the projection and EPO are preferred, as part of the counterfactual work,
+in a session after the meeting of 17 November. First a better stalk length is needed (questions
+41 and 18 in `HANDOFF.md`).
