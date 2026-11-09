@@ -62,7 +62,10 @@ def _():
 def _():
     cfg = load_config()
     CLASSES = [0, 1, 2, 3]
-    return CLASSES, cfg
+    # Script mode: uv run python notebooks/11_plsda_multiclass.py -- --target defective
+    #   --representation ct_32 --lv 5,1,1,5 --save yes
+    args = mo.cli_args()
+    return CLASSES, args, cfg
 
 
 @app.cell(hide_code=True)
@@ -270,12 +273,14 @@ def _(CLASSES, class_predictions, grade):
 
 
 @app.cell(hide_code=True)
-def _(CLASSES):
+def _(CLASSES, args):
     _options = ["not chosen"] + [str(_h) for _h in range(1, MAX_COMPONENTS + 1)]
+    # From the command line: one number per class, for example --lv 5,1,1,5.
+    _given = str(args["lv"]).split(",") if "lv" in args else ["not chosen"] * 4
     lv_choices = mo.ui.dictionary(
         {
-            f"grade {_k}": mo.ui.dropdown(options=_options, value="not chosen")
-            for _k in CLASSES
+            f"grade {_k}": mo.ui.dropdown(options=_options, value=_given[_i])
+            for _i, _k in enumerate(CLASSES)
         }
     )
     mo.vstack(
@@ -424,6 +429,7 @@ def _(
     REPRESENTATIONS,
     SCALED,
     TARGETS,
+    args,
     cfg,
     chosen_lvs,
     class_curves,
@@ -435,7 +441,9 @@ def _(
     target_choice,
     total_error_rate,
 ):
-    mo.stop(not save_button.value, mo.md("_Not saved._"))
+    mo.stop(
+        not (save_button.value or args.get("save") == "yes"), mo.md("_Not saved._")
+    )
     _run_dir = new_run_dir(
         cfg.path("results_dir"),
         f"plsda_classes_{target_choice.value}_{representation_choice.value}",

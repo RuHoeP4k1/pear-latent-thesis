@@ -33,8 +33,8 @@ def _():
     # 14 PLS-DA on the other targets of charter rule 6
 
     **Question.** Does the picture of notebook 08 hold on the other targets of charter rule 6:
-    any defect (`binary_123`), browning without cavity, and a severity score fitted on grade 0
-    against 3 only? The cavity-free targets show what is left when cavity cannot carry the score.
+    browning without cavity, and a severity score fitted on grade 0 against 3 only? (`binary_123`
+    left out, Ruben, 9 November 2026.) The cavity-free targets show what is left when cavity cannot carry the score.
 
     **Design.** As notebook 08: the 12 open boxes, 20 repeats of the 4-fold box cross-validation,
     1 to 15 latent variables (LVs), centring only for cell grids and height-radius bins, scaling
@@ -51,7 +51,7 @@ def _():
     **Outputs.** `results/<run_id>_plsda_<target>_<representation>/` (only when saved):
     per-fruit predictions, curves, scores and `run.json`.
 
-    In script mode: `uv run python notebooks/14_plsda_other_targets.py -- --target binary_123
+    In script mode: `uv run python notebooks/14_plsda_other_targets.py -- --target severity_defective
     --representation hugo_vae --lv 3 --save yes`.
 
     **Status.** draft, 9 November 2026.
@@ -80,7 +80,7 @@ def _():
 def _(REPRESENTATIONS, args):
     target_choice = mo.ui.dropdown(
         options={_t.label: _k for _k, _t in TARGETS.items()},
-        value=TARGETS[args.get("target", "binary_123")].label,
+        value=TARGETS[args.get("target", "browning_2plus_cavity_free")].label,
         label="Target",
     )
     representation_choice = mo.ui.dropdown(
@@ -309,6 +309,56 @@ def _(fruit, mean_prediction):
         .sort("cause", "grade")
     )
     return (predictions_table,)
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 3. Where every grade lands on the score
+
+    One dot per fruit (out-of-fold, average of the 20 repeats), coloured by cause; the box shows
+    the median and quartiles of the grade. Dashed lines: the median of grade 0 and of grade 3.
+    For a severity score this is the main picture: the model only saw grades 0 and 3, so a grade
+    1 box between the two lines, apart from grade 0, means grade 1 is seen; a grade 1 box on top
+    of grade 0 means it is not.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(predictions_table):
+    _base = alt.Chart(predictions_table).encode(
+        x=alt.X("grade:O", title="grade of the target"),
+    )
+    _boxes = _base.mark_boxplot(opacity=0.35, size=40, outliers=False).encode(
+        y=alt.Y("prediction:Q", title="out-of-fold score")
+    )
+    _dots = (
+        _base.mark_circle(size=22, opacity=0.7)
+        .encode(
+            y="prediction:Q",
+            xOffset=alt.XOffset("jitter:Q"),
+            color=alt.Color("cause:N", title="cause"),
+            tooltip=["fruit_id", "box", "browning", "cavity", "prediction"],
+        )
+        .transform_calculate(jitter="random()")
+    )
+    _medians = pl.DataFrame(
+        {
+            "y": [
+                predictions_table.filter(pl.col("grade") == _g)["prediction"].median()
+                for _g in (0, 3)
+            ],
+            "line": ["median grade 0", "median grade 3"],
+        }
+    )
+    _lines = (
+        alt.Chart(_medians)
+        .mark_rule(strokeDash=[4, 4])
+        .encode(y="y:Q", tooltip=["line", "y"])
+    )
+    alt.layer(_boxes, _dots, _lines).properties(width=420, height=320)
+    return
 
 
 @app.cell(hide_code=True)

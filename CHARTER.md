@@ -94,7 +94,9 @@ training). Dropped on 29 October (Hugo): the random frozen encoder.
    `defective` are always split by cause (browning only, cavity only, both), because cavity is the
    easier signal and can carry the score on its own.
 6. Report per grade: recall per grade, a severity score fitted on grade 0 vs 3 only, binary_23 with
-   binary_123 beside it. Two curves: any defect, and cavity-free browning.
+   binary_123 beside it (binary_123 left out, Ruben, 9 November 2026: PLS trained on it separates
+   grade 0 from 1 no better than the binary_23 score). Two curves: any defect, and cavity-free
+   browning.
 7. Recall and precision beside accuracy.
 8. Orchard check: the within-box AUC and the intraclass correlation of the score given the grade
    (mixed model, random intercept per box). The split of the score into box mean and within-box

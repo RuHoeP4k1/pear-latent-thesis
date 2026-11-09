@@ -1,7 +1,9 @@
 """The PLS-DA targets of charter rule 6 beside `binary_23` (notebook 14; Ruben, 9 November 2026).
 
-Rule 6 asks for `binary_123` beside `binary_23`, a severity score fitted on grade 0 against 3
-only, and two curves: any defect, and cavity-free browning. Each target says which fruit it uses,
+Rule 6 asks for a severity score fitted on grade 0 against 3 only, and two curves: any defect
+(`binary_23`, notebook 08), and cavity-free browning. `binary_123` is left out (Ruben,
+9 November 2026): PLS trained on it separated grade 0 from grade 1 no better than the `binary_23`
+score (`docs/methods_plsda.md` section 9). Each target says which fruit it uses,
 which grade describes them, where the 0/1 label cuts, and which fruit a model may be fitted on.
 
 Severity score: the model sees only the extreme grades, so grades 1 and 2 play no part in the
@@ -28,9 +30,6 @@ class Target:
 
 
 TARGETS = {
-    "binary_123": Target(
-        "any defect: defective grade ≥ 1, all fruit", "defective", False, 1
-    ),
     "browning_2plus_cavity_free": Target(
         "browning grade ≥ 2, cavity-free fruit", "browning", True, 2
     ),
