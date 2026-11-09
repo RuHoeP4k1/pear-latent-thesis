@@ -185,7 +185,12 @@ def _():
 @app.cell(hide_code=True)
 def _():
     counterfactual_choice = mo.ui.dropdown(
-        options=["2526_C23_cavity_free"],
+        options=[
+            "2526_C23_cavity_free",
+            "2526_N17_cavity_free",
+            "2526_K07_cavity_free",
+            "2526_A03_cavity_free",
+        ],
         value="2526_C23_cavity_free",
         label="Fruit and direction",
     )

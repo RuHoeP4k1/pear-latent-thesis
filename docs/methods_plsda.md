@@ -397,3 +397,71 @@ under design A on all 346 open 2526 volumes (faulty volumes kept), its saved LVs
 and each row's general model (fit on the 315 fruit) applied to Hugo's 61 validation fruit left
 after the faulty volumes. In those 61, all 29 non-consumable fruit have a cavity and the defect
 follows the storage group, so the reverse check tests the change of season, not browning.
+
+## 14. Cavity-free browning and counterfactual steps (9 November 2026, Ruben)
+
+**Targets beside `binary_23`** (notebook 14, `pearlatent.targets`; charter rule 6). Kept:
+browning grade ≥ 2 on the cavity-free fruit (233 of 315, 50 positive), design A, LVs chosen by
+Ruben at the elbow. Dropped (Ruben): `binary_123` (section 9: training on it separates grade 0
+from 1 no better) and the severity score (a model fitted on grade 0 and grade 3 fruit only,
+predicting all held-out fruit; `cross_validated_predictions(..., fit_on=...)`), after one run
+showed grade 0 | 1 at 0.61 against 0.64 for `binary_23` (latent height-radius).
+
+Cavity-free runs `results/20261109T1717*` (clean, commit d451c6b):
+
+| Row | LVs | AUC (95 % box interval) | 0 \| 1 | 2 \| 3 |
+|---|---|---|---|---|
+| Med3D | 3 | 0.945 (0.915 to 0.969) | 0.71 | 0.62 |
+| Latent height-radius mean + SD | 2 | 0.942 (0.896 to 0.974) | 0.67 | 0.75 |
+| Tissue features | 7 | 0.927 (0.867 to 0.960) | 0.64 | 0.68 |
+| Latent height-radius | 2 | 0.916 (0.867 to 0.957) | 0.65 | 0.73 |
+| CT height-radius mean + SD | 3 | 0.890 (0.837 to 0.934) | 0.57 | 0.70 |
+| Latent grid | 5 | 0.848 (0.805 to 0.887) | 0.57 | 0.70 |
+| CT height-radius | 3 | 0.840 (0.772 to 0.900) | 0.59 | 0.71 |
+| CT grid | 4 | 0.730 (0.658 to 0.781) | 0.59 | 0.65 |
+
+**Counterfactual steps** (notebook 17, `pearlatent.counterfactual`, `counterfactual_run`).
+
+1. Direction: the regression vector b of one PLS-DA model on the full 32³ latent grid, fitted
+   on all open fruit of its target (cavity-free: 233 fruit, 5 LVs; general `binary_23`: 315
+   fruit, 4 LVs). The two b point largely the same way (cosine 0.74).
+2. Scale t (Ruben): t = 0 at the mean fitted score of grade 0 fruit, t = 1 at grade 3, as
+   Keicher et al. (2023). Cavity-free: 0.042 and 0.878, so t = 0.5 is the score 0.46.
+3. Step to t: `mu` moves by (target − current score) × b / (b · b), the smallest change that
+   gives the target score. Example: b = (2, 0), score 0.2, target 1.0: change (0.4, 0).
+   Why not the line between the grade 0 and grade 3 centroids itself (Ruben's first idea): on
+   the 145 healthy cavity-free fruit, the position along that line follows body size
+   (Spearman 0.91) and stalk length (−0.75); along b it does not (0.07, −0.04). The step along
+   b is the projection of the centroid line onto b (the part the model uses).
+4. Size of the steps: every cell changes by less than 2 of its own SDs over the 315 fruit, so
+   the moved latent stays within the range of real fruit.
+5. Decode (`vae.decode`, 295 s and 18 GB on the Mac CPU), min-max scale, encode again, predict
+   with the same model. The plain reconstruction is re-encoded as the control.
+6. Draw: 2 grade 3 (browning 3, cavity 0) and 2 grade 0 fruit from 4 boxes, seed 369; fruit
+   Ruben rejects on their CT are skipped (2526_I09). Fruit: C23, N17, K07, A03.
+
+First result, 2526_C23 (t 1.38) towards healthy:
+
+| Step | target score | re-encoded score (t) |
+|---|---|---|
+| plain reconstruction | 1.196 | 1.089 (1.25) |
+| t = 0.5 | 0.460 | 0.709 (0.80) |
+| t = 0 | 0.042 | 0.431 (0.47) |
+
+The decoded image keeps about half of each shift. The core brightens by only 0.008 (the rest of
+the body by 0.005); the dark spots, already smoothed in the plain reconstruction, stay. At t = 0
+a stalk appears above the neck (6,790 voxels outside the body change by more than 0.1). The
+direction carries stalk and shape besides browning: grade 0 fruit have longer stalks in the grid
+(question 38), and the scores follow the stalk on healthy fruit (question 52).
+
+Options to remove the stalk part (question 55, not decided):
+- b on body cells only (set b to 0 outside the cells inside the body of most fruit). Removes the
+  stalk cells, but InstanceNorm passes the stalk into every cell, so not all of it.
+- Project b orthogonal to the stalk direction s (the latent direction that predicts stalk
+  length on the healthy training fruit): b' = b − (b · s / s · s) s. Example: b = (1, 1),
+  s = (1, 0): b' = (0, 1).
+- External parameter orthogonalisation (EPO, Roger et al. 2003): remove the subspace of the
+  latent that varies with stalk length from every fruit before PLS, inside the folds. The
+  standard chemometric tool for a known nuisance; costs a new model row.
+All three depend on the stalk measure, which Ruben judged not accurate enough as a covariate on
+2 November (check D).

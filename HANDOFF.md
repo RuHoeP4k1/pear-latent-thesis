@@ -5,7 +5,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-07 (state at the end of the session of 7 November, Mac)
+- **Date:** 2026-11-09 (state at the end of the two sessions of 9 November, Mac)
 - **Phase:** models on labels for the meeting with Hugo on **17 November**. Six PLS-DA rows on
   `binary_23` saved (design A, 315 open 2526 fruit, 12 open boxes, 20 × 4-fold box
   cross-validation); their comparison, the per-grade analysis and the ordinal model are saved
@@ -27,9 +27,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     × 8 radius bins, radius per slice, empty bins filled from the nearest filled bins of the
     same fruit; both at 3 LVs.
   - Counterfactuals stay on the full latent grid (the height-radius features cannot be
-    decoded); direction from the general model (one fit on all 12 open boxes), not averaged
-    fold models; 2 grade 3 and 2 grade 0 fruit drawn with a fixed seed from different open
-    boxes, Ruben checks their CT slices first.
+    decoded); one fit on all 12 open boxes, not averaged fold models. (9 Nov: both the
+    cavity-free and the general direction, cavity-free first; see below.)
 - **Done on 7 November, commits 22f7d14 to 82a1aab (not pushed):**
   - `pearlatent.plsda.paired_box_bootstrap_auc_difference`; notebook 10 (paired AUC
     differences of all 15 pairs, checks A with ICC and C); run
@@ -77,17 +76,46 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     Grade 0 against 1 (cavity-free): CT interior SD 0.82 (0.74 to 0.90), latent interior SD
     0.50, encoder SD 0.57: grade 1 is visible in the CT at 32³ and lost in the latent. All 346
     volumes: same order of rows. Reverse check: AUC 0.97 to 1.00 except tissue features 0.71.
-- **Next step:** b maps (regression vector of the general `binary_23` model on the full
-  latent grid at 4 LVs, and CT at 32³ at 5 LVs, drawn on the 32³ grid), then the
-  counterfactual notebook: draw the 2 + 2 fruit (fixed seed, different open boxes), show their
-  CT slices to Ruben, time one decode on the Mac, then move `mu` along the normalised b
-  direction at three steps and decode. Ask Ruben before any run longer than a few minutes.
+- **Done on 9 November, session on the audit and counterfactuals (commits 1905eae to the
+  last commit of the day, not pushed; methods sections 12 and 14):**
+  - Audit of the repository: all six `binary_23` rows reproduce (difference below 3e-15), no
+    sealed fruit in any open product, labels match. Fixed: claims about grades 1 and 2 and empty
+    height bins, `test_box_draw` now uses `drop_unscanned` (mode "primary" gave 402, not 433),
+    `exclusions.csv` rebuilt (41 faulty volumes; backup `derived/exclusions_before_2026-11-09.csv`),
+    stale docstrings, `run.json` now records scikit-learn, scipy and statsmodels versions.
+  - Decided (Ruben): `binary_123` and the severity score dropped as plans (one severity run
+    kept as a record); grade 0 corrections not used in models (subtracting a training grade 0
+    mean changes nothing in PLS); the 15 (now 28) paired intervals are descriptive;
+    counterfactuals: steps along the model direction on a normalised scale t (0 = mean score of
+    grade 0, 1 = grade 3; `pearlatent.counterfactual.GradeScale`), decode, re-encode, predict.
+  - Notebook 14 (cavity-free browning ≥ 2, 233 fruit; LVs Ruben's): runs `20261109T1717*`,
+    AUC Med3D 0.945, latent mean + SD 0.942, tissue 0.927, latent height-radius 0.916, CT
+    mean + SD 0.890, latent grid 0.848, CT height-radius 0.840, CT grid 0.730. Severity run
+    `20261109T171751Z` (latent height-radius): 0 | 1 AUC 0.61, no better than `binary_23`.
+  - Notebook 11 runs for latent and CT re-saved clean (identical predictions); notebook 11
+    and 14 take their choices from the command line (`-- --representation ... --lv ... --save yes`).
+  - Notebook 17: draw of 2526_C23, N17 (grade 3, cavity-free) and K07, A03 (grade 0); I09
+    rejected by Ruben (no visible browning). One decode on the Mac: 295 s, 18 GB.
+  - C23 smoke test (`derived/counterfactuals/20261109T180250Z_2526_C23_cavity_free`): the
+    decoded image keeps about half of each shift (re-encoded t 1.25 → 0.80 → 0.47 for targets
+    0.5 and 0); the core browning does not visibly disappear (core +0.008), and at t = 0 a stalk
+    appears above the neck. The direction carries stalk and shape, not only browning
+    (question 55).
+- **Running at the end of the session:** plain reconstructions of K07, A03, N17 and their two
+  steps each (K07, A03 to t = 0.5 and 1.0; N17 to 0.5 and 0.0), cavity-free direction, about
+  45 minutes; results in `derived/counterfactuals/` and notebook 17 section 3.
+- **Next step:** look at the K07, A03 and N17 steps in notebook 17 section 3 (dropdown); check
+  whether healthy fruit lose their stalk towards t = 1. Then Ruben decides on question 55
+  (removing the stalk part of the direction) and the meeting material for 17 November.
 - **Blocked on:** nothing for the models. The ResNet-18 baseline needs the lab workstation
   (question 9 with Hugo).
 - **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
   overwritten; make notebook edits in one write. A notebook can be run headless with
   `app.run(defs=...)`; every definition of an overridden cell must be passed. Runs saved while
-  the working tree had uncommitted edits record `dirty: true` (the notebook 11 runs of today).
+  the working tree had uncommitted edits record `dirty: true`; the marimo editor also writes
+  an open notebook back to disk (9 Nov: a `hide_code` toggle and a reverted edit), so close it
+  before saving a run. Two Claude sessions worked in parallel on 9 Nov; they split notebook
+  numbers and methods sections by message. Only one session runs `/handoff`.
 - **Reference, still valid:**
   - Encoding run `20261013T171306Z_hugo_vae`: open part 940 fruit (346 2526, 594 2425);
     sealed part `derived/sealed/latents/...`, 153 fruit. CT at 32³ run `20261005T142026Z`.
@@ -317,6 +345,15 @@ For Ruben, added 7 Nov:
     still exclude 0), so the fruit-wide level is not the main route. Cause still open. Covariates
     conflict with the decision of 2 November (check D: measures not accurate enough).
 
+For Ruben, added 9 Nov (audit session):
+55. The counterfactual direction (cavity-free, latent grid, 5 LVs) adds a stalk when a fruit is
+    moved towards healthy (2526_C23). Remove the stalk part? Options (`docs/methods_plsda.md`
+    section 14): fit on body cells only; project b orthogonal to the latent direction that
+    predicts stalk length on healthy fruit; or external parameter orthogonalisation (EPO) of the
+    latent before PLS. The stalk measure has the limits of check D (2 November).
+56. 2526_I09 and 2526_N17 end in a flat, slanted neck in the CT, like the neck cuts excluded on
+    26 October, but were kept then. Were some small neck cuts missed? Changes no result now.
+
 For Ruben, added 9 Nov:
 54. Scale the height-radius rows per bin? The reason for centring only (background cells) does
     not apply to them, because their bins hold body cells only. Scratch, dividing by the grade 0
@@ -450,6 +487,15 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-11-09 — audit, cavity-free browning, counterfactual smoke test
+- Decided (Ruben): `binary_123` and severity plans dropped; grade 0 corrections not in models;
+  counterfactual steps along the model direction on a t scale, then re-encode; I09 rejected.
+- Audit: results reproduce; fixed docs, `drop_unscanned`, stale `exclusions.csv`, run records.
+- Built: `pearlatent.targets`, notebook 14 (cavity-free runs), `pearlatent.counterfactual`,
+  `counterfactual_run`, notebook 17. Found: browning without cavity detected (latent mean + SD
+  0.942); the counterfactual direction adds a stalk (question 55).
+- Next: inspect the three running counterfactuals, then question 55.
 
 ### 2026-11-09 — mean and SD rows, interior spread, encoder SD, meeting figures
 - Audit before the meeting: the six saved rows reproduce exactly; signals not followed up listed.
