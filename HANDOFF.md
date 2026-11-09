@@ -457,6 +457,8 @@ Newest first. One entry per session, three to six lines.
   notebooks 15 (interior spread), 16 (all volumes, reverse check), 18 (two AUC figures).
 - Found: latent mean + SD level with Med3D; grade 1 visible in the CT interior SD, not in the
   latent; the encoder SD adds nothing to `mu`.
+- Deleted (Ruben): the 8 notebook 14 runs `20261109T171155Z` to `20261109T171509Z` saved with
+  `dirty: true`; each had predictions identical to its clean re-save (`20261109T1717..Z`).
 - Next: ResNet-18 design note and the workstation mail to Hugo.
 
 ### 2026-11-07 — comparison saved, per-grade PLS-DA fails for grades 1 and 2, height-radius rows
