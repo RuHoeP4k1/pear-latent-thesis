@@ -181,6 +181,28 @@ def test_paired_interval_finds_the_better_method_and_is_narrower():
     assert paired_width < unpaired_width
 
 
+def test_fit_on_fits_on_the_subset_and_predicts_every_held_out_fruit():
+    """Severity score: the fold model sees only `fit_on` fruit of the training boxes."""
+    rng = np.random.default_rng(5)
+    boxes = np.repeat(BOXES, 10)
+    y = rng.integers(0, 2, boxes.size).astype(float)
+    x = rng.normal(0, 1, (boxes.size, 20))
+    fit_on = rng.random(boxes.size) < 0.6
+    folds = pl.DataFrame(
+        {"repeat": 1, "fold": np.repeat([1, 2, 3, 4], 3), "box": BOXES}
+    )
+    out = cross_validated_predictions(
+        x, y, boxes, folds, scale=False, max_components=2, fit_on=fit_on
+    )
+    assert not np.isnan(out).any()
+    # By hand for fold 1: fit on the other boxes and fit_on only; predict all fruit of fold 1.
+    held = np.isin(boxes, BOXES[:3])
+    model = PLSRegression(n_components=2, scale=False).fit(
+        x[~held & fit_on], y[~held & fit_on]
+    )
+    assert np.allclose(out[0, held, 1], model.predict(x[held]).ravel())
+
+
 def test_paired_difference_refuses_unequal_lengths():
     with pytest.raises(ValueError):
         paired_box_bootstrap_auc_difference(

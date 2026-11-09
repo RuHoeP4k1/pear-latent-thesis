@@ -67,16 +67,24 @@ def cross_validated_predictions(
     folds: pl.DataFrame,
     scale: bool,
     max_components: int = MAX_COMPONENTS,
+    fit_on: np.ndarray | None = None,
 ) -> np.ndarray:
     """Out-of-fold predictions for every repeat, fruit and number of latent variables.
 
     In: features `x` (fruit × features), the response `y` (0/1 labels for PLS-DA, or the grade
     0 to 3 for PLS on the grade), the box of every fruit, the fold table
-    (columns repeat, fold, box) and the scaling choice. Out: an array (repeats, fruit,
-    max_components). Raises if a fruit's box is missing from a repeat, if a box sits in two folds
-    of one repeat, or if a box is on both sides of a fit.
+    (columns repeat, fold, box) and the scaling choice. `fit_on`: optional boolean per fruit;
+    a model is then fitted only on those fruit of the training boxes (`pearlatent.targets`,
+    severity score), and still predicts every fruit of the held-out boxes. Out: an array (repeats,
+    fruit, max_components). Raises if a fruit's box is missing from a repeat, if a box sits in two
+    folds of one repeat, or if a box is on both sides of a fit.
     """
     boxes = np.asarray(boxes)
+    fit_on = (
+        np.ones(len(y), dtype=bool)
+        if fit_on is None
+        else np.asarray(fit_on, dtype=bool)
+    )
     repeats = sorted(folds["repeat"].unique().to_list())
     out = np.full((len(repeats), len(y), max_components), np.nan)
     for r_index, repeat in enumerate(repeats):
@@ -97,7 +105,8 @@ def cross_validated_predictions(
             )
             assert_no_group_leakage(sides, "box", "side")
             model = PLSRegression(n_components=max_components, scale=scale)
-            model.fit(x[~held_out], y[~held_out].astype(float))
+            fitted = ~held_out & fit_on
+            model.fit(x[fitted], y[fitted].astype(float))
             out[r_index, held_out] = predict_each_h(model, x[held_out])
     if np.isnan(out).any():
         raise AssertionError("some fruit were not predicted in some repeat")
