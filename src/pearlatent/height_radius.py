@@ -59,25 +59,41 @@ def height_radius_features(
     body_cells: np.ndarray,
     n_height: int = N_LATENT_HEIGHT_BINS,
     n_radius: int = N_LATENT_RADIUS_BINS,
+    with_sd: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """160 height-radius means per fruit.
+    """160 height-radius means per fruit, and with `with_sd` also the 160 SDs.
 
     In: grids (fruit, 32, 32, 32), the matching 32³ body cells (fruit, 32, 32, 32).
     Out: features (fruit, n_height * n_radius), ordered height first (feature index =
     n_radius * height bin + radius bin, as the spectrum of notebook 07), and the number of
-    filled bins per fruit.
+    filled bins per fruit. With `with_sd` the features are (fruit, 2 * n_height * n_radius):
+    the 160 means, then the 160 SDs in the same bin order.
+
+    SD of a bin (Ruben, 9 November 2026): how much the values of the body cells in one ring
+    differ from each other, SD = sqrt(mean of squares − square of mean), divided by n (not
+    n − 1). A ring at one height and depth is even in a healthy fruit and patchy where tissue
+    has browned; the mean of the ring cannot show that. A bin with one cell gets SD 0. Empty
+    bins are filled from the nearest filled bins of the same fruit, as the means.
     """
-    features = np.empty((len(grids), n_height * n_radius), dtype=np.float32)
+    n_bins = n_height * n_radius
+    features = np.empty(
+        (len(grids), 2 * n_bins if with_sd else n_bins), dtype=np.float32
+    )
     n_filled = np.empty(len(grids), dtype=int)
     for k in range(len(grids)):
-        counts, sums = latent_map_sums(
-            np.asarray(grids[k]),
-            np.asarray(body_cells[k]),
-            RADIUS_METHOD,
-            n_height,
-            n_radius,
-        )
+        grid = np.asarray(grids[k], dtype=float)
+        body = np.asarray(body_cells[k])
+        counts, sums = latent_map_sums(grid, body, RADIUS_METHOD, n_height, n_radius)
         means = fruit_bin_means(counts[None], sums[None])[0]
         filled, n_filled[k] = fill_empty_bins(means)
-        features[k] = filled.ravel()
+        features[k, :n_bins] = filled.ravel()
+        if with_sd:
+            # Same cells and bins, summing the squared values.
+            _, square_sums = latent_map_sums(
+                grid**2, body, RADIUS_METHOD, n_height, n_radius
+            )
+            mean_squares = fruit_bin_means(counts[None], square_sums[None])[0]
+            # Rounding can make the variance a tiny negative number; clip it to 0.
+            sds = np.sqrt(np.clip(mean_squares - means**2, 0.0, None))
+            features[k, n_bins:] = fill_empty_bins(sds)[0].ravel()
     return features, n_filled

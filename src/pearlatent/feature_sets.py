@@ -22,6 +22,8 @@ pass. The 128³ input level (2,097,152 numbers per fruit) is not here yet.
 - `hugo_vae_hr`, `ct_32_hr`: `hugo_vae` and `ct_32` averaged over the angle in 20 height × 8
   radius bins (radius per slice), 160 numbers per fruit (`pearlatent.height_radius`; Ruben,
   7 November 2026). Computed on load from the grid and the encoder's 32³ body cells.
+- `hugo_vae_hr_sd`, `ct_32_hr_sd`: the same 160 bin means plus the SD of the body cells in each
+  bin, 320 numbers per fruit (Ruben, 9 November 2026): the SD says how uneven a ring is.
 """
 
 from __future__ import annotations
@@ -47,8 +49,13 @@ FEATURE_RUNS = {
     "med3d": (MED3D_RUN_DIR, "features.npy"),
 }
 
-# Height-radius sets: name -> the 32³ grid they are computed from.
-HEIGHT_RADIUS_SETS = {"hugo_vae_hr": "hugo_vae", "ct_32_hr": "ct_32"}
+# Height-radius sets: name -> (the 32³ grid they are computed from, whether the bin SDs are added).
+HEIGHT_RADIUS_SETS = {
+    "hugo_vae_hr": ("hugo_vae", False),
+    "ct_32_hr": ("ct_32", False),
+    "hugo_vae_hr_sd": ("hugo_vae", True),
+    "ct_32_hr_sd": ("ct_32", True),
+}
 
 
 def load_features(
@@ -110,13 +117,15 @@ def _load_tissue_features(
 def _load_height_radius(
     cfg, name: str, fruit_ids: list[str], include_sealed: bool
 ) -> np.ndarray:
-    """160 height-radius means per fruit of the grid behind `name` (see module docstring).
+    """160 height-radius means (and 160 SDs for the `_sd` sets) per fruit of the grid behind
+    `name` (see module docstring).
 
     The body cells come from the encoding run (`masks.npy`, the 32³ body of every fruit, row
     order of its manifest), for the latent and the CT grid alike, so both are binned on the
     same cells. Prints how many empty bins were filled.
     """
-    grids = load_features(cfg, HEIGHT_RADIUS_SETS[name], fruit_ids, include_sealed)
+    grid_name, with_sd = HEIGHT_RADIUS_SETS[name]
+    grids = load_features(cfg, grid_name, fruit_ids, include_sealed)
     grids = grids.reshape(len(fruit_ids), 32, 32, 32)
     run = cfg.path("derived_dir") / ENCODING_RUN_DIR
     manifest = pl.read_parquet(run / "manifest.parquet").with_row_index("position")
@@ -129,9 +138,9 @@ def _load_height_radius(
         raise ValueError(f"{found['position'].null_count()} fruit without body cells")
     cells = np.load(run / "masks.npy", mmap_mode="r")
     body = cells[found.sort("order")["position"].to_numpy()]
-    features, n_filled = height_radius_features(grids, body)
+    features, n_filled = height_radius_features(grids, body, with_sd=with_sd)
     print(
-        f"{name}: {len(fruit_ids)} fruit, 160 bins; empty bins filled per fruit:"
+        f"{name}: {len(fruit_ids)} fruit, {features.shape[1]} features; empty bins filled per fruit:"
         f" median {np.median(n_filled):.0f}, max {n_filled.max()}"
     )
     return features
