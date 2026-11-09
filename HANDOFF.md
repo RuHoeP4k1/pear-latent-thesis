@@ -106,8 +106,11 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     0.10. The images change mostly at the outline (shape), with slight darkening around the
     core of the grade 0 fruit; a small bright spot above the neck of K07 at t = 1. Table in
     `docs/methods_plsda.md` section 14; figures `derived/figures/17_<run>.png`.
-- **Next step:** Ruben looks at the four step figures (notebook 17 section 3, dropdown). Then the
-  meeting material for 17 November. Question 55 (stalk part of the direction) after the meeting.
+    Ruben looked at the four figures (9 November): description accurate.
+- **Next step:** the meeting material for 17 November (cavity-free AUC table, `binary_23`
+  comparison, counterfactual figures). After the meeting: a better stalk length (questions 41,
+  18), then question 55 (projection or EPO), then the general-direction counterfactuals and
+  possibly a sweep of more fruit over the score range.
 - **Blocked on:** nothing for the models. The ResNet-18 baseline needs the lab workstation
   (question 9 with Hugo).
 - **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
