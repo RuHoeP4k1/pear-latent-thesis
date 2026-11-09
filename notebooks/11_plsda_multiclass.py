@@ -69,7 +69,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _():
+def _(args):
     TARGETS = {
         "browning": "browning grade, cavity-free fruit",
         "defective": "defective grade, all fruit",
@@ -86,12 +86,12 @@ def _():
     SCALED = ("tissue_features", "med3d")
     target_choice = mo.ui.dropdown(
         options={_label: _key for _key, _label in TARGETS.items()},
-        value=TARGETS["defective"],
+        value=TARGETS[args.get("target", "defective")],
         label="Target",
     )
     representation_choice = mo.ui.dropdown(
         options={_label: _key for _key, _label in REPRESENTATIONS.items()},
-        value=REPRESENTATIONS["hugo_vae"],
+        value=REPRESENTATIONS[args.get("representation", "hugo_vae")],
         label="Representation",
     )
     run_cv = mo.ui.run_button(label="Run the cross-validation (four models)")
