@@ -70,6 +70,8 @@ def _():
         "med3d": "Med3D ResNet-18, 512 channels",
         "hugo_vae_hr": "Hugo's latent, 20 height × 8 radius bins",
         "ct_32_hr": "CT at 32³, 20 height × 8 radius bins",
+        "hugo_vae_hr_sd": "Hugo's latent, 20 height × 8 radius bins, mean and SD",
+        "ct_32_hr_sd": "CT at 32³, 20 height × 8 radius bins, mean and SD",
     }
     # Scaling as in notebook 08: cells and bins centred only; features in different units scaled.
     SCALED = ("tissue_features", "med3d")
