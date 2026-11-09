@@ -15,6 +15,7 @@ with app.setup:
     from sklearn.metrics import cohen_kappa_score
 
     from pearlatent.config import load_config
+    from pearlatent.fruit_table import cause
     from pearlatent.ordinal import (
         cross_validated_ordinal,
         fit_ordinal,
@@ -32,8 +33,10 @@ def _():
     08) gives one out-of-fold prediction per fruit. Does that one number predict the defective
     grade 0 to 3, and which neighbouring grades can it tell apart?
 
-    **Why this model.** One PLS model per grade (notebook 11) fails for grades 1 and 2: their
-    RMSECV never drops below that of no model. On the binary prediction the four grades lie in
+    **Why this model.** One PLS model per grade (notebook 11) does poorly on the middle grades:
+    the RMSECV of grade 1 stays at about that of no model in every row (lowest ratio 0.999), and
+    grade 2 drops below it only for tissue features and Med3D (0.94 and 0.96). On the binary
+    prediction the four grades lie in
     order (section 1), so a grade in the middle cannot be "high" on a linear score while both
     neighbours are "low". A cumulative logit model keeps the order:
 
@@ -299,15 +302,7 @@ def _(CLASSES, confusion_choice, probabilities):
     _text = _base.mark_text().encode(text="n:Q")
     # Split by cause (charter rule 5): which defect the fruit has, and how it is assigned.
     _cause = (
-        _s.with_columns(
-            cause=pl.when((pl.col("browning") >= 1) & (pl.col("cavity") >= 1))
-            .then(pl.lit("both"))
-            .when(pl.col("browning") >= 1)
-            .then(pl.lit("browning only"))
-            .when(pl.col("cavity") >= 1)
-            .then(pl.lit("cavity only"))
-            .otherwise(pl.lit("healthy"))
-        )
+        _s.with_columns(cause())
         .group_by("cause", "defective")
         .agg(
             n=pl.len(),

@@ -77,8 +77,9 @@ def _(ROWS):
     interval_choice = mo.ui.dropdown(
         options=["height", "depth"], value="height", label="Intervals"
     )
-    mo.hstack([row_choice, interval_choice], justify="start")
-    return interval_choice, row_choice
+    run_button = mo.ui.run_button(label="Run iPLS (slow the first time, then cached)")
+    mo.hstack([row_choice, interval_choice, run_button], justify="start")
+    return interval_choice, row_choice, run_button
 
 
 @app.cell(hide_code=True)
@@ -120,7 +121,12 @@ def run_ipls(row: str, interval_kind: str, fruit_ids: tuple) -> dict:
 
 
 @app.cell(hide_code=True)
-def _(fruit, interval_choice, row_choice):
+def _(fruit, interval_choice, row_choice, run_button):
+    # In script mode the button is never pressed; iPLS then runs directly.
+    mo.stop(
+        mo.running_in_notebook() and not run_button.value,
+        mo.md("_Press the button to run iPLS._"),
+    )
     result = run_ipls(
         row_choice.value, interval_choice.value, tuple(fruit["fruit_id"].to_list())
     )
