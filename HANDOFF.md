@@ -107,8 +107,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     core of the grade 0 fruit; a small bright spot above the neck of K07 at t = 1. Table in
     `docs/methods_plsda.md` section 14; figures `derived/figures/17_<run>.png`.
     Ruben looked at the four figures (9 November): description accurate.
-- **Next step:** the meeting material for 17 November (cavity-free AUC table, `binary_23`
-  comparison, counterfactual figures). After the meeting: a better stalk length (questions 41,
+- **Next step:** Ruben reads the draft walkthrough `docs/meeting_2026-11-17.md` (10 Nov; all
+  numbers from saved runs) and chooses what goes in and the format. After the meeting: a better stalk length (questions 41,
   18), then question 55 (projection or EPO), then the general-direction counterfactuals and
   possibly a sweep of more fruit over the score range.
 - **Blocked on:** nothing for the models. The ResNet-18 baseline needs the lab workstation
