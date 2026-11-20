@@ -183,21 +183,18 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _():
+def _(cfg):
+    # Every counterfactual run folder (20 November 2026: one fruit can have several runs, for
+    # example the EPO steps and an extra run at the decision boundary; all stay selectable).
+    _runs = sorted(
+        _p.name
+        for _p in (cfg.path("derived_dir") / "counterfactuals").glob("*_*")
+        if (_p / "run.json").exists()
+    )
     counterfactual_choice = mo.ui.dropdown(
-        options=[
-            "2526_C23_cavity_free",
-            "2526_N17_cavity_free",
-            "2526_K07_cavity_free",
-            "2526_A03_cavity_free",
-            # EPO direction (notebook 22, 20 November 2026): size axis removed before the fit.
-            "2526_C23_cavity_free_epo",
-            "2526_N17_cavity_free_epo",
-            "2526_K07_cavity_free_epo",
-            "2526_A03_cavity_free_epo",
-        ],
-        value="2526_C23_cavity_free",
-        label="Fruit and direction",
+        options=_runs,
+        value=_runs[0] if _runs else None,
+        label="Run (timestamp, fruit, direction)",
     )
     counterfactual_choice
     return (counterfactual_choice,)
@@ -205,8 +202,10 @@ def _():
 
 @app.cell(hide_code=True)
 def _(cfg, counterfactual_choice):
-    _run = latest_run_dir(cfg.path("derived_dir") / "counterfactuals", counterfactual_choice.value)
-    mo.stop(_run is None, mo.md("_No counterfactual run for this fruit yet._"))
+    mo.stop(
+        counterfactual_choice.value is None, mo.md("_No counterfactual run yet._")
+    )
+    _run = cfg.path("derived_dir") / "counterfactuals" / counterfactual_choice.value
     _record = json.loads((_run / "run.json").read_text())["params"]
     steps = pl.read_parquet(_run / "steps.parquet")
     _scale = (_record["grade0_mean_score"], _record["grade3_mean_score"])
