@@ -370,49 +370,68 @@ def _(cfg, examples):
 @app.cell(hide_code=True)
 def _():
     mo.md(r"""
-    One panel per fruit, one row per step, on the t scale (0 = grade 0 mean score, 1 = grade 3
-    mean score). Per row: the fruit's own score (black bar), the score the step asked for (open
-    circle; the grey line is the asked step) and the score of the decoded image after encoding
-    it again (filled dot). The dashed line is the decision boundary (score 0.5). A filled dot
-    on the open circle means the decoded fruit got what was asked.
+    The two figures below show the EPO direction only. The old direction (no EPO, 5 LVs) gives
+    practically the same scores (within 0.02 in t) and the same images; its rows stay in the
+    table above. Three steps per fruit:
+
+    - **halfway**: to t = 0.5;
+    - **to the other grade**: to the mean score of the other grade (t = 0 for a grade 3 fruit,
+      t = 1 for a grade 0 fruit);
+    - **mirrored**: to the mirror image of the fruit's score in the decision boundary
+      (score 0.5).
+
+    t is the score on a scale where 0 is the grade 0 mean score and 1 the grade 3 mean score.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(cfg, examples, step_table):
-    # Rows from top to bottom within each fruit; the label says which run and which step.
-    _row_order = [
-        ("no EPO (5 LVs)", "half"),
-        ("no EPO (5 LVs)", "full"),
-        ("EPO (4 LVs)", "half"),
-        ("EPO (4 LVs)", "full"),
-        ("EPO flip", "flip"),
-    ]
+def _(step_table):
+    # The EPO steps only, with a plain name per step (see the text above).
+    _scale = step_table.select("grade0_mean", "grade3_mean").row(0)
+    epo_steps = step_table.filter(pl.col("kind").str.starts_with("EPO")).with_columns(
+        step_name=pl.when(pl.col("kind") == "EPO flip")
+        .then(pl.lit("mirrored"))
+        .when(pl.col("t_target") == 0.5)
+        .then(pl.lit("halfway"))
+        .otherwise(pl.lit("to the other grade")),
+        t_start=(pl.col("start_score") - _scale[0]) / (_scale[1] - _scale[0]),
+    )
+    STEP_NAMES = ("halfway", "to the other grade", "mirrored")
+    print(f"EPO steps: {epo_steps.height} of {step_table.height}")
+    return STEP_NAMES, epo_steps
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    Per fruit and step: black bar = the fruit's own score; grey line and open circle = the step
+    asked for; blue dot = the score of the decoded image after encoding it again. Dashed line:
+    the decision boundary. A blue dot on the open circle would mean the decoded fruit got what
+    was asked.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(STEP_NAMES, cfg, epo_steps, examples):
     _fruit_order = examples["fruit_id"].to_list()
     _groups = dict(examples.select("fruit_id", "group").iter_rows())
-    _scale = step_table.select("grade0_mean", "grade3_mean").row(0)
+    _scale = epo_steps.select("grade0_mean", "grade3_mean").row(0)
     _boundary_t = (0.5 - _scale[0]) / (
         _scale[1] - _scale[0]
     )  # score 0.5 on the t scale
     _asked_colour, _got_colour = "#8a8a8a", "#2a78d6"
 
     score_figure, _axes = plt.subplots(
-        len(_fruit_order), 1, figsize=(8, 2.0 * len(_fruit_order)), sharex=True
+        2, 2, figsize=(10, 4.6), sharex=True, sharey=True
     )
-    for _ax, _fruit in zip(_axes, _fruit_order):
-        _fruit_steps = step_table.filter(pl.col("fruit_id") == _fruit).with_columns(
-            t_start=(pl.col("start_score") - _scale[0]) / (_scale[1] - _scale[0]),
-        )
-        _labels = []
-        for _y, (_kind, _slot) in enumerate(_row_order):
-            _match = _fruit_steps.filter(pl.col("kind") == _kind)
-            if _slot == "half":
-                _match = _match.filter(pl.col("t_target") == 0.5)
-            elif _slot == "full":
-                _match = _match.filter(pl.col("t_target") != 0.5)
+    for _ax, _fruit in zip(_axes.ravel(), _fruit_order):
+        for _y, _name in enumerate(STEP_NAMES):
+            _match = epo_steps.filter(
+                (pl.col("fruit_id") == _fruit) & (pl.col("step_name") == _name)
+            )
             if _match.height != 1:
-                _labels.append("")
                 continue
             _step = _match.row(0, named=True)
             _ax.plot(
@@ -434,15 +453,15 @@ def _(cfg, examples, step_table):
                 zorder=3,
             )
             _ax.scatter(_step["t_got"], _y, s=70, color=_got_colour, zorder=4)
-            _labels.append(f"{_kind}, {_slot}")
         _ax.axvline(_boundary_t, color="0.3", lw=1, ls="--", zorder=0)
-        _ax.set_yticks(range(len(_row_order)), _labels, fontsize=8)
-        _ax.set_ylim(len(_row_order) - 0.5, -0.5)
-        _ax.set_title(f"{_fruit} ({_groups[_fruit]})", fontsize=9, loc="left")
+        _ax.set_yticks(range(len(STEP_NAMES)), STEP_NAMES, fontsize=9)
+        _ax.set_ylim(len(STEP_NAMES) - 0.5, -0.5)
+        _ax.set_title(f"{_fruit} ({_groups[_fruit]})", fontsize=10, loc="left")
         _ax.grid(axis="x", color="0.92")
         for _side in ("top", "right"):
             _ax.spines[_side].set_visible(False)
-    _axes[-1].set_xlabel("t   (0 = grade 0 mean score, 1 = grade 3 mean score)")
+    for _ax in _axes[-1]:
+        _ax.set_xlabel("t")
     _handles = [
         plt.Line2D(
             [],
@@ -452,7 +471,7 @@ def _(cfg, examples, step_table):
             ls="",
             markersize=12,
             mew=2,
-            label="fruit's own score",
+            label="fruit",
         ),
         plt.Line2D(
             [],
@@ -464,20 +483,13 @@ def _(cfg, examples, step_table):
             lw=2,
             label="asked",
         ),
-        plt.Line2D(
-            [],
-            [],
-            color=_got_colour,
-            marker="o",
-            ls="",
-            label="got (decoded, encoded again)",
-        ),
+        plt.Line2D([], [], color=_got_colour, marker="o", ls="", label="got"),
         plt.Line2D([], [], color="0.3", ls="--", label="decision boundary"),
     ]
     score_figure.legend(
-        handles=_handles, loc="upper center", ncol=4, fontsize=8, frameon=False
+        handles=_handles, loc="upper center", ncol=4, fontsize=9, frameon=False
     )
-    score_figure.tight_layout(rect=(0, 0, 1, 0.97))
+    score_figure.tight_layout(rect=(0, 0, 1, 0.93))
     _out = cfg.path("derived_dir") / "figures" / "17_asked_against_got.png"
     score_figure.savefig(_out, dpi=130, bbox_inches="tight")
     print(f"saved {_out}")
@@ -488,36 +500,29 @@ def _(cfg, examples, step_table):
 @app.cell(hide_code=True)
 def _():
     mo.md(r"""
-    ## 5. The images of all runs
+    ## 5. The images
 
-    One row per fruit. Columns: the CT, the plain reconstruction, then every step minus the
-    plain reconstruction (long section through the body centre, calyx end at the bottom;
-    blue = brighter, red = darker than the plain reconstruction). One colour scale per row, set
-    by the voxels inside the fruit, so the old and the EPO direction of one fruit compare
-    directly. Above each map: the asked t and the t the decoded image gets.
+    One row per fruit, EPO direction. Columns: the CT, the plain reconstruction, then each step
+    minus the plain reconstruction (long section through the body centre, calyx end at the
+    bottom; blue = brighter, red = darker than the plain reconstruction). One colour scale per
+    row, set by the voxels inside the fruit. Under each map: the t asked for and the t got.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(cfg, examples, step_table):
-    _columns = [
-        ("no EPO (5 LVs)", "half"),
-        ("no EPO (5 LVs)", "far"),
-        ("EPO (4 LVs)", "half"),
-        ("EPO (4 LVs)", "far"),
-        ("EPO flip", "flip"),
-    ]
+def _(STEP_NAMES, cfg, epo_steps, examples):
     _fruit_order = examples["fruit_id"].to_list()
     _groups = dict(examples.select("fruit_id", "group").iter_rows())
+    _n_columns = 2 + len(STEP_NAMES)
     image_figure, _axes = plt.subplots(
         len(_fruit_order),
-        2 + len(_columns),
-        figsize=(2.1 * (2 + len(_columns)), 2.6 * len(_fruit_order)),
+        _n_columns,
+        figsize=(2.2 * _n_columns, 2.7 * len(_fruit_order)),
         squeeze=False,
     )
     for _i, _fruit in enumerate(_fruit_order):
-        _fruit_steps = step_table.filter(pl.col("fruit_id") == _fruit)
+        _fruit_steps = epo_steps.filter(pl.col("fruit_id") == _fruit)
         _record = json.loads(
             (
                 cfg.path("derived_dir")
@@ -532,14 +537,8 @@ def _(cfg, examples, step_table):
             _plain = _f["reconstruction"][_k].astype(np.float32)
         _centre = body_centre(_ct > 0.1)
         _inside = _ct[_centre[0]] > 0.1
-        # Which step goes in which column: t = 0.5 is "half", the other non-flip step "far".
         _maps = {}
         for _step in _fruit_steps.iter_rows(named=True):
-            _slot = (
-                "flip"
-                if _step["kind"] == "EPO flip"
-                else ("half" if _step["t_target"] == 0.5 else "far")
-            )
             _file = (
                 cfg.path("derived_dir")
                 / "counterfactuals"
@@ -547,44 +546,35 @@ def _(cfg, examples, step_table):
                 / f"step_t{_step['t_target']}.npz"
             )
             with np.load(_file) as _f:
-                _difference = (
-                    _f["reconstruction"].astype(np.float32)[_centre[0]]
-                    - _plain[_centre[0]]
-                )
-            _maps[(_step["kind"], _slot)] = (
-                _difference,
+                _section = _f["reconstruction"].astype(np.float32)[_centre[0]]
+            _maps[_step["step_name"]] = (
+                _section - _plain[_centre[0]],
                 _step["t_target"],
                 _step["t_got"],
             )
         _limit = max(
             [float(np.abs(_d[_inside]).max()) for _d, _, _ in _maps.values()] + [1e-3]
         )
-        for _j, (_name, _image) in enumerate([("CT", _ct), ("plain", _plain)]):
+        for _j, (_name, _image) in enumerate(
+            [("CT", _ct), ("plain reconstruction", _plain)]
+        ):
             _axes[_i, _j].imshow(
                 _image[_centre[0]].T, cmap="gray", vmin=0, vmax=1, origin="lower"
             )
             if _i == 0:
                 _axes[_i, _j].set_title(_name, fontsize=9)
-        for _j, _key in enumerate(_columns, start=2):
+        for _j, _name in enumerate(STEP_NAMES, start=2):
             _ax = _axes[_i, _j]
             if _i == 0:
-                _ax.set_title(f"{_key[0]}\n{_key[1]}", fontsize=9)
-            if _key not in _maps:
+                _ax.set_title(_name, fontsize=9)
+            if _name not in _maps:
                 _ax.axis("off")
                 continue
-            _difference, _t_asked, _t_got = _maps[_key]
+            _difference, _t_asked, _t_got = _maps[_name]
             _shown = _ax.imshow(
                 _difference.T, cmap="RdBu", vmin=-_limit, vmax=_limit, origin="lower"
             )
-            _ax.text(
-                0.5,
-                0.02,
-                f"t asked {_t_asked:.2f}\nt got {_t_got:.2f}",
-                transform=_ax.transAxes,
-                ha="center",
-                va="bottom",
-                fontsize=8,
-            )
+            _ax.set_xlabel(f"asked {_t_asked:.2f}, got {_t_got:.2f}", fontsize=8)
         # The bar takes its width from the whole row, so the last column keeps its size.
         image_figure.colorbar(
             _shown, ax=_axes[_i, :].tolist(), shrink=0.8, pad=0.01, label="step − plain"
