@@ -490,3 +490,35 @@ A03 show none. The direction changes shape and the neck region more than the tis
 Ruben, 9 November 2026: the projection and EPO are preferred, as part of the counterfactual work,
 in a session after the meeting of 17 November. First a better stalk length is needed (questions
 41 and 18 in `HANDOFF.md`).
+
+## 15. SVM-DA check row (20 November 2026, Ruben)
+
+**Why.** The CT interior SD alone separates grade 0 from grade 1 (AUC 0.82, section 13), every
+linear PLS-DA row does not (0.59 to 0.72). A weighted sum of cells cannot form a spread, so one
+non-linear model was added as a check. This reopens "SVM not added" (2 November).
+
+**What** (`pearlatent.svm`, notebook 19, run
+`results/20261120T090152Z_svm_binary23_hugo_vae_hr_sd`). Support vector machine with a radial
+basis function kernel on `hugo_vae_hr_sd` (320 features), `binary_23`, the 315 fruit and the
+20 × 4 box folds of the PLS-DA rows. Every feature standardised inside the training fold (the
+kernel uses distances; PLS-DA on the same features centres only). Grid fixed before any result:
+C 0.1, 1, 10, 100; gamma = factor / 320 with factor 0.1, 1, 10. Rule (Ruben): the setting with
+the highest AUC of the decision value averaged over the 20 repeats: C 1, factor 0.1. The chosen
+AUC is the best of 12 tries on the same boxes, so slightly optimistic.
+
+Example: with gamma factor 0.1, two fruit at a standardised distance of 10 (‖a − b‖² = 100)
+have kernel value exp(−0.1 / 320 × 100) = 0.97, so the boundary is nearly linear; at factor 10
+it is exp(−3.1) = 0.04, so each training fruit only influences its close neighbours.
+
+**Found.** AUC 0.967 (0.948 to 0.980) against 0.957 for PLS-DA on the same features; paired
+difference +0.011 (−0.004 to +0.025), SVM higher in 93 % of the box draws. The grid is flat for
+factor ≤ 1 (0.948 to 0.967) and fails at factor 10 (0.51 to 0.56). Grade 0 against browning
+only 1: 0.68 (PLS-DA 0.67); cavity 2 or 3: 0.98 (0.95). Check C on the 145 healthy fruit: stalk
+−0.06 (−0.31 to +0.20), size +0.09 (−0.20 to +0.35), against −0.29 and +0.30 for PLS-DA.
+Scratch (not saved): PLS-DA standardised, 3 LVs, stalk −0.26, size +0.28; linear SVM stalk
+−0.14 to −0.16, size +0.20 to +0.23. So standardising alone does not remove the link.
+
+**Reading.** No clear gain from the non-linear boundary, and grade 1 is not rescued on these
+features. Check C to confirm: a correlation near 0 can also mean that the SVM score carries
+little information among healthy fruit (an RBF score flattens far from the boundary); the
+spread of the healthy-fruit scores is not yet checked.
