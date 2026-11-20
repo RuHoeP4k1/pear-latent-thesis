@@ -228,3 +228,71 @@ def test_out_of_fold_scores_follow_the_signal_with_a_fixed_sign():
     for fold_boxes in np.array_split(np.array(BOXES), 4):
         in_fold = np.isin(boxes, fold_boxes)
         assert np.corrcoef(scores[in_fold, 0], y[in_fold])[0, 1] > 0.8
+
+
+def _regions(x: np.ndarray, seed: int = 2) -> np.ndarray:
+    """A random region per fruit covering about 70 % of the features."""
+    return np.random.default_rng(seed).random(x.shape) < 0.7
+
+
+def test_regions_hook_matches_a_hand_made_fold_loop():
+    from pearlatent.core_region import apply_fill, fit_fill
+
+    x, y, boxes = _data(signal=1.0)
+    regions = _regions(x)
+    folds = _folds(n_repeats=1)
+    out = cross_validated_predictions(
+        x, y, boxes, folds, scale=False, max_components=3, regions=regions
+    )
+    partition = folds.filter(pl.col("repeat") == 1)
+    fold_of_box = dict(zip(partition["box"], partition["fold"], strict=True))
+    fold_of_fruit = np.array([fold_of_box[b] for b in boxes])
+    for fold in sorted(set(fold_of_fruit)):
+        test = fold_of_fruit == fold
+        fill = fit_fill(x[~test], regions[~test])
+        model = PLSRegression(n_components=3, scale=False).fit(
+            apply_fill(x[~test], regions[~test], fill), y[~test].astype(float)
+        )
+        expected = model.predict(apply_fill(x[test], regions[test], fill)).ravel()
+        np.testing.assert_allclose(out[0, test, 2], expected, atol=1e-8)
+
+
+def test_values_outside_a_held_out_fruits_region_do_not_change_its_prediction():
+    x, y, boxes = _data(signal=1.0)
+    regions = _regions(x)
+    folds = _folds(n_repeats=1)
+    changed = x.copy()
+    # Any value outside fruit 0's region, however large, is replaced by the fill.
+    changed[0, ~regions[0]] = 1e6
+    a = cross_validated_predictions(
+        x, y, boxes, folds, scale=False, max_components=3, regions=regions
+    )
+    b = cross_validated_predictions(
+        changed, y, boxes, folds, scale=False, max_components=3, regions=regions
+    )
+    # Fruit 0 is held out once and in training otherwise; its own prediction is unchanged.
+    np.testing.assert_allclose(a[0, 0], b[0, 0], atol=1e-8)
+
+
+def test_without_regions_the_predictions_are_unchanged():
+    x, y, boxes = _data(signal=1.0)
+    folds = _folds(n_repeats=1)
+    a = cross_validated_predictions(x, y, boxes, folds, scale=False, max_components=3)
+    b = cross_validated_predictions(
+        x, y, boxes, folds, scale=False, max_components=3, regions=None
+    )
+    np.testing.assert_array_equal(a, b)
+
+
+def test_fit_with_regions_equals_a_fit_on_the_filled_data():
+    from pearlatent.core_region import apply_fill, fit_fill
+    from pearlatent.plsda import fit_with_regions
+
+    x, y, _ = _data(signal=1.0)
+    regions = _regions(x)
+    model, fill = fit_with_regions(x, y, regions, n_components=2, scale=False)
+    np.testing.assert_allclose(fill, fit_fill(x, regions))
+    reference = PLSRegression(n_components=2, scale=False).fit(
+        apply_fill(x, regions, fill), y.astype(float)
+    )
+    np.testing.assert_allclose(model.coef_, reference.coef_)

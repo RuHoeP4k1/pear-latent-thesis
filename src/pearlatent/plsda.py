@@ -36,6 +36,7 @@ import polars as pl
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.metrics import roc_auc_score, roc_curve
 
+from pearlatent.core_region import apply_fill, fit_fill
 from pearlatent.splits import assert_no_group_leakage
 
 # Fixed in advance (`docs/cv_explained.md`, section 4).
@@ -68,6 +69,7 @@ def cross_validated_predictions(
     scale: bool,
     max_components: int = MAX_COMPONENTS,
     fit_on: np.ndarray | None = None,
+    regions: np.ndarray | None = None,
 ) -> np.ndarray:
     """Out-of-fold predictions for every repeat, fruit and number of latent variables.
 
@@ -75,8 +77,11 @@ def cross_validated_predictions(
     0 to 3 for PLS on the grade), the box of every fruit, the fold table
     (columns repeat, fold, box) and the scaling choice. `fit_on`: optional boolean per fruit;
     a model is then fitted only on those fruit of the training boxes (`pearlatent.targets`,
-    severity score), and still predicts every fruit of the held-out boxes. Out: an array (repeats,
-    fruit, max_components). Raises if a fruit's box is missing from a repeat, if a box sits in two
+    severity score), and still predicts every fruit of the held-out boxes. `regions`: optional
+    boolean (fruit, cells) or (fruit, 32, 32, 32), the core region of every fruit
+    (`pearlatent.core_region`); cells outside a fruit's region are then replaced by the fill
+    fitted on the training fruit of each fold, for the fit and for the held-out fruit alike.
+    Out: an array (repeats, fruit, max_components). Raises if a fruit's box is missing from a repeat, if a box sits in two
     folds of one repeat, or if a box is on both sides of a fit.
     """
     boxes = np.asarray(boxes)
@@ -106,11 +111,37 @@ def cross_validated_predictions(
             assert_no_group_leakage(sides, "box", "side")
             model = PLSRegression(n_components=max_components, scale=scale)
             fitted = ~held_out & fit_on
-            model.fit(x[fitted], y[fitted].astype(float))
-            out[r_index, held_out] = predict_each_h(model, x[held_out])
+            x_fit, x_held_out = x[fitted], x[held_out]
+            if regions is not None:
+                # The fill is a fitted step: computed from the training fruit of this fold only.
+                fill = fit_fill(x_fit, regions[fitted])
+                x_fit = apply_fill(x_fit, regions[fitted], fill)
+                x_held_out = apply_fill(x_held_out, regions[held_out], fill)
+            model.fit(x_fit, y[fitted].astype(float))
+            out[r_index, held_out] = predict_each_h(model, x_held_out)
     if np.isnan(out).any():
         raise AssertionError("some fruit were not predicted in some repeat")
     return out
+
+
+def fit_with_regions(
+    x: np.ndarray,
+    y: np.ndarray,
+    regions: np.ndarray,
+    n_components: int,
+    scale: bool,
+) -> tuple[PLSRegression, np.ndarray]:
+    """One PLS model on the filled fruit, and the fill it was fitted with.
+
+    In: features (fruit, cells), response, core regions (`pearlatent.core_region`), number
+    of latent variables and the scaling choice. Out: the fitted model and `fill`, which new
+    fruit need: `model.predict(apply_fill(x_new, regions_new, fill))`. Used for the final fit
+    on all open training boxes (regression vector, counterfactuals).
+    """
+    fill = fit_fill(x, regions)
+    model = PLSRegression(n_components=n_components, scale=scale)
+    model.fit(apply_fill(x, regions, fill), np.asarray(y, dtype=float))
+    return model, fill
 
 
 def mean_squared_errors(predictions: np.ndarray, y: np.ndarray) -> np.ndarray:
