@@ -90,3 +90,6 @@ skills-lock.json
 .claude/skills/marimo-pair/
 .claude/skills/retro-marimo-pair/
 .Rhistory
+
+# graphify knowledge graph output (may quote local files; rebuilt with /graphify)
+graphify-out/
