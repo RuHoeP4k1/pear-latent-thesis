@@ -5,121 +5,52 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-09 (state at the end of the two sessions of 9 November, Mac)
-- **Phase:** models on labels for the meeting with Hugo on **17 November**. Six PLS-DA rows on
-  `binary_23` saved (design A, 315 open 2526 fruit, 12 open boxes, 20 × 4-fold box
-  cross-validation); their comparison, the per-grade analysis and the ordinal model are saved
-  as runs. Ruben has at most two days at the laptop before the meeting (trip).
-- **Decided on 7 November (Ruben):**
-  - Nuisance check B (box mean against within-box deviation) dropped; the ICC of the score
-    given the grade (random intercept per box) is reported beside check A (CHARTER rule 8).
-  - The two replaced runs of 2 November deleted.
-  - The three runs of 7 November saved with a dirty working tree deleted
-    (`20261107T114658Z` and `20261107T165957Z` compare, `20261107T165902Z` ordinal); the
-    clean runs `20261107T170510Z` and `20261107T170442Z` replace them.
-  - Per-grade analysis = one-versus-rest PLS-DA (chemometrics course, chapter 4), one PLS model
-    per grade with its own LVs, assignment to the highest membership; target the defective
-    grade on all fruit. It fails for grade 1 and is weak for grade 2 (below no model only for
-    tissue features and Med3D; corrected 9 Nov) and is kept as a reported negative result.
-    LVs (grade 0/1/2/3): latent 3/1/1/3, CT 5/1/1/5, tissue features 10/1/1/7, Med3D 8/3/2/7.
-  - The PLS regression on the grade as a number deleted (notebook 11 replaced).
-  - Height-radius bins reopened as two model rows (decision of 10 October reversed): 20 height
-    × 8 radius bins, radius per slice, empty bins filled from the nearest filled bins of the
-    same fruit; both at 3 LVs.
-  - Counterfactuals stay on the full latent grid (the height-radius features cannot be
-    decoded); one fit on all 12 open boxes, not averaged fold models. (9 Nov: both the
-    cavity-free and the general direction, cavity-free first; see below.)
-- **Done on 7 November, commits 22f7d14 to 82a1aab (not pushed):**
-  - `pearlatent.plsda.paired_box_bootstrap_auc_difference`; notebook 10 (paired AUC
-    differences of all 15 pairs, checks A with ICC and C); run
-    `results/20261107T170510Z_compare_plsda_binary23`.
-  - Notebook 11 (one-versus-rest per grade; section 1 now one plot of RMSECV divided by the
-    no-model RMSE); runs `results/20261107T163925Z_..._tissue_features`,
-    `20261107T164009Z_..._med3d`, and, re-saved from clean commits on 9 Nov with identical
-    predictions, `20261109T165807Z_..._hugo_vae` and `20261109T170153Z_..._ct_32`.
-  - `pearlatent.ordinal` + notebook 12 (cumulative logit on the saved binary prediction, per
-    box fold); run `results/20261107T170442Z_ordinal_defective`.
-  - `pearlatent.height_radius`, feature sets `hugo_vae_hr` and `ct_32_hr` in
-    `load_features`; runs `results/20261107T165738Z_plsda_binary23_hugo_vae_hr` and
-    `results/20261107T165755Z_plsda_binary23_ct_32_hr`.
-  - Notebook 13: forward iPLS on the height-radius bins (20 height or 8 depth intervals);
-    `pearlatent.ipls.forward_ipls` checked against the SOLO description.
-  - `docs/methods_plsda.md` sections 6 to 11.
-- **Found (open boxes only):**
-  - AUC: Med3D 0.958, tissue features 0.938, latent height-radius 0.927, latent grid 0.887,
-    CT height-radius 0.884, CT grid 0.839. Paired: latent height-radius − latent grid +0.040
-    (0.005 to 0.077); latent grid − CT grid +0.048 (0.019 to 0.082); Med3D − latent
-    height-radius +0.031 (−0.008 to 0.073).
-  - Grade 0 against 1 and grade 2 against 3 hardly separate on any row (pairwise AUC 0.59 to
-    0.72 and 0.57 to 0.65; 1 against 2: 0.76 to 0.88). Not caused by the `binary_23` target: PLS
-    on the full grade or on `binary_123` does no better. Ordinal model: no grade 1 fruit assigned
-    to grade 1 in any row (Med3D assigns 3 other fruit there, the rest none); weighted kappa
-    0.51 (CT) to 0.80 (Med3D), latent height-radius 0.70.
-  - Check C: the latent height-radius score on 145 healthy fruit correlates with stalk length
-    (−0.31, −0.49 to −0.20) and body size (+0.34, 0.19 to 0.52). Not explained yet.
-  - iPLS: the information sits at mid height (about 30 to 50 % from the calyx end) and mid
-    depth, for latent and CT; selecting intervals barely lowers RMSECV (0.339 to 0.330).
-- **Done on 9 November, session on spread (commits 43549a3 to b75a75a, not pushed; methods
-  section 13):**
-  - Decided (Ruben): mean + SD height-radius rows at 3 LVs each; the encoder SD (`logvar`) is
-    one descriptive number, not fused into a model (scratch: adds nothing); no z-score row;
-    Step 0 set aside for now; ordinal model parked; `binary_123`, the browning 3 + cavity 3
-    row and box prediction not wanted; few, simple meeting figures.
-  - Runs: `20261109T173414Z_plsda_binary23_hugo_vae_hr_sd`, `..173415Z_.._ct_32_hr_sd`,
-    `..173617Z_compare_plsda_binary23` (8 rows, 28 pairs), `..171633Z_interior_spread`,
-    `..173656Z_all_volumes_reverse_check`, `..174016Z_meeting_figures`; derived
-    `logvar/20261109T171513Z_logvar`. Figures `derived/figures/15_interior_spread.png`,
-    `18_auc_rows.png`, `18_auc_by_cause.png`.
-  - Found: latent mean + SD AUC 0.957 (0.939 to 0.971), level with Med3D (0.001, −0.029 to
-    0.023); CT mean + SD 0.931. Check C still shows size and stalk in the latent mean + SD score
-    (−0.29, +0.30), not in the CT one. Browning alone is detected about as well as cavity.
-    Grade 0 against 1 (cavity-free): CT interior SD 0.82 (0.74 to 0.90), latent interior SD
-    0.50, encoder SD 0.57: grade 1 is visible in the CT at 32³ and lost in the latent. All 346
-    volumes: same order of rows. Reverse check: AUC 0.97 to 1.00 except tissue features 0.71.
-- **Done on 9 November, session on the audit and counterfactuals (commits 1905eae to the
-  last commit of the day, not pushed; methods sections 12 and 14):**
-  - Audit of the repository: all six `binary_23` rows reproduce (difference below 3e-15), no
-    sealed fruit in any open product, labels match. Fixed: claims about grades 1 and 2 and empty
-    height bins, `test_box_draw` now uses `drop_unscanned` (mode "primary" gave 402, not 433),
-    `exclusions.csv` rebuilt (41 faulty volumes; backup `derived/exclusions_before_2026-11-09.csv`),
-    stale docstrings, `run.json` now records scikit-learn, scipy and statsmodels versions.
-  - Decided (Ruben): `binary_123` and the severity score dropped as plans (one severity run
-    kept as a record); grade 0 corrections not used in models (subtracting a training grade 0
-    mean changes nothing in PLS); the 15 (now 28) paired intervals are descriptive;
-    counterfactuals: steps along the model direction on a normalised scale t (0 = mean score of
-    grade 0, 1 = grade 3; `pearlatent.counterfactual.GradeScale`), decode, re-encode, predict.
-  - Notebook 14 (cavity-free browning ≥ 2, 233 fruit; LVs Ruben's): runs `20261109T1717*`,
-    AUC Med3D 0.945, latent mean + SD 0.942, tissue 0.927, latent height-radius 0.916, CT
-    mean + SD 0.890, latent grid 0.848, CT height-radius 0.840, CT grid 0.730. Severity run
-    `20261109T171751Z` (latent height-radius): 0 | 1 AUC 0.61, no better than `binary_23`.
-  - Notebook 11 runs for latent and CT re-saved clean (identical predictions); notebook 11
-    and 14 take their choices from the command line (`-- --representation ... --lv ... --save yes`).
-  - Notebook 17: draw of 2526_C23, N17 (grade 3, cavity-free) and K07, A03 (grade 0); I09
-    rejected by Ruben (no visible browning). One decode on the Mac: 295 s, 18 GB.
-  - C23 smoke test (`derived/counterfactuals/20261109T180250Z_2526_C23_cavity_free`): the
-    decoded image keeps about half of each shift (re-encoded t 1.25 → 0.80 → 0.47 for targets
-    0.5 and 0); the core browning does not visibly disappear (core +0.008), and at t = 0 a stalk
-    appears above the neck. The direction carries stalk and shape, not only browning
-    (question 55).
-  - K07, A03 (to t = 1) and N17 (to t = 0), cavity-free direction: the decoded images keep
-    44 % (K07), 73 % (A03), 71 % (N17) of the shift; re-encoded t at the last step 0.22, 0.60,
-    0.10. The images change mostly at the outline (shape), with slight darkening around the
-    core of the grade 0 fruit; a small bright spot above the neck of K07 at t = 1. Table in
-    `docs/methods_plsda.md` section 14; figures `derived/figures/17_<run>.png`.
-    Ruben looked at the four figures (9 November): description accurate.
-- **Next step:** Ruben reads the draft walkthrough `docs/meeting_2026-11-17.md` (10 Nov; all
-  numbers from saved runs) and chooses what goes in and the format. After the meeting: a better stalk length (questions 41,
-  18), then question 55 (projection or EPO), then the general-direction counterfactuals and
-  possibly a sweep of more fruit over the score range.
-- **Blocked on:** nothing for the models. The ResNet-18 baseline needs the lab workstation
-  (question 9 with Hugo).
+- **Date:** 2026-11-20 (Mac)
+- **Phase:** the meeting with Hugo moved from 17 to **Tuesday 24 November** (calendar). Ruben
+  wants to understand every result and show Hugo one story notebook with a plan. Models keep
+  being built on the open boxes; the sealed test (F, J, M) waits until the rows stop changing.
+- **Done on 20 November (commits 8fb2ec7, 9b5114f):**
+  - SVM-DA check row (Ruben; reopens "SVM not added" of 2 November): `pearlatent.svm` with
+    tests, notebook 19, run `results/20261120T090152Z_svm_binary23_hugo_vae_hr_sd`, methods
+    section 15. RBF kernel on `hugo_vae_hr_sd`, features standardised in the training fold,
+    12-setting grid, rule: highest AUC of the mean decision value (C 1, gamma factor 0.1).
+    AUC 0.967 (0.948 to 0.980) against PLS-DA 0.957; paired +0.011 (−0.004 to +0.025). Grade 0
+    against browning only 1: 0.68 (PLS-DA 0.67). Check C: stalk −0.06, size +0.09 (PLS-DA
+    −0.29, +0.30); scratch: standardised PLS-DA keeps the link, linear SVM halves it.
+  - Scratch, not saved as runs (to record in the story notebook or methods file): on the 145
+    healthy fruit, stalk length and body voxels correlate at −0.85 (−0.75 on the 115 with a
+    stalk), so check C measures one stalk effect twice. Stalk length alone separates every
+    defect group from grade 0 at AUC 0.58 to 0.65 (median stalk 12 to 16 voxels against 20).
+  - Walkthrough with Ruben, sections 0 to 8 (data, encoder, Step 0, `binary_23`, by cause,
+    grade 1, iPLS, checks, counterfactuals), with questions; his answers to be used as wording.
+    Readings agreed: grade 1 is mostly (not fully) lost in the encoder, and a second loss sits
+    in the features (CT interior SD 0.82, CT PLS-DA rows 0.6 to 0.7); spread catches the onset
+    (0 | 1), the cell level catches defective against healthy; 0 | 1 and 2 | 3 may also be
+    label noise (Ruben: graded on one or two cuts, so the grader sees part of the lesion).
+- **Decided on 20 November (Ruben):**
+  - A core-only model is a legitimate prior choice (biology and rubric), not selection on
+    the labels; it is the quick alternative to a better stalk measure.
+  - No re-encoding of stalk-free volumes; the original fruit lengths will not be available.
+  - Plan (story section 9): (1) core-only rows and new counterfactuals; (2) better stalk
+    measure (question 41) and EPO or projection if the core does not remove the link;
+    (3) rerun all rows with the chosen preprocessing, current rows become the preliminary
+    analysis; (4) spread features for grade 1; (5) N-way PLS; (6) counterfactuals again;
+    (7) ResNet-18; (8) sealed test last.
+  - Story notebook for Ruben and Hugo: number 20, sections 0 to 9, each with what was done,
+    figure, one caveat line, what it taught us, next step; replaces
+    `docs/meeting_2026-11-17.md`. Post-hoc caveats stated once, not repeated.
+- **Next step:** core-only model. First define the core region from the rubric and biology
+  (height measured over the body from `body_mask`, not over the 128 voxels; radius as a
+  fraction of each slice's radius, as in `pearlatent.height_radius`; include the ring of the
+  seed chambers, which Ruben checks on a CT slice). Draw the region on a few CT long sections
+  for Ruben to approve before any model. Then core-only PLS-DA rows for latent and CT
+  (`binary_23`, design A, LVs by Ruben), check C on them, and counterfactuals on the core-only
+  direction (does the stalk still appear?). Then write notebook 20.
+- **Blocked on:** nothing. ResNet-18 needs the lab workstation (question 9).
 - **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
-  overwritten; make notebook edits in one write. A notebook can be run headless with
-  `app.run(defs=...)`; every definition of an overridden cell must be passed. Runs saved while
-  the working tree had uncommitted edits record `dirty: true`; the marimo editor also writes
-  an open notebook back to disk (9 Nov: a `hide_code` toggle and a reverted edit), so close it
-  before saving a run. Two Claude sessions worked in parallel on 9 Nov; they split notebook
-  numbers and methods sections by message. Only one session runs `/handoff`.
+  overwritten; make notebook edits in one write. A notebook can be saved headless with
+  `app.run(defs={"save_button": <object with value True>})` (done for notebook 19). Close the
+  editor before saving a run. After code changes run `graphify update .` (CLAUDE.md).
 - **Reference, still valid:**
   - Encoding run `20261013T171306Z_hugo_vae`: open part 940 fruit (346 2526, 594 2425);
     sealed part `derived/sealed/latents/...`, 153 fruit. CT at 32³ run `20261005T142026Z`.
@@ -361,17 +292,29 @@ For Ruben, added 9 Nov (audit session):
 56. 2526_I09 and 2526_N17 end in a flat, slanted neck in the CT, like the neck cuts excluded on
     26 October, but were kept then. Were some small neck cuts missed? Changes no result now.
 
+For Ruben, added 20 Nov:
+57. Core region for the core-only rows: height range over the body and radius fraction, from
+    the rubric ("browning 1 = light discoloration of the kernel membranes") and biology. Ruben
+    checks on a CT slice at which radius fraction the seed chambers lie.
+58. The SVM score shows no stalk or size link on healthy fruit. Check that this is not because
+    the RBF score is nearly constant among healthy fruit (spread of their scores).
+59. Short stalk (relatively large body) separates defective fruit at AUC 0.58 to 0.65; larger
+    fruit brown more (Ho et al. 2008). Artefact of the rescaling or real risk factor? For Hugo,
+    before removing all stalk information by EPO or projection.
+
 For Ruben, added 9 Nov:
 54. Scale the height-radius rows per bin? The reason for centring only (background cells) does
     not apply to them, because their bins hold body cells only. Scratch, dividing by the grade 0
     SD of the training boxes: CT height-radius +0.026 (0.006 to 0.052), latent +0.007 (−0.005 to
     0.023), LVs kept at 3 (`docs/methods_plsda.md` section 12). A decision about the model rows.
 
-For Hugo (meeting 17 Nov), added 7 Nov:
+For Hugo (meeting 24 Nov), added 7 Nov, updated 20 Nov:
 53. Grade 0 against grade 1 and grade 2 against grade 3 hardly separate on every
     representation (pairwise AUC 0.6 to 0.7), grade 1 against 2 does (0.8 to 0.9). Is grade 1
     browning too small for the CT resolution, or is the 0/1 boundary of the visual grading
-    uncertain? Can the cut-open photographs show it?
+    uncertain? Can the cut-open photographs show it? 20 Nov (Ruben): there are no cut surfaces or
+   photographs for 2526; grading was on one or two cuts, so part of a lesion is not seen. Ask
+   Hugo how the 2526 fruit were graded (which cuts, how many).
 
 For Ruben and Hugo, added 28 Oct:
 41. Stalk length and body size are measured on the 128³ volumes, but the body-stalk
@@ -494,6 +437,14 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-11-20 — SVM check row, walkthrough, plan for the core-only model
+- Decided (Ruben): core-only model as a prior choice and quick alternative to a better stalk
+  measure; no re-encode; story notebook 20 for Ruben and Hugo; plan in Current state.
+- Built: `pearlatent.svm`, notebook 19, run `20261120T090152Z`; methods section 15. Found: SVM
+  0.967 against PLS-DA 0.957 (interval includes 0), grade 1 not rescued, no check C link.
+- Scratch: stalk and body size correlate −0.85 on healthy fruit (one effect).
+- Walkthrough of sections 0 to 8 with questions. Meeting moved to 24 November.
 
 ### 2026-11-09 — audit, cavity-free browning, counterfactual smoke test
 - Decided (Ruben): `binary_123` and severity plans dropped; grade 0 corrections not in models;
