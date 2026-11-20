@@ -37,11 +37,23 @@ DIRECTIONS = {
         "grade": "browning",
     },
     "general": {"target": None, "n_lv": 4, "grade": "defective"},
+    # EPO versions (20 November 2026, `pearlatent.epo`): the first principal component of the
+    # healthy fruit (the size axis) is removed before the fit, so b is orthogonal to it. The
+    # number of LVs is chosen by Ruben on the EPO curve (notebook 22) and passed as --n-lv.
+    "cavity_free_epo": {
+        "target": "browning_2plus_cavity_free",
+        "n_lv": None,
+        "grade": "browning",
+        "epo": True,
+    },
+    "general_epo": {"target": None, "n_lv": None, "grade": "defective", "epo": True},
 }
 
 
-def fit_direction(cfg, name: str):
+def fit_direction(cfg, name: str, n_lv: int | None = None):
     """The direction and its t scale, fitted on all open fruit of its target (12 boxes).
+
+    `n_lv` overrides the number of LVs of the direction; the EPO directions require it.
 
     Out: (Direction, GradeScale, the fruit table it was fitted on, the latent rows).
     """
@@ -59,7 +71,14 @@ def fit_direction(cfg, name: str):
     else:
         fruit = target_table(kept, spec["target"])
     x = load_features(cfg, "hugo_vae", fruit["fruit_id"].to_list()).astype(float)
-    direction = plsda_direction(x, fruit["y"].to_numpy(), spec["n_lv"])
+    n_components = n_lv if n_lv is not None else spec["n_lv"]
+    if n_components is None:
+        raise ValueError(f"direction {name} needs --n-lv (chosen in notebook 22)")
+    # Healthy = defective grade 0 (for the cavity-free target: browning 0 and cavity 0).
+    healthy = (fruit["defective"] == 0).to_numpy() if spec.get("epo") else None
+    direction = plsda_direction(
+        x, fruit["y"].to_numpy(), n_components, epo_healthy=healthy
+    )
     fitted = direction.predict(x)
     grade = fruit[spec["grade"]].to_numpy()
     scale = GradeScale(
@@ -93,10 +112,11 @@ def main() -> None:
     parser.add_argument("--direction", choices=list(DIRECTIONS), required=True)
     parser.add_argument("--t", type=float, nargs="+", required=True)
     parser.add_argument("--plain", type=Path, help="step0_examples run with this fruit")
+    parser.add_argument("--n-lv", type=int, help="number of LVs (required for *_epo)")
     args = parser.parse_args()
 
     cfg = load_config()
-    direction, scale, _, _ = fit_direction(cfg, args.direction)
+    direction, scale, _, _ = fit_direction(cfg, args.direction, args.n_lv)
     manifest = pl.read_parquet(
         cfg.path("derived_dir") / ENCODING_RUN_DIR / "manifest.parquet"
     ).with_row_index("position")
@@ -129,11 +149,14 @@ def main() -> None:
             "grade3_mean_score": scale.grade3_mean,
             "start_score": start,
             "plain_reconstruction": str(args.plain) if args.plain else None,
+            "epo": direction.removed is not None,
             "encoding_run": ENCODING_RUN,
             **info,
         },
         root=cfg.root,
     )
+    if direction.removed is not None:
+        np.save(out_dir / "epo_directions.npy", direction.removed)
     rows = []
     if args.plain is not None:
         with np.load(cfg.root / args.plain / "volumes.npz") as saved:
@@ -173,6 +196,16 @@ def main() -> None:
                 "score_target": target,
                 "score_reencoded": float(direction.predict(mu_back.ravel())),
                 "change_norm": float(np.linalg.norm(moved - mu)),
+                # Check for EPO directions: the step's part along the removed size axis
+                # (0 by construction) and the re-encoded fruit's change along it.
+                "size_axis_step": float((moved - mu).ravel() @ direction.removed[:, 0])
+                if direction.removed is not None
+                else None,
+                "size_axis_reencoded_change": float(
+                    (mu_back - mu).ravel() @ direction.removed[:, 0]
+                )
+                if direction.removed is not None
+                else None,
             }
         )
         np.savez_compressed(

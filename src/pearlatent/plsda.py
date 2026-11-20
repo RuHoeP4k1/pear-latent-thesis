@@ -37,6 +37,7 @@ from sklearn.cross_decomposition import PLSRegression
 from sklearn.metrics import roc_auc_score, roc_curve
 
 from pearlatent.core_region import apply_fill, fit_fill
+from pearlatent.epo import fit_epo_directions, remove_directions
 from pearlatent.splits import assert_no_group_leakage
 
 # Fixed in advance (`docs/cv_explained.md`, section 4).
@@ -70,6 +71,7 @@ def cross_validated_predictions(
     max_components: int = MAX_COMPONENTS,
     fit_on: np.ndarray | None = None,
     regions: np.ndarray | None = None,
+    epo_healthy: np.ndarray | None = None,
 ) -> np.ndarray:
     """Out-of-fold predictions for every repeat, fruit and number of latent variables.
 
@@ -81,6 +83,9 @@ def cross_validated_predictions(
     boolean (fruit, cells) or (fruit, 32, 32, 32), the core region of every fruit
     (`pearlatent.core_region`); cells outside a fruit's region are then replaced by the fill
     fitted on the training fruit of each fold, for the fit and for the held-out fruit alike.
+    `epo_healthy`: optional boolean per fruit (True = grade 0); external parameter
+    orthogonalisation (`pearlatent.epo`) is then fitted on the healthy fruit among those a
+    fold's model is fitted on, and removed from the training and held-out fruit of that fold.
     Out: an array (repeats, fruit, max_components). Raises if a fruit's box is missing from a repeat, if a box sits in two
     folds of one repeat, or if a box is on both sides of a fit.
     """
@@ -117,6 +122,11 @@ def cross_validated_predictions(
                 fill = fit_fill(x_fit, regions[fitted])
                 x_fit = apply_fill(x_fit, regions[fitted], fill)
                 x_held_out = apply_fill(x_held_out, regions[held_out], fill)
+            if epo_healthy is not None:
+                # Fitted step: the directions come from this fold's healthy training fruit.
+                directions = fit_epo_directions(x_fit, epo_healthy[fitted])
+                x_fit = remove_directions(x_fit, directions)
+                x_held_out = remove_directions(x_held_out, directions)
             model.fit(x_fit, y[fitted].astype(float))
             out[r_index, held_out] = predict_each_h(model, x_held_out)
     if np.isnan(out).any():

@@ -1,5 +1,6 @@
 import numpy as np
 import polars as pl
+import pytest
 
 from pearlatent.counterfactual import (
     draw_example_fruit,
@@ -74,3 +75,26 @@ def test_t_scale_runs_from_the_grade_0_mean_to_the_grade_3_mean():
     assert np.isclose(scale.score(1.0), 0.88)
     assert np.isclose(scale.score(0.5), 0.46)
     assert np.isclose(scale.t(0.46), 0.5)
+
+
+def test_epo_direction_is_orthogonal_to_the_size_axis_and_predicts_the_same():
+    from pearlatent.epo import remove_directions
+
+    rng = np.random.default_rng(3)
+    size_pattern = rng.normal(size=30)
+    size_pattern /= np.linalg.norm(size_pattern)
+    x = np.outer(rng.normal(scale=10.0, size=80), size_pattern) + rng.normal(
+        size=(80, 30)
+    )
+    y = (np.arange(80) >= 50).astype(float)
+    x[50:, :4] += 2.0
+    direction = plsda_direction(x, y, n_components=2, epo_healthy=y == 0)
+    removed = direction.removed[:, 0]
+    assert abs(direction.coefficients @ removed) < 1e-8
+    # Same prediction on raw and corrected rows; a step along b leaves the size part alone.
+    np.testing.assert_allclose(
+        direction.predict(x), direction.predict(remove_directions(x, direction.removed))
+    )
+    moved = shift_to_score(x[0], direction, 0.9)
+    assert abs((moved - x[0]) @ removed) < 1e-8
+    assert direction.predict(moved) == pytest.approx(0.9)

@@ -190,6 +190,11 @@ def _():
             "2526_N17_cavity_free",
             "2526_K07_cavity_free",
             "2526_A03_cavity_free",
+            # EPO direction (notebook 22, 20 November 2026): size axis removed before the fit.
+            "2526_C23_cavity_free_epo",
+            "2526_N17_cavity_free_epo",
+            "2526_K07_cavity_free_epo",
+            "2526_A03_cavity_free_epo",
         ],
         value="2526_C23_cavity_free",
         label="Fruit and direction",

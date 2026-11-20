@@ -17,6 +17,8 @@ import numpy as np
 import polars as pl
 from sklearn.cross_decomposition import PLSRegression
 
+from pearlatent.epo import fit_epo_directions, remove_directions
+
 DRAW_SEED = 369
 N_PER_GROUP = 2
 
@@ -78,28 +80,46 @@ class Direction:
     x_mean: np.ndarray
     y_mean: float
     n_components: int
+    # EPO directions removed before the fit (features, k), or None. b is orthogonal to them,
+    # so `predict` gives the same value on the raw and on the corrected features.
+    removed: np.ndarray | None = None
 
     def predict(self, x: np.ndarray) -> np.ndarray | float:
         """Prediction of one row or of rows (fruit, features)."""
         return self.y_mean + (np.asarray(x) - self.x_mean) @ self.coefficients
 
 
-def plsda_direction(x: np.ndarray, y: np.ndarray, n_components: int) -> Direction:
+def plsda_direction(
+    x: np.ndarray,
+    y: np.ndarray,
+    n_components: int,
+    epo_healthy: np.ndarray | None = None,
+) -> Direction:
     """Fit one PLS-DA model (centred only) on all given fruit and keep its regression vector.
 
-    In: features (fruit, cells), 0/1 labels, number of LVs. Out: a `Direction`. One fit on all
-    12 open boxes (HANDOFF, 7 November 2026: the general model, not averaged fold models).
+    In: features (fruit, cells), 0/1 labels, number of LVs, and optionally a boolean per fruit
+    (True = grade 0) for external parameter orthogonalisation (`pearlatent.epo`): the first
+    principal component of those fruit is removed before the fit. Out: a `Direction`. One fit
+    on all 12 open boxes (HANDOFF, 7 November 2026: the general model, not averaged fold
+    models).
     """
+    x = np.asarray(x, dtype=float)
+    removed = None
+    x_fit = x
+    if epo_healthy is not None:
+        removed = fit_epo_directions(x, epo_healthy)
+        x_fit = remove_directions(x, removed)
     model = PLSRegression(n_components=n_components, scale=False).fit(
-        x, np.asarray(y, dtype=float)
+        x_fit, np.asarray(y, dtype=float)
     )
     # scikit-learn stores coef_ as (targets, features); one target here.
     coefficients = np.asarray(model.coef_).reshape(-1)
     direction = Direction(
-        coefficients, model._x_mean, float(model._y_mean[0]), n_components
+        coefficients, model._x_mean, float(model._y_mean[0]), n_components, removed
     )
-    # Check: the reduced form gives the same prediction as scikit-learn.
-    if not np.allclose(direction.predict(x), model.predict(x).ravel(), atol=1e-6):
+    # Check: the reduced form, applied to the raw features, gives scikit-learn's prediction
+    # on the features it was fitted on (with EPO: b is orthogonal to the removed directions).
+    if not np.allclose(direction.predict(x), model.predict(x_fit).ravel(), atol=1e-6):
         raise AssertionError("regression vector does not reproduce the predictions")
     return direction
 

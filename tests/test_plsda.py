@@ -296,3 +296,25 @@ def test_fit_with_regions_equals_a_fit_on_the_filled_data():
         apply_fill(x, regions, fill), y.astype(float)
     )
     np.testing.assert_allclose(model.coef_, reference.coef_)
+
+
+def test_epo_hook_matches_a_hand_made_fold_loop():
+    from pearlatent.epo import fit_epo_directions, remove_directions
+
+    x, y, boxes = _data(signal=1.0)
+    healthy = y == 0
+    folds = _folds(n_repeats=1)
+    out = cross_validated_predictions(
+        x, y, boxes, folds, scale=False, max_components=3, epo_healthy=healthy
+    )
+    partition = folds.filter(pl.col("repeat") == 1)
+    fold_of_box = dict(zip(partition["box"], partition["fold"], strict=True))
+    fold_of_fruit = np.array([fold_of_box[b] for b in boxes])
+    for fold in sorted(set(fold_of_fruit)):
+        test = fold_of_fruit == fold
+        directions = fit_epo_directions(x[~test], healthy[~test])
+        model = PLSRegression(n_components=3, scale=False).fit(
+            remove_directions(x[~test], directions), y[~test].astype(float)
+        )
+        expected = model.predict(remove_directions(x[test], directions)).ravel()
+        np.testing.assert_allclose(out[0, test, 2], expected, atol=1e-8)
