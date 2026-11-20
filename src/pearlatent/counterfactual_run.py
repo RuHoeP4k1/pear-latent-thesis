@@ -27,6 +27,7 @@ import numpy as np
 import polars as pl
 
 from pearlatent.counterfactual import GradeScale, plsda_direction, shift_to_score
+from pearlatent.plsda import CUTOFF
 from pearlatent.runs import ENCODING_RUN, ENCODING_RUN_DIR
 
 # LVs chosen by Ruben for the two full-grid latent models (notebooks 08 and 14).
@@ -110,10 +111,15 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fruit", required=True)
     parser.add_argument("--direction", choices=list(DIRECTIONS), required=True)
-    parser.add_argument("--t", type=float, nargs="+", required=True)
+    parser.add_argument("--t", type=float, nargs="*", default=[])
+    # Ruben, 20 November 2026: mirror the fruit across the decision boundary (score = CUTOFF):
+    # target score = 2 × CUTOFF − start score, the same distance on the other side.
+    parser.add_argument("--flip", action="store_true", help="mirror across score 0.5")
     parser.add_argument("--plain", type=Path, help="step0_examples run with this fruit")
     parser.add_argument("--n-lv", type=int, help="number of LVs (required for *_epo)")
     args = parser.parse_args()
+    if not args.t and not args.flip:
+        parser.error("give --t values, --flip, or both")
 
     cfg = load_config()
     direction, scale, _, _ = fit_direction(cfg, args.direction, args.n_lv)
@@ -133,6 +139,15 @@ def main() -> None:
         f" (grade 0 mean {scale.grade0_mean:.3f}, grade 3 mean {scale.grade3_mean:.3f})"
     )
 
+    t_steps = list(args.t)
+    if args.flip:
+        flip_target = 2 * CUTOFF - start
+        # Rounded to 3 decimals so the step file name stays readable (step_t-0.247.npz).
+        t_steps.append(round(scale.t(flip_target), 3))
+        print(
+            f"flip across {CUTOFF}: target score {flip_target:.3f}, t {t_steps[-1]:.2f}"
+        )
+
     device = get_device(cfg.compute("device", "cpu"))
     vae, info = load_vae(cfg.path("hugo_repo"), cfg.path("encoder_dir"), device)
     out_dir = new_run_dir(
@@ -144,7 +159,8 @@ def main() -> None:
             "fruit": args.fruit,
             "direction": args.direction,
             "n_lv": direction.n_components,
-            "t_steps": args.t,
+            "t_steps": t_steps,
+            "flip": args.flip,
             "grade0_mean_score": scale.grade0_mean,
             "grade3_mean_score": scale.grade3_mean,
             "start_score": start,
@@ -175,7 +191,7 @@ def main() -> None:
         print(
             f"plain reconstruction re-encoded: score {rows[-1]['score_reencoded']:.3f}"
         )
-    for t in args.t:
+    for t in t_steps:
         target = scale.score(t)
         moved = shift_to_score(mu.ravel(), direction, target).reshape(mu.shape)
         print(f"t {t}: decoding ...", flush=True)
