@@ -5,47 +5,37 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-20 (Mac)
-- **Phase:** the meeting with Hugo moved from 17 to **Tuesday 24 November** (calendar). Ruben
-  wants to understand every result and show Hugo one story notebook with a plan. Models keep
+- **Date:** 2026-11-21 (Mac)
+- **Phase:** meeting with Hugo on **Tuesday 24 November**. Ruben wants to show him the EPO
+  counterfactuals against the old ones, and the story notebook (20) with a plan. Models keep
   being built on the open boxes; the sealed test (F, J, M) waits until the rows stop changing.
-- **Done on 20 November (commits 8fb2ec7, 9b5114f):**
-  - SVM-DA check row (Ruben; reopens "SVM not added" of 2 November): `pearlatent.svm` with
-    tests, notebook 19, run `results/20261120T090152Z_svm_binary23_hugo_vae_hr_sd`, methods
-    section 15. RBF kernel on `hugo_vae_hr_sd`, features standardised in the training fold,
-    12-setting grid, rule: highest AUC of the mean decision value (C 1, gamma factor 0.1).
-    AUC 0.967 (0.948 to 0.980) against PLS-DA 0.957; paired +0.011 (−0.004 to +0.025). Grade 0
-    against browning only 1: 0.68 (PLS-DA 0.67). Check C: stalk −0.06, size +0.09 (PLS-DA
-    −0.29, +0.30); scratch: standardised PLS-DA keeps the link, linear SVM halves it.
-  - Scratch, not saved as runs (to record in the story notebook or methods file): on the 145
-    healthy fruit, stalk length and body voxels correlate at −0.85 (−0.75 on the 115 with a
-    stalk), so check C measures one stalk effect twice. Stalk length alone separates every
-    defect group from grade 0 at AUC 0.58 to 0.65 (median stalk 12 to 16 voxels against 20).
-  - Walkthrough with Ruben, sections 0 to 8 (data, encoder, Step 0, `binary_23`, by cause,
-    grade 1, iPLS, checks, counterfactuals), with questions; his answers to be used as wording.
-    Readings agreed: grade 1 is mostly (not fully) lost in the encoder, and a second loss sits
-    in the features (CT interior SD 0.82, CT PLS-DA rows 0.6 to 0.7); spread catches the onset
-    (0 | 1), the cell level catches defective against healthy; 0 | 1 and 2 | 3 may also be
-    label noise (Ruben: graded on one or two cuts, so the grader sees part of the lesion).
-- **Decided on 20 November (Ruben):**
-  - A core-only model is a legitimate prior choice (biology and rubric), not selection on
-    the labels; it is the quick alternative to a better stalk measure.
-  - No re-encoding of stalk-free volumes; the original fruit lengths will not be available.
-  - Plan (story section 9): (1) core-only rows and new counterfactuals; (2) better stalk
-    measure (question 41) and EPO or projection if the core does not remove the link;
-    (3) rerun all rows with the chosen preprocessing, current rows become the preliminary
-    analysis; (4) spread features for grade 1; (5) N-way PLS; (6) counterfactuals again;
-    (7) ResNet-18; (8) sealed test last.
-  - Story notebook for Ruben and Hugo: number 20, sections 0 to 9, each with what was done,
-    figure, one caveat line, what it taught us, next step; replaces
-    `docs/meeting_2026-11-17.md`. Post-hoc caveats stated once, not repeated.
-- **Next step:** core-only model. First define the core region from the rubric and biology
-  (height measured over the body from `body_mask`, not over the 128 voxels; radius as a
-  fraction of each slice's radius, as in `pearlatent.height_radius`; include the ring of the
-  seed chambers, which Ruben checks on a CT slice). Draw the region on a few CT long sections
-  for Ruben to approve before any model. Then core-only PLS-DA rows for latent and CT
-  (`binary_23`, design A, LVs by Ruben), check C on them, and counterfactuals on the core-only
-  direction (does the stalk still appear?). Then write notebook 20.
+- **Done on 20 and 21 November (commits fbf7174 to 0d057e0; methods sections 16 to 18):**
+  - Core-only rows (`pearlatent.core_region`, fill fitted per fold in
+    `cross_validated_predictions(..., regions=...)`, notebook 21). Region: height over the body
+    0.05 to 0.60, all radii. Scratch: latent AUC 0.869 against 0.887, stalk link unchanged
+    (−0.19 against −0.20), size link worse (+0.27 against +0.12). **Dropped (Ruben).**
+  - EPO with the healthy training fruit as nuisance matrix, PC 1 removed per fold
+    (`pearlatent.epo`, `cross_validated_predictions(..., epo_healthy=...)`, notebook 22).
+    Healthy PC 1 = the size axis (r 0.97 with body size, −0.83 with stalk). Scratch: latent
+    rows keep their AUC and lose the check C link (height-radius stalk −0.31 → +0.02, size
+    +0.34 → −0.01); CT height-radius rows not suited (their PC 1 is not size). EPO on the grid
+    and then binning does nothing: EPO must be fitted in the model's own features.
+  - Counterfactuals along the EPO direction (`cavity_free_epo`, 4 LVs) for C23, N17, K07, A03,
+    plus a mirrored step across the boundary (`counterfactual_run --flip`). Notebook 17
+    sections 4 and 5 compare all runs; figures `derived/figures/17_asked_against_got.png` and
+    `17_all_runs_images.png` (EPO only, the old direction gives the same within 0.02 in t).
+    Found: only 43 to 73 % of the asked score change comes back after decode and encode
+    (constant within a fruit); the images change mostly at the outline, then a stalk patch
+    (C23, K07), the core change is smallest. EPO did not remove the stalk patch. Mirrored:
+    C23, N17, A03 cross the boundary, K07 does not.
+- **Decided (Ruben, 20 to 21 November):** core-only route closed; EPO variant B (healthy PC 1)
+  kept for the latent rows and the counterfactuals; no improvement on the height-radius rows
+  after grid-EPO counts as a result; reconstruction stays `vae.decode(mu)`, no sampled
+  reconstruction (noise SD about 0.001 per cell against a step of 0.2 to 0.75 per cell).
+- **Next step:** prepare the meeting of 24 November. Write notebook 20 (story, sections 0 to 9,
+  as decided on 20 November), with section 8 (counterfactuals) built from the two notebook 17
+  figures and methods section 18, and section 9 (plan) updated: core-only dropped, EPO done,
+  stalk still in the counterfactual direction. Bring questions 55, 59 and 60 to Hugo.
 - **Blocked on:** nothing. ResNet-18 needs the lab workstation (question 9).
 - **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
   overwritten; make notebook edits in one write. A notebook can be saved headless with
@@ -193,7 +183,7 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
-Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
+Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
 confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
 `docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
@@ -289,18 +279,30 @@ For Ruben, added 9 Nov (audit session):
     Ruben, 9 Nov: options 2 (projection) and 3 (EPO) preferred, under the counterfactuals;
     after the meeting of 17 November, together with a better stalk length (question 41:
     body-stalk boundary at voxel level; question 18: fruit length before rescaling).
+    21 Nov: EPO (healthy PC 1) tried; the stalk patch still appears (C23, K07) and the outline
+    change dominates (`docs/methods_plsda.md` section 18). Projection on a stalk direction not
+    tried. Open: more EPO components, or accept and report.
 56. 2526_I09 and 2526_N17 end in a flat, slanted neck in the CT, like the neck cuts excluded on
     26 October, but were kept then. Were some small neck cuts missed? Changes no result now.
 
 For Ruben, added 20 Nov:
-57. Core region for the core-only rows: height range over the body and radius fraction, from
-    the rubric ("browning 1 = light discoloration of the kernel membranes") and biology. Ruben
-    checks on a CT slice at which radius fraction the seed chambers lie.
 58. The SVM score shows no stalk or size link on healthy fruit. Check that this is not because
     the RBF score is nearly constant among healthy fruit (spread of their scores).
 59. Short stalk (relatively large body) separates defective fruit at AUC 0.58 to 0.65; larger
     fruit brown more (Ho et al. 2008). Artefact of the rescaling or real risk factor? For Hugo,
     before removing all stalk information by EPO or projection.
+
+For Wouter Saeys, added 21 Nov:
+60. EPO with the healthy fruit as the nuisance matrix D (no paired measurements under a varying
+    external parameter): an accepted variant? How many components (we use 1; more began to
+    cost AUC)? Could D be built by simulating the rescaling to 128 voxels (depends on
+    question 18)?
+
+For Ruben, added 21 Nov:
+61. Only 43 to 73 % of a counterfactual step comes back after decode and encode. Does the
+    decoder ignore part of the change of `mu`, or does the encoder not return to the moved
+    `mu`? Possible check: compare the step with the change of the re-encoded `mu` cell by
+    cell, inside and outside the body.
 
 For Ruben, added 9 Nov:
 54. Scale the height-radius rows per bin? The reason for centring only (background cells) does
@@ -438,6 +440,13 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 
 Newest first. One entry per session, three to six lines.
 
+### 2026-11-20/21 — core-only dropped, EPO on healthy fruit, EPO counterfactuals
+- Decided (Ruben): core-only rows dropped (no gain, size link worse); EPO variant B kept for
+  latent rows and counterfactuals; `vae.decode(mu)`, no sampled reconstruction.
+- Built: `pearlatent.core_region`, `pearlatent.epo`, fold hooks in `plsda`, notebooks 21 and
+  22, `--flip` in `counterfactual_run`, notebook 17 sections 4 and 5; methods sections 16 to 18.
+- Found: EPO removes the check C link on latent rows at equal AUC; counterfactuals keep 43 to
+  73 % of each step, change mostly outline and stalk, the same with and without EPO.
 ### 2026-11-20 — SVM check row, walkthrough, plan for the core-only model
 - Decided (Ruben): core-only model as a prior choice and quick alternative to a better stalk
   measure; no re-encode; story notebook 20 for Ruben and Hugo; plan in Current state.
