@@ -522,3 +522,142 @@ Scratch (not saved): PLS-DA standardised, 3 LVs, stalk −0.26, size +0.28; line
 features. Check C to confirm: a correlation near 0 can also mean that the SVM score carries
 little information among healthy fruit (an RBF score flattens far from the boundary); the
 spread of the healthy-fruit scores is not yet checked.
+
+## 16. Core-only rows (20 November 2026, Ruben; dropped)
+
+**Why.** The stalk and the neck could carry the stalk and size link of the latent rows (check C,
+section 6). If only the core region enters the model, that link should drop.
+
+**Region** (`pearlatent.core_region`, notebook 21). Height over the fruit body (from
+`body_mask`, 0 = calyx end, 1 = top of the body) from 0.05 to 0.60, all radii. Cells outside a
+fruit's own region get the training-fold mean of the fruit that have the cell inside their
+region, so after centring they are 0 and do not enter the model; the fill is fitted inside
+every fold. The full 32³ grid is kept, so a counterfactual can still be decoded.
+Dropped options:
+- a radius limit of 0.5: the browning of grade 3 fruit L14 and A15 lies at radius 0.5 to 1;
+- one fixed set of cells shared by 95 % of the fruit: it kept a median 57 % of each fruit's own
+  region, 48 % for browning 3 against 61 % for grade 0, r = −0.94 with body size. A size effect
+  of its own.
+
+**Found** (scratch, latent grid, 4 LVs, against the full grid):
+
+| Row | AUC | Check C stalk | Check C size |
+|---|---|---|---|
+| Latent full grid | 0.887 | −0.20 | +0.12 |
+| Latent core only | 0.869 | −0.19 | +0.27 |
+| CT 32³ full grid | 0.839 | | |
+| CT 32³ core only | 0.821 | | |
+
+**Reading.** The stalk link does not sit in the neck and stalk cells; the likely route is the
+rescaling of every fruit to 128 voxels in length (a long stalk makes the body smaller in the
+volume). The size link got worse. Ruben: dropped, not continued.
+
+## 17. EPO on the healthy fruit (20 November 2026, Ruben)
+
+**What** (`pearlatent.epo`, `cross_validated_predictions(..., epo_healthy=...)`, notebook 22).
+External parameter orthogonalisation (EPO, Roger et al. 2003; course Chemometrics 2020,
+chapter 2): X* = X (I − P Pᵀ), where P holds the first principal components of a matrix D that
+contains only nuisance variation. Our D: the healthy (grade 0) training fruit, centred on their
+own mean (variant B). One component (`N_DIRECTIONS = 1`). Fitted inside every fold, on the
+training boxes only. A variant of the textbook method, which uses the same objects measured
+while the nuisance varies (question for Wouter Saeys).
+
+Example: P = (0.6, 0.8)ᵀ, a fruit x = (1, 2): x · P = 2.2, x* = (1, 2) − 2.2 (0.6, 0.8) =
+(−0.32, 0.24), and x* · P = 0.
+
+Why it suits a counterfactual: a PLS model fitted on X* has its regression vector b in the row
+space of X*, so b · P = 0. A step along b then cannot move a fruit along the removed axis, and
+the model gives the same prediction on X and on X*.
+
+**The removed axis** (latent grid, all 145 healthy fruit, scratch): healthy PC 1 carries 22 % of
+the healthy variation and follows body size (r = 0.97) and stalk length (r = −0.83); PCs 2 to 4
+do not (|r| ≤ 0.11). Its pattern is the band at the body outline with the opposite sign inside.
+It points the same way as variant A, the latent's covariance with body size (cosine 0.99), so
+the PCA finds the size axis without the measured size, which Ruben judged not accurate enough as
+a covariate (2 November).
+
+**Found** (scratch, design A folds, check C on the 145 healthy fruit):
+
+| Row (LVs) | AUC none → EPO | Stalk none → EPO | Size none → EPO |
+|---|---|---|---|
+| Latent full grid (4) | 0.887 → 0.888 | −0.20 → −0.10 | +0.12 → +0.07 |
+| Latent height-radius mean + SD | 0.957 → 0.952 | −0.29 → +0.07 | +0.30 → −0.04 |
+| Latent height-radius | 0.927 → 0.908 | −0.31 → +0.02 | +0.34 → −0.01 |
+| CT height-radius | 0.884 → 0.880 | −0.02 → −0.17 | +0.04 → +0.13 |
+| CT height-radius mean + SD | 0.931 → 0.920 | +0.00 → −0.19 | +0.02 → +0.13 |
+| CT 32³ full grid | 0.839 → 0.837 | +0.01 → −0.04 | +0.02 → +0.04 |
+
+Variant A on the latent full grid: AUC 0.887, stalk −0.14, size +0.12. Latent height-radius
+paired difference −0.019 (−0.045 to +0.001).
+
+**Reading.** On the latent rows EPO removes the stalk and size link at no clear cost in AUC. On
+the CT height-radius rows the healthy PC 1 is not the size axis (r 0.41 to 0.43 with body
+size), so EPO does not suit them and makes the link worse.
+
+**EPO on the grid, then binning to height-radius** (scratch): no change (height-radius AUC
+0.927, stalk −0.28, size +0.27; mean + SD 0.956, −0.31, +0.29). EPO has to be fitted in the
+features the model uses. Ruben: this is a result, not a failure; the goal of EPO here is a
+cleaner direction for the counterfactuals.
+
+## 18. Counterfactual steps along the EPO direction, and the mirrored step (20 November 2026, Ruben)
+
+**What.** Same procedure as section 14 (same 4 fruit, same decode), with the direction
+`cavity_free_epo`: the cavity-free browning ≥ 2 PLS-DA on the latent grid with EPO (section 17),
+4 LVs, 233 fruit. Scale t: grade 0 mean score 0.042, grade 3 mean 0.872; the decision boundary
+(score 0.5) lies at t = 0.55. Check: the step's part along the removed axis is at most 2.3e-12
+for every step (0 by construction).
+
+New step, the **mirrored step** (`counterfactual_run --flip`, Ruben): target score =
+2 × 0.5 − start score, the mirror image of the fruit's score in the decision boundary.
+Example: N17, start score 0.777 → target 0.223.
+
+**How to read "kept".** The decoded image is encoded again and scored. Two numbers are compared:
+- asked change = target score − the fruit's own score;
+- got change = re-encoded score of the step − re-encoded score of the plain reconstruction
+  (`vae.decode(mu)` without a step). Subtracting the plain reconstruction removes what the
+  decode-encode round trip does on its own.
+- kept = got change / asked change.
+
+Example, C23 to the grade 0 mean: own score 1.163, target 0.042, asked change −1.121. Plain
+reconstruction re-encoded 1.060, step re-encoded 0.429, got change −0.631. Kept 0.631 / 1.121 =
+0.56: the re-encoded image shows 56 % of the score change that was put into `mu`.
+
+**Found** (runs `derived/counterfactuals/20261120T16*_epo`, `20261120T17*_epo` and, mirrored,
+`20261120T18*`/`19*_epo`; notebook 17 sections 4 and 5; figures
+`derived/figures/17_asked_against_got.png`, `17_all_runs_images.png`). t asked → t got:
+
+| Fruit (own t; plain re-encoded t) | halfway | to the other grade mean | mirrored | kept |
+|---|---|---|---|---|
+| C23, grade 3 (1.35; 1.23) | 0.50 → 0.80 | 0.00 → 0.47 | −0.25 → 0.31 | 0.51 to 0.57 |
+| N17, grade 3 (0.89; 0.74) | 0.50 → 0.46 | 0.00 → 0.11 | 0.22 → 0.26 | 0.71 to 0.72 |
+| K07, grade 0 (0.00; −0.23) | 0.50 → −0.01 | 1.00 → 0.20 | 1.10 → 0.25 | 0.43 to 0.44 |
+| A03, grade 0 (0.10; −0.05) | 0.50 → 0.23 | 1.00 → 0.61 | 1.00 → 0.61 | 0.71 to 0.73 |
+
+1. The old direction (section 14, no EPO, 5 LVs) gives the same re-encoded t within 0.02 for
+   every fruit and step, and the same images.
+2. Kept is constant within a fruit (the spread over its steps is at most 0.06) but differs
+   between fruit (0.43 to 0.73). The round trip alone moves t by −0.12 to −0.23.
+3. Mirrored, re-encoded score against the boundary 0.5: C23 0.30, N17 0.26 and A03 0.55 cross;
+   K07 0.25 does not.
+4. Along the removed size axis the re-encoded fruit moves by −90 to −124 (projection of
+   re-encoded `mu` minus own `mu` on the unit axis), but within one fruit by at most 7 between
+   steps of very different length (step length 34 to 135): the move comes from the round
+   trip, not from the step.
+
+**Images** (long section, step minus plain reconstruction). Largest change: the outline
+(brighter on one side, darker on the other: a change of shape). Then a bright patch at the
+stalk end: C23 towards healthy and K07 towards defective, at the far and mirrored steps.
+Smallest: the tissue: darker around the core of A03 towards defective, slightly brighter
+inside C23 towards healthy.
+
+**Reading.** EPO removed one size axis from the model, but not what the decoded direction
+shows: outline and stalk still dominate, the core change is the smallest part. Not known: why
+only part of the step comes back. Either the decoder does not turn every change of `mu` into
+an image change, or the encoder does not return to the moved `mu`; these runs cannot tell the
+two apart. 4 fruit; examples only.
+
+**Sampled reconstruction (Ruben's question, 21 November 2026).** Not used: `vae(x)` adds
+noise with SD exp(logvar / 2), about 0.001 per cell (section 13), against a step of root mean
+square 0.2 to 0.75 per cell (step length 34 to 135 over 32,768 cells). The noise would not
+change the images or scores visibly and would make each decode differ (section 2 of
+`methods_step0_and_maps.md`: `vae.decode(mu)`, never `vae(x)`).
