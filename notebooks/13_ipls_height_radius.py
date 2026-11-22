@@ -8,21 +8,33 @@ with app.setup(hide_code=True):
 
     import altair as alt
     import marimo as mo
+    import matplotlib.pyplot as plt
     import numpy as np
     import polars as pl
 
     from pearlatent.config import load_config
     from pearlatent.feature_sets import load_features
+    from pearlatent.height_radius import RADIUS_METHOD
+    from pearlatent.nuisance import box_bootstrap, healthy_fruit_correlations
     from pearlatent.fruit_table import drop_faulty_volumes, open_fruit
     from pearlatent.ipls import forward_ipls, interval_rmsecv
     from pearlatent.plsda import (
+        CUTOFF,
         box_bootstrap_auc,
+        classification_scores,
         cross_validated_predictions,
         paired_box_bootstrap_auc_difference,
+        youden_cutoff,
     )
-    from pearlatent.runs import PLSDA_BINARY23_RUN_DIRS
+    from pearlatent.runs import (
+        ENCODING_RUN_DIR,
+        PLSDA_BINARY23_RUN_DIRS,
+        new_run_dir,
+        write_run_record,
+    )
+    from sklearn.cross_decomposition import PLSRegression
     from sklearn.metrics import roc_auc_score
-    from pearlatent.step0 import N_LATENT_HEIGHT_BINS, N_LATENT_RADIUS_BINS
+    from pearlatent.step0 import N_LATENT_HEIGHT_BINS, N_LATENT_RADIUS_BINS, cell_bins
 
 
 @app.cell(hide_code=True)
@@ -439,17 +451,18 @@ def _(selection_curve):
 @app.cell(hide_code=True)
 def _(cfg, fruit, kept_heights, kept_rings, lv_choice, row_choice, selection):
     mo.stop(lv_choice.value == "not chosen", mo.md("_Choose the number of LVs._"))
-    _n_lv = int(lv_choice.value)
+    chosen_lv = int(lv_choice.value)
     _y = (fruit["defective"] >= 2).cast(pl.Int8).to_numpy()
     _boxes = fruit["box"].to_numpy()
-    _selected = selection["predictions"][:, :, _n_lv - 1].mean(axis=0)
+    # Mean of the 20 repeats at the chosen LVs, one value per fruit.
+    selected_prediction = selection["predictions"][:, :, chosen_lv - 1].mean(axis=0)
     # The saved row with all features, same fruit in the same order.
-    _run = cfg.path("results_dir") / PLSDA_BINARY23_RUN_DIRS[row_choice.value]
-    _all_lv = json.loads((_run / "run.json").read_text())["params"]["n_lv_chosen"]
-    _all = (
+    all_run = cfg.path("results_dir") / PLSDA_BINARY23_RUN_DIRS[row_choice.value]
+    all_lv = json.loads((all_run / "run.json").read_text())["params"]["n_lv_chosen"]
+    all_prediction = (
         fruit.select("fruit_id")
         .join(
-            pl.read_parquet(_run / "predictions.parquet").select(
+            pl.read_parquet(all_run / "predictions.parquet").select(
                 "fruit_id", "prediction"
             ),
             on="fruit_id",
@@ -462,10 +475,10 @@ def _(cfg, fruit, kept_heights, kept_rings, lv_choice, row_choice, selection):
     for _name, _p, _lv in [
         (
             f"selection: heights {list(kept_heights)}, rings {list(kept_rings)}",
-            _selected,
-            _n_lv,
+            selected_prediction,
+            chosen_lv,
         ),
-        (f"all features (saved run {_run.name})", _all, _all_lv),
+        (f"all features (saved run {all_run.name})", all_prediction, all_lv),
     ]:
         _low, _high, _ = box_bootstrap_auc(_p, _y, _boxes)
         _rows.append(
@@ -476,17 +489,360 @@ def _(cfg, fruit, kept_heights, kept_rings, lv_choice, row_choice, selection):
                 "auc_95": f"{_low:.3f} to {_high:.3f}",
             }
         )
-    _paired = paired_box_bootstrap_auc_difference(_selected, _all, _y, _boxes)
+    paired_selection = paired_box_bootstrap_auc_difference(
+        selected_prediction, all_prediction, _y, _boxes
+    )
     mo.vstack(
         [
             pl.DataFrame(_rows),
             mo.md(
-                f"AUC selection − all features: **{_paired['difference']:+.3f}**"
-                f" ({_paired['lower_95']:+.3f} to {_paired['upper_95']:+.3f}), paired on"
-                f" the same {len(_y)} fruit and box draws. Optimistic (see the caveat)."
+                f"AUC selection − all features: **{paired_selection['difference']:+.3f}**"
+                f" ({paired_selection['lower_95']:+.3f} to"
+                f" {paired_selection['upper_95']:+.3f}), paired on the same {len(_y)} fruit"
+                " and box draws. Optimistic (see the caveat)."
             ),
         ]
     )
+    return (
+        all_lv,
+        all_prediction,
+        all_run,
+        chosen_lv,
+        paired_selection,
+        selected_prediction,
+    )
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 4. More measures of the selection, beside the row with all features
+
+    As notebooks 10 and 21: recall and precision at the fixed cut-off 0.5 and at the Youden
+    cut-off (chosen on these predictions, so slightly optimistic); AUC of grade 0 against
+    each defect group (charter rule 5); check C, the Spearman correlation of the score (minus
+    its box median) with stalk length and body size on the healthy fruit, 1,000 box draws.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(all_prediction, fruit, selected_prediction):
+    _y = (fruit["defective"] >= 2).cast(pl.Int8).to_numpy()
+    _grade = fruit["defective"].to_numpy()
+    _rows = []
+    selection_scores = {}
+    for _model, _p in (
+        ("selection", selected_prediction),
+        ("all features", all_prediction),
+    ):
+        _youden = youden_cutoff(_p, _y)
+        for _rule, _cut in (("0.5", CUTOFF), ("Youden", _youden)):
+            _s = classification_scores(_p, _y, _grade, cutoff=_cut)
+            selection_scores[f"{_model}, {_rule}"] = {"cutoff": _cut, **_s}
+            _rows.append(
+                {
+                    "model": _model,
+                    "cut-off": f"{_rule} ({_cut:.3f})",
+                    "recall": round(_s["recall"], 3),
+                    "precision": round(_s["precision"], 3),
+                }
+            )
+    pl.DataFrame(_rows)
+    return (selection_scores,)
+
+
+@app.cell(hide_code=True)
+def _(all_prediction, fruit, selected_prediction):
+    _groups = {
+        "browning only 1": (pl.col("browning") == 1) & (pl.col("cavity") == 0),
+        "browning only 2": (pl.col("browning") == 2) & (pl.col("cavity") == 0),
+        "browning only 3": (pl.col("browning") == 3) & (pl.col("cavity") == 0),
+        "cavity 2 or 3": pl.col("cavity") >= 2,
+        "any grade 1": pl.col("defective") == 1,
+    }
+    _table = fruit.with_columns(
+        selection=selected_prediction, all_features=all_prediction
+    )
+    _healthy = _table.filter(pl.col("defective") == 0)
+    _rows = []
+    for _name, _condition in _groups.items():
+        _pair = pl.concat(
+            [
+                _healthy.with_columns(_label=pl.lit(0)),
+                _table.filter(_condition).with_columns(_label=pl.lit(1)),
+            ]
+        )
+        _labels = _pair["_label"].to_numpy()
+        for _model in ("selection", "all_features"):
+            _values = _pair[_model].to_numpy()
+            _low, _high, _ = box_bootstrap_auc(
+                _values, _labels, _pair["box"].to_numpy()
+            )
+            _rows.append(
+                {
+                    "group": _name,
+                    "model": _model,
+                    "n_group": int(_labels.sum()),
+                    "auc": roc_auc_score(_labels, _values),
+                    "lower_95": _low,
+                    "upper_95": _high,
+                }
+            )
+    selection_auc_by_group = pl.DataFrame(_rows)
+    selection_auc_by_group.with_columns(pl.col("auc", "lower_95", "upper_95").round(3))
+    return (selection_auc_by_group,)
+
+
+@app.cell(hide_code=True)
+def _(all_prediction, fruit, selected_prediction):
+    _rows = []
+    for _model, _p in (
+        ("selection", selected_prediction),
+        ("all features", all_prediction),
+    ):
+        _scored = fruit.with_columns(score=_p)
+        for _measure in ("stalk_length", "body_voxels"):
+            _key = f"spearman_{_measure}"
+            _low, _high = box_bootstrap(
+                lambda t, k=_key: healthy_fruit_correlations(t)[k],
+                _scored,
+                n_resamples=1000,
+            )
+            _rows.append(
+                {
+                    "model": _model,
+                    "measure": _measure,
+                    "spearman": healthy_fruit_correlations(_scored)[_key],
+                    "lower_95": _low,
+                    "upper_95": _high,
+                }
+            )
+    selection_check_c = pl.DataFrame(_rows)
+    selection_check_c.with_columns(pl.col("spearman", "lower_95", "upper_95").round(3))
+    return (selection_check_c,)
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 5. The weights, mapped back onto the height-radius map and onto the cells
+
+    One PLS-DA fit on all 315 fruit of the 12 open boxes, on the kept bins, at the chosen
+    LVs (as every final model). Its regression vector has one weight per kept feature: one
+    for the mean and, in a mean + SD row, one for the SD of each kept bin. Left: the weights
+    on the 20 × 8 map (height 0 = calyx end at the bottom, ring 0 = axis on the left); grey =
+    bin not kept. Right: the same weights drawn on the 32³ body cells of one fruit (long
+    section through its body centre), each cell coloured by the weight of the bin it falls in
+    (`pearlatent.step0.cell_bins`, the rule of the features). Red = a higher value in that bin
+    raises the score (towards non-consumable), blue = lowers it.
+
+    Mean and SD features have different units, so each has its own colour scale. A weight
+    says how the model uses a bin given all other kept bins; it is not a test of that bin.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(examples_for_cells):
+    cell_fruit_choice = mo.ui.dropdown(
+        options=examples_for_cells,
+        value=examples_for_cells[0],
+        label="Fruit for the cells",
+    )
+    cell_fruit_choice
+    return (cell_fruit_choice,)
+
+
+@app.cell(hide_code=True)
+def _(fruit):
+    # The four counterfactual fruit first (notebook 17), then the others.
+    _first = ["2526_C23", "2526_N17", "2526_K07", "2526_A03"]
+    examples_for_cells = [_f for _f in _first if _f in fruit["fruit_id"].to_list()] + [
+        _f for _f in fruit["fruit_id"].to_list() if _f not in _first
+    ]
+    return (examples_for_cells,)
+
+
+@app.cell(hide_code=True)
+def _(
+    cell_fruit_choice,
+    cfg,
+    chosen_lv,
+    fruit,
+    kept_heights,
+    kept_rings,
+    row_choice,
+):
+    _x = load_features(cfg, row_choice.value, fruit["fruit_id"].to_list()).astype(float)
+    _height, _ring = bin_positions(_x.shape[1])
+    _kept = np.isin(_height, kept_heights) & np.isin(_ring, kept_rings)
+    _y = (fruit["defective"] >= 2).cast(pl.Float64).to_numpy()
+    _model = PLSRegression(n_components=chosen_lv, scale=False).fit(_x[:, _kept], _y)
+    _n_bins = N_LATENT_HEIGHT_BINS * N_LATENT_RADIUS_BINS
+    # Weights back on the full feature list (0 for features not kept), then as maps.
+    _full = np.zeros(_x.shape[1])
+    _full[_kept] = _model.coef_.ravel()
+    _kept_map = np.isin(
+        np.arange(N_LATENT_HEIGHT_BINS)[:, None], kept_heights
+    ) & np.isin(np.arange(N_LATENT_RADIUS_BINS)[None, :], kept_rings)
+    weight_maps = {
+        "mean": _full[:_n_bins].reshape(N_LATENT_HEIGHT_BINS, N_LATENT_RADIUS_BINS)
+    }
+    if _x.shape[1] == 2 * _n_bins:
+        weight_maps["SD"] = _full[_n_bins:].reshape(
+            N_LATENT_HEIGHT_BINS, N_LATENT_RADIUS_BINS
+        )
+
+    # The body cells of the chosen fruit, and the bin of every cell.
+    _manifest = pl.read_parquet(
+        cfg.path("derived_dir") / ENCODING_RUN_DIR / "manifest.parquet"
+    ).with_row_index("position")
+    _position = _manifest.filter(pl.col("fruit_id") == cell_fruit_choice.value)[
+        "position"
+    ].item()
+    _body = np.asarray(
+        np.load(
+            cfg.path("derived_dir") / ENCODING_RUN_DIR / "masks.npy", mmap_mode="r"
+        )[_position],
+        dtype=bool,
+    )
+    _h_bins, _r_bins = cell_bins(_body, RADIUS_METHOD)
+    _centre = int(round(np.nonzero(_body)[0].mean()))  # long section: first axis fixed
+
+    weights_figure, _axes = plt.subplots(
+        1,
+        2 * len(weight_maps),
+        figsize=(4.2 * len(weight_maps) * 2, 4.6),
+        squeeze=False,
+    )
+    for _k, (_name, _map) in enumerate(weight_maps.items()):
+        _limit = float(np.abs(_map[_kept_map]).max()) or 1.0
+        _shown = np.ma.masked_where(~_kept_map, _map)
+        _ax = _axes[0, 2 * _k]
+        _ax.set_facecolor("0.85")
+        _image = _ax.imshow(
+            _shown,
+            cmap="RdBu_r",
+            vmin=-_limit,
+            vmax=_limit,
+            origin="lower",
+            aspect="auto",
+        )
+        _ax.set_xlabel("ring (0 = axis, 7 = skin)")
+        _ax.set_ylabel("height bin (0 = calyx end)")
+        _ax.set_title(f"weights of the bin {_name}", fontsize=10)
+        weights_figure.colorbar(_image, ax=_ax, shrink=0.8)
+
+        # Cells: weight of the bin of every body cell in the long section; grey = not kept.
+        _section_h = _h_bins[_centre]
+        _section_r = _r_bins[_centre]
+        _in_body = _section_h >= 0
+        _cell_weight = np.full(_section_h.shape, np.nan)
+        _cell_weight[_in_body] = _map[_section_h[_in_body], _section_r[_in_body]]
+        _cell_kept = np.zeros(_section_h.shape, dtype=bool)
+        _cell_kept[_in_body] = _kept_map[_section_h[_in_body], _section_r[_in_body]]
+        _ax = _axes[0, 2 * _k + 1]
+        _background = np.where(_in_body, 0.85, 0.0)
+        _ax.imshow(_background.T, cmap="gray", vmin=0, vmax=1, origin="lower")
+        _ax.imshow(
+            np.ma.masked_where(~_cell_kept, _cell_weight).T,
+            cmap="RdBu_r",
+            vmin=-_limit,
+            vmax=_limit,
+            origin="lower",
+        )
+        _ax.set_title(f"{cell_fruit_choice.value}: cells, bin {_name}", fontsize=10)
+        _ax.set_xticks([])
+        _ax.set_yticks([])
+    weights_figure.suptitle(
+        f"{row_choice.value}: heights {list(kept_heights)}, rings {list(kept_rings)},"
+        f" {chosen_lv} LVs, fit on {len(_y)} fruit",
+        fontsize=10,
+    )
+    weights_figure.tight_layout()
+    weights_figure
+    return weight_maps, weights_figure
+
+
+@app.cell(hide_code=True)
+def _():
+    save_button = mo.ui.run_button(
+        label="Save this selection to results/ and the figure"
+    )
+    save_button
+    return (save_button,)
+
+
+@app.cell(hide_code=True)
+def _(
+    all_lv,
+    all_run,
+    cfg,
+    chosen_lv,
+    fruit,
+    kept_heights,
+    kept_rings,
+    paired_selection,
+    row_choice,
+    save_button,
+    selected_prediction,
+    selection_auc_by_group,
+    selection_check_c,
+    selection_scores,
+    weight_maps,
+    weights_figure,
+):
+    mo.stop(not save_button.value, mo.md("_Not saved._"))
+    _run_dir = new_run_dir(
+        cfg.path("results_dir"), f"ipls_selection_{row_choice.value}"
+    )
+    fruit.select(
+        "fruit_id", "box", "defective", "browning", "cavity", "cause"
+    ).with_columns(prediction=selected_prediction).write_parquet(
+        _run_dir / "predictions.parquet"
+    )
+    selection_auc_by_group.write_parquet(_run_dir / "auc_by_group.parquet")
+    selection_check_c.write_parquet(_run_dir / "check_c_healthy_correlations.parquet")
+    np.savez(_run_dir / "weight_maps.npz", **weight_maps)
+    (_run_dir / "scores.json").write_text(
+        json.dumps(
+            {
+                # The 2,000 single differences are left out; the summary is kept.
+                "paired": {
+                    _k: _v
+                    for _k, _v in paired_selection.items()
+                    if _k != "differences"
+                },
+                **selection_scores,
+            },
+            indent=2,
+            default=float,
+        )
+    )
+    _figure = (
+        cfg.path("derived_dir") / "figures" / f"13_selection_{row_choice.value}.png"
+    )
+    weights_figure.savefig(_figure, dpi=130, bbox_inches="tight")
+    write_run_record(
+        _run_dir,
+        {
+            "what": "PLS-DA on an iPLS selection: heights along the forward path, then rings",
+            "row": row_choice.value,
+            "heights": list(kept_heights),
+            "rings": list(kept_rings),
+            "n_lv_chosen": chosen_lv,
+            "selection_rule": "number of heights and of rings chosen by Ruben on the paths",
+            "lv_rule": "elbow of the mean RMSECV curve, chosen by Ruben by eye",
+            "compared_with": all_run.name,
+            "compared_n_lv": all_lv,
+            "folds": "derived/outer_folds_20/outer_folds.csv",
+            "bootstrap_seed": 369,
+            "figure": str(_figure.relative_to(cfg.root)),
+        },
+        root=cfg.root,
+    )
+    mo.md(f"Saved to `{_run_dir}` and `{_figure}`.")
     return
 
 
