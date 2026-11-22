@@ -154,31 +154,18 @@ N_LATENT_RADIUS_BINS = 8
 RADIUS_METHODS = ("fruit", "slice")
 
 
-def latent_map_sums(
-    latent: np.ndarray,
+def cell_bins(
     body_cells: np.ndarray,
     radius_method: str = "fruit",
     n_height: int = N_LATENT_HEIGHT_BINS,
     n_radius: int = N_LATENT_RADIUS_BINS,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Height-radius sums of one fruit's latent `mu`, over every body cell of the 3D grid.
+    """Height bin and radius bin of every cell of one fruit's 32³ grid; −1 outside the body.
 
-    In: the latent (32³), the fruit's 32³ body cells and the radius method. Out: (counts,
-    sums), each (n_height, n_radius): number of body cells per bin and the sum of their latent
-    values. Unlike the voxel map, which only has the two saved long sections, this uses all
-    body cells, so it averages over the full rotation about the axis.
-
-    Height (both methods): 0 at the calyx end of the body, 1 at the stalk end.
-    Radius, `radius_method`:
-    - "fruit": distance to one straight stem-calyx axis (the line along the third axis
-      through the mean x and y of all body cells), divided by one number per fruit, the
-      distance of the outermost body cell. Keeps the shape: a narrow neck only reaches small
-      radii.
-    - "slice": distance to the centre of the body cells of the same slice, divided by the
-      distance of the outermost body cell of that slice. Removes the shape: radius 1 is the
-      skin at every height, so a radius bin is a relative depth below the skin.
-    In both, radius runs from 0 to 1 and every body cell is binned. Neither method
-    interpolates: every cell keeps its value and only gets a coordinate.
+    In: the fruit's 32³ body cells, the radius method (see `latent_map_sums`). Out: two
+    integer arrays of the grid's shape. The rule of `latent_map_sums`, which uses it, so a
+    bin of the height-radius features and the cells assigned here are the same cells
+    (Ruben, 22 November 2026: to draw height-radius weights back onto the cells of a fruit).
     """
     if radius_method not in RADIUS_METHODS:
         raise ValueError(f"radius_method must be one of {RADIUS_METHODS}")
@@ -208,8 +195,42 @@ def latent_map_sums(
     with np.errstate(invalid="ignore", divide="ignore"):
         radius = np.where(outermost > 0, distance / outermost, 0.0)
     inside = body & (height >= 0) & (height < 1)
-    h_bin = (height[inside] * n_height).astype(int)
-    r_bin = radius_bin(radius[inside], n_radius)
+    h_bins = np.full(body.shape, -1, dtype=int)
+    r_bins = np.full(body.shape, -1, dtype=int)
+    h_bins[inside] = (height[inside] * n_height).astype(int)
+    r_bins[inside] = radius_bin(radius[inside], n_radius)
+    return h_bins, r_bins
+
+
+def latent_map_sums(
+    latent: np.ndarray,
+    body_cells: np.ndarray,
+    radius_method: str = "fruit",
+    n_height: int = N_LATENT_HEIGHT_BINS,
+    n_radius: int = N_LATENT_RADIUS_BINS,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Height-radius sums of one fruit's latent `mu`, over every body cell of the 3D grid.
+
+    In: the latent (32³), the fruit's 32³ body cells and the radius method. Out: (counts,
+    sums), each (n_height, n_radius): number of body cells per bin and the sum of their latent
+    values. Unlike the voxel map, which only has the two saved long sections, this uses all
+    body cells, so it averages over the full rotation about the axis.
+
+    Height (both methods): 0 at the calyx end of the body, 1 at the stalk end.
+    Radius, `radius_method`:
+    - "fruit": distance to one straight stem-calyx axis (the line along the third axis
+      through the mean x and y of all body cells), divided by one number per fruit, the
+      distance of the outermost body cell. Keeps the shape: a narrow neck only reaches small
+      radii.
+    - "slice": distance to the centre of the body cells of the same slice, divided by the
+      distance of the outermost body cell of that slice. Removes the shape: radius 1 is the
+      skin at every height, so a radius bin is a relative depth below the skin.
+    In both, radius runs from 0 to 1 and every body cell is binned. Neither method
+    interpolates: every cell keeps its value and only gets a coordinate.
+    """
+    h_bins, r_bins = cell_bins(body_cells, radius_method, n_height, n_radius)
+    inside = h_bins >= 0
+    h_bin, r_bin = h_bins[inside], r_bins[inside]
 
     counts = np.zeros((n_height, n_radius))
     sums = np.zeros((n_height, n_radius))

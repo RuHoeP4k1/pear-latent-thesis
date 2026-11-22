@@ -186,3 +186,21 @@ def test_group_bin_summary_counts_every_fruit_once_and_applies_the_share_rule():
     assert summary["mean"][0, 0] == pytest.approx(4.0)
     assert summary["q25"][0, 0] == pytest.approx(1.5)
     assert np.isnan(summary["mean"][0, 1])
+
+
+def test_cell_bins_match_the_sums_of_latent_map_sums():
+    """Every body cell gets the bin that latent_map_sums adds it to; other cells get -1."""
+    from pearlatent.step0 import cell_bins, latent_map_sums
+
+    rng = np.random.default_rng(0)
+    body = np.zeros((32, 32, 32), dtype=bool)
+    body[8:24, 10:22, 3:29] = True
+    latent = rng.normal(size=body.shape)
+    h_bins, r_bins = cell_bins(body, "slice")
+    assert (h_bins[~body] == -1).all() and (r_bins[~body] == -1).all()
+    assert (h_bins[body] >= 0).all()
+    counts, sums = latent_map_sums(latent, body, "slice")
+    rebuilt = np.zeros_like(sums)
+    np.add.at(rebuilt, (h_bins[body], r_bins[body]), latent[body])
+    np.testing.assert_allclose(rebuilt, sums)
+    assert counts.sum() == body.sum()
