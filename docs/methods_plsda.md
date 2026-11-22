@@ -678,8 +678,9 @@ the SDs of its bins):
 Example of a feature index: height bin 4, ring 3 → mean at 8 × 4 + 3 = 35, SD at 160 + 35 = 195.
 
 **Choice and result** (run `results/20261122T162303Z_ipls_selection_hugo_vae_hr_sd`). Heights
-1, 2, 4, 5, 7, 10, 11 (the lowest point of the height path, RMSECV 0.305 against 0.311 for all
-20), all 8 rings (the ring path falls to 0.303 with all 8), 3 LVs; 112 features.
+1, 2, 4, 5, 7, 10, 11 (the lowest point of the height path at 7 intervals, RMSECV 0.303 against
+0.311 for all 20; from 5 intervals on the path is flat, 0.305 to 0.303), all 8 rings (the ring
+path falls from 0.317 for ring 3 alone to 0.303 with all 8), 3 LVs; 112 features.
 
 | | Selection | All 320 features (3 LVs) |
 |---|---|---|
