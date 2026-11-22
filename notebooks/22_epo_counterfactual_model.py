@@ -1,7 +1,10 @@
 import marimo
 
 __generated_with = "0.25.1"
-app = marimo.App(width="medium", app_title="22 EPO model for the counterfactuals")
+app = marimo.App(
+    width="medium",
+    app_title="22 EPO model for the counterfactuals",
+)
 
 with app.setup(hide_code=True):
     import json
@@ -26,6 +29,7 @@ with app.setup(hide_code=True):
         cross_validated_predictions,
         mean_squared_errors,
         paired_box_bootstrap_auc_difference,
+        youden_cutoff,
     )
     from pearlatent.runs import new_run_dir, write_run_record
     from pearlatent.targets import target_table
@@ -345,6 +349,7 @@ def _(
     chosen_lv,
     comparison,
     curves,
+    cutoff_youden,
     direction_choice,
     final_direction,
     paired,
@@ -364,6 +369,8 @@ def _(
             "direction": direction_choice.value,
             "target": DIRECTIONS[direction_choice.value]["target"] or "binary_23",
             "n_lv_chosen": chosen_lv,
+            "cutoff": 0.5,
+            "cutoff_youden": cutoff_youden,
             "lv_rule": "elbow of the mean RMSECV curve, chosen by Ruben by eye",
             "epo": "first principal component of the grade 0 training fruit, per fold",
             "scale": False,
