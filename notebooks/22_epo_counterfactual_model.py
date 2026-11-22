@@ -255,16 +255,24 @@ def _(boxes, cv, direction_choice, fruit, lv_choice, y):
         "lower_95": _paired["lower_95"],
         "upper_95": _paired["upper_95"],
     }
+    # Youden cut-off of the EPO model on its out-of-fold predictions (methods section 3);
+    # saved in run.json and used by `counterfactual_run --flip-at` (22 November 2026).
+    cutoff_youden = youden_cutoff(predictions["with EPO"], y)
+    # One row per fruit: the out-of-fold prediction of the EPO model (mean of 20 repeats).
+    epo_predictions = fruit.select("fruit_id", "box", "defective", "y").with_columns(
+        prediction=predictions["with EPO"]
+    )
     mo.vstack(
         [
             comparison,
             mo.md(
                 f"AUC with EPO − without: **{paired['difference']:+.3f}**"
                 f" ({paired['lower_95']:+.3f} to {paired['upper_95']:+.3f})."
+                f" Youden cut-off of the EPO model: **{cutoff_youden:.3f}**."
             ),
         ]
     )
-    return chosen_lv, comparison, paired
+    return chosen_lv, comparison, cutoff_youden, epo_predictions, paired
 
 
 @app.cell(hide_code=True)
