@@ -22,6 +22,12 @@ MED3D_RUN_DIR = "med3d/20261102T185107Z_med3d_resnet18"
 # logvar of the encoder for the open 2526 fruit and Hugo's 66 validation fruit (9 November
 # 2026, `pearlatent.logvar_run`; code unchanged since 868af71, saved while notebook 15 was untracked).
 LOGVAR_RUN_DIR = "logvar/20261109T171513Z_logvar"
+# EPO models of notebook 22 (22 November 2026), in results/: cavity-free browning ≥ 2 at 4 LVs
+# (the counterfactual direction `cavity_free_epo`) and binary_23 at 3 LVs (Ruben's choice).
+EPO_RUN_DIRS = {
+    "cavity_free": "20261122T152905Z_epo_cavity_free",
+    "general": "20261122T152916Z_epo_general",
+}
 
 # The PLS-DA runs on binary_23 in use (folders under `results_dir`, saved 3 November 2026 by
 # notebook 08; `docs/methods_plsda.md`, section 7). Notebook 10 compares them.

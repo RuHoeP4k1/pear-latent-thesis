@@ -19,6 +19,7 @@ with app.setup(hide_code=True):
     from pearlatent.reconstruction import body_centre, body_voxel_mask, central_planes
     from pearlatent.runs import (
         ENCODING_RUN_DIR,
+        EPO_RUN_DIRS,
         PLSDA_BINARY23_RUN_DIRS,
         latest_run_dir,
     )
@@ -317,7 +318,10 @@ def _(cfg, examples):
         if not _record.get("epo"):
             _kind = f"no EPO ({_record['n_lv']} LVs)"
         elif _record.get("flip"):
-            _kind = "EPO flip"
+            # 22 November 2026: a mirror across another cut-off than 0.5 is the Youden run.
+            _flip_at = _record.get("flip_at")
+            _youden = _flip_at is not None and abs(_flip_at - 0.5) > 1e-9
+            _kind = "EPO flip (Youden)" if _youden else "EPO flip"
         else:
             _kind = f"EPO ({_record['n_lv']} LVs)"
         for _step in _steps.filter(pl.col("step") != "plain").iter_rows(named=True):
@@ -392,12 +396,14 @@ def _(step_table):
     epo_steps = step_table.filter(pl.col("kind").str.starts_with("EPO")).with_columns(
         step_name=pl.when(pl.col("kind") == "EPO flip")
         .then(pl.lit("mirrored"))
+        .when(pl.col("kind") == "EPO flip (Youden)")
+        .then(pl.lit("mirrored at Youden"))
         .when(pl.col("t_target") == 0.5)
         .then(pl.lit("halfway"))
         .otherwise(pl.lit("to the other grade")),
         t_start=(pl.col("start_score") - _scale[0]) / (_scale[1] - _scale[0]),
     )
-    STEP_NAMES = ("halfway", "to the other grade", "mirrored")
+    STEP_NAMES = ("halfway", "to the other grade", "mirrored", "mirrored at Youden")
     print(f"EPO steps: {epo_steps.height} of {step_table.height}")
     return STEP_NAMES, epo_steps
 
@@ -414,10 +420,22 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(STEP_NAMES, cfg, epo_steps, examples):
+def _(cfg):
+    # Youden cut-off of the cavity-free EPO model (notebook 22, out-of-fold predictions).
+    _run = cfg.path("results_dir") / EPO_RUN_DIRS["cavity_free"]
+    cutoff_youden_epo = json.loads((_run / "run.json").read_text())["params"][
+        "cutoff_youden"
+    ]
+    print(f"Youden cut-off of {_run.name}: {cutoff_youden_epo:.3f}")
+    return (cutoff_youden_epo,)
+
+
+@app.cell(hide_code=True)
+def _(STEP_NAMES, cfg, cutoff_youden_epo, epo_steps, examples):
     _fruit_order = examples["fruit_id"].to_list()
     _groups = dict(examples.select("fruit_id", "group").iter_rows())
     _scale = epo_steps.select("grade0_mean", "grade3_mean").row(0)
+    _youden_t = (cutoff_youden_epo - _scale[0]) / (_scale[1] - _scale[0])
     _boundary_t = (0.5 - _scale[0]) / (
         _scale[1] - _scale[0]
     )  # score 0.5 on the t scale
@@ -454,6 +472,7 @@ def _(STEP_NAMES, cfg, epo_steps, examples):
             )
             _ax.scatter(_step["t_got"], _y, s=70, color=_got_colour, zorder=4)
         _ax.axvline(_boundary_t, color="0.3", lw=1, ls="--", zorder=0)
+        _ax.axvline(_youden_t, color="0.3", lw=1, ls=":", zorder=0)
         _ax.set_yticks(range(len(STEP_NAMES)), STEP_NAMES, fontsize=9)
         _ax.set_ylim(len(STEP_NAMES) - 0.5, -0.5)
         _ax.set_title(f"{_fruit} ({_groups[_fruit]})", fontsize=10, loc="left")
@@ -484,10 +503,11 @@ def _(STEP_NAMES, cfg, epo_steps, examples):
             label="asked",
         ),
         plt.Line2D([], [], color=_got_colour, marker="o", ls="", label="got"),
-        plt.Line2D([], [], color="0.3", ls="--", label="decision boundary"),
+        plt.Line2D([], [], color="0.3", ls="--", label="boundary 0.5"),
+        plt.Line2D([], [], color="0.3", ls=":", label="Youden cut-off"),
     ]
     score_figure.legend(
-        handles=_handles, loc="upper center", ncol=4, fontsize=9, frameon=False
+        handles=_handles, loc="upper center", ncol=5, fontsize=9, frameon=False
     )
     score_figure.tight_layout(rect=(0, 0, 1, 0.93))
     _out = cfg.path("derived_dir") / "figures" / "17_asked_against_got.png"

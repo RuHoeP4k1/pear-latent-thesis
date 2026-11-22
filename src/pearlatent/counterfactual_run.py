@@ -115,9 +115,17 @@ def main() -> None:
     # Ruben, 20 November 2026: mirror the fruit across the decision boundary (score = CUTOFF):
     # target score = 2 × CUTOFF − start score, the same distance on the other side.
     parser.add_argument("--flip", action="store_true", help="mirror across score 0.5")
+    # Ruben, 22 November 2026: mirror across another cut-off instead, the Youden cut-off of the
+    # same model saved by notebook 22 (`cutoff_youden` in its run.json). Implies --flip.
+    parser.add_argument(
+        "--flip-at", type=float, help="mirror across this score instead of 0.5"
+    )
     parser.add_argument("--plain", type=Path, help="step0_examples run with this fruit")
     parser.add_argument("--n-lv", type=int, help="number of LVs (required for *_epo)")
     args = parser.parse_args()
+    if args.flip_at is not None:
+        args.flip = True
+    flip_at = args.flip_at if args.flip_at is not None else CUTOFF
     if not args.t and not args.flip:
         parser.error("give --t values, --flip, or both")
 
@@ -141,11 +149,11 @@ def main() -> None:
 
     t_steps = list(args.t)
     if args.flip:
-        flip_target = 2 * CUTOFF - start
+        flip_target = 2 * flip_at - start
         # Rounded to 3 decimals so the step file name stays readable (step_t-0.247.npz).
         t_steps.append(round(scale.t(flip_target), 3))
         print(
-            f"flip across {CUTOFF}: target score {flip_target:.3f}, t {t_steps[-1]:.2f}"
+            f"flip across {flip_at:.3f}: target score {flip_target:.3f}, t {t_steps[-1]:.2f}"
         )
 
     device = get_device(cfg.compute("device", "cpu"))
@@ -161,6 +169,7 @@ def main() -> None:
             "n_lv": direction.n_components,
             "t_steps": t_steps,
             "flip": args.flip,
+            "flip_at": flip_at if args.flip else None,
             "grade0_mean_score": scale.grade0_mean,
             "grade3_mean_score": scale.grade3_mean,
             "start_score": start,
