@@ -5,10 +5,38 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-21 (Mac)
-- **Phase:** meeting with Hugo on **Tuesday 24 November**. Ruben wants to show him the EPO
-  counterfactuals against the old ones, and the story notebook (20) with a plan. Models keep
-  being built on the open boxes; the sealed test (F, J, M) waits until the rows stop changing.
+- **Date:** 2026-11-22 (Mac)
+- **Phase:** ready for the meeting with Hugo on **Tuesday 24 November** (Ruben is comfortable
+  presenting). Story notebook `notebooks/20_story.py` is the meeting material. After the
+  meeting the work turns to the final results for the thesis: Hugo's answers, then the
+  preprocessing choice, final models, ResNet-18 on the workstation, more counterfactuals.
+- **Done on 22 November (commits defcbee to 0439154):**
+  - Story notebook 20, sections 0 to 9 from saved figures and runs, wording from Ruben's
+    walkthrough answers; section 6b reads the saved iPLS selection.
+  - Mirrored-step figure (`derived/figures/17_mirrored_steps.png`): CT, mirrored fruit, the
+    change painted on the CT. Painted, the core changes are clearer than first written: C23
+    brighter inside towards healthy, K07 and A03 darker around the seed cavity towards
+    defective, N17 hardly any; the outline still covers the largest area. Methods section 18
+    and story section 8 still say "core change is the smallest": refine the wording.
+  - EPO runs saved with out-of-fold predictions and Youden cut-off (`EPO_RUN_DIRS`):
+    cavity-free 4 LVs, AUC 0.855, Youden 0.298; `binary_23` 3 LVs (Ruben), AUC 0.886,
+    Youden 0.384. `counterfactual_run --flip-at` mirrors across a chosen cut-off; the four
+    Youden mirrors: grade 3 fruit cross it (C23 t −0.02, N17 −0.08), grade 0 fruit do not
+    (K07 0.04, A03 0.24).
+  - Notebook 13 sections 3 to 5: model on chosen heights then rings (mean + SD rows), extra
+    measures, weights drawn on the height-radius map and on a fruit's cells
+    (`pearlatent.step0.cell_bins`). Saved selection `20261122T162303Z_ipls_selection_hugo_vae_hr_sd`
+    (methods section 19): heights 1, 2, 4, 5, 7, 10, 11, all rings, 3 LVs; AUC 0.966 against
+    0.957, paired +0.010 (−0.001 to +0.024); check C unchanged; grade 1 not rescued.
+  - Checked: the 940 open encoded fruit (346 + 594) and the 153 sealed (87 F/J/M + 66 Hugo
+    test) do not overlap; fold file holds only the 12 open boxes.
+- **Next step:** Ruben reads notebook 20 and prepares the meeting (Monday). On request: refine
+  the core-change wording in methods section 18 and story section 8; tighten story section 5
+  to its three messages (Ruben agreed it reads thin). After the meeting: record Hugo's
+  answers (questions 53, 55, 59, 60 for Wouter Saeys, 18 and 33, 9 and 16, 17), then decide
+  the preprocessing for the final rows (EPO on the latent rows or not, stalk measure).
+- **Still scratch, not saved as runs:** the core-only numbers (notebook 21 can save them) and
+  EPO on the height-radius rows (no notebook yet).
 - **Done on 20 and 21 November (commits fbf7174 to 0d057e0; methods sections 16 to 18):**
   - Core-only rows (`pearlatent.core_region`, fill fitted per fold in
     `cross_validated_predictions(..., regions=...)`, notebook 21). Region: height over the body
@@ -32,10 +60,6 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   kept for the latent rows and the counterfactuals; no improvement on the height-radius rows
   after grid-EPO counts as a result; reconstruction stays `vae.decode(mu)`, no sampled
   reconstruction (noise SD about 0.001 per cell against a step of 0.2 to 0.75 per cell).
-- **Next step:** prepare the meeting of 24 November. Write notebook 20 (story, sections 0 to 9,
-  as decided on 20 November), with section 8 (counterfactuals) built from the two notebook 17
-  figures and methods section 18, and section 9 (plan) updated: core-only dropped, EPO done,
-  stalk still in the counterfactual direction. Bring questions 55, 59 and 60 to Hugo.
 - **Blocked on:** nothing. ResNet-18 needs the lab workstation (question 9).
 - **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
   overwritten; make notebook edits in one write. A notebook can be saved headless with
@@ -440,6 +464,13 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 
 Newest first. One entry per session, three to six lines.
 
+### 2026-11-22 — story notebook, Youden mirrors, iPLS selection
+- Decided (Ruben): `binary_23` EPO model at 3 LVs; mirror also across the Youden cut-off;
+  iPLS selection heights 1, 2, 4, 5, 7, 10, 11, all rings, 3 LVs; ready to present Tuesday.
+- Built: notebook 20 (story), `--flip-at`, Youden and predictions in notebook 22, notebook 13
+  sections 3 to 5, `step0.cell_bins`, mirrored-step figure; methods section 19.
+- Found: selection keeps the AUC (0.966) and the stalk link; Youden mirror moves only the grade
+  3 fruit across; painted changes show core darkening in A03 and K07.
 ### 2026-11-20/21 — core-only dropped, EPO on healthy fruit, EPO counterfactuals
 - Decided (Ruben): core-only rows dropped (no gain, size link worse); EPO variant B kept for
   latent rows and counterfactuals; `vae.decode(mu)`, no sampled reconstruction.
