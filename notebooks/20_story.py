@@ -403,14 +403,30 @@ def _(show_figure):
 def _():
     mo.md(r"""
     **Caveat.** Heights, rings and LVs are all chosen on the cross-validation that scores
-    them, so this AUC is optimistic; only the sealed boxes can test a selection.
+    them, so this AUC is optimistic; only the sealed boxes can test a selection. Neighbouring
+    height bins are strongly correlated, so the forward search skips some (3, 6, 8, 9): the
+    gaps do not mean those heights carry nothing.
 
-    **What it taught us** (test run with the default selection: heights 1, 2, 4, 5, 7, 10, 11,
-    all rings, 3 LVs). The lower half of the body carries the model: AUC 0.966 against 0.957
-    (paired +0.010, −0.001 to +0.024). The stalk and size link stays (stalk −0.29, size +0.33),
-    so it is not carried by the upper half or the neck either. The weights: a higher SD of the
-    middle rings at heights 2 to 7 raises the score (uneven tissue around the core), a higher
-    mean of rings 1 to 4 at heights 4 to 7 lowers it.
+    **What it taught us** (run `20261122T162303Z_ipls_selection_hugo_vae_hr_sd`).
+
+    - The lower 60 % of the body carries the model. The kept heights (bins 1 to 11, 5 to 60 %
+      of the body height from the calyx end) lie in the range Ruben chose from biology for the
+      core-only rows (5 to 60 %); no ring is dropped. 112 of the 320 features give AUC 0.966
+      against 0.957 for all (paired +0.010, −0.001 to +0.024): no loss, no clear gain.
+    - By cause the same picture: browning only 2 0.961 against 0.941, cavity 0.967 against
+      0.954, grade 1 unchanged (0.67). Selecting a region does not rescue grade 1.
+    - Per grade at the Youden cut-off (0.373): called non-consumable grade 0 4 %, grade 1
+      22 %, grade 2 90 %, grade 3 94 % (all features: 6 %, 22 %, 87 %, 95 %).
+    - Check C unchanged (stalk −0.29, size +0.33): the link is not in the top of the body or
+      the neck, as the core-only rows already showed (section 7).
+    - The weights: a higher **SD** in the middle rings (2 to 5) at heights 2 to 7 raises the
+      score: a ring that is more uneven in the latent, read as patchy tissue around the core
+      (a reading, not tested). A higher **mean** of rings 1 to 4 at
+      heights 4 to 7 lowers it. The model reads browning as spread around the core more than as
+      a shift in level, the same message as the interior SD for grade 1 (section 5).
+
+    **Next.** Test the region on the sealed boxes together with the other rows; the SD weights
+    support spread features for grade 1 (plan step 5).
     """)
     return
 

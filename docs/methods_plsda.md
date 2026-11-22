@@ -661,3 +661,39 @@ noise with SD exp(logvar / 2), about 0.001 per cell (section 13), against a step
 square 0.2 to 0.75 per cell (step length 34 to 135 over 32,768 cells). The noise would not
 change the images or scores visibly and would make each decode differ (section 2 of
 `methods_step0_and_maps.md`: `vae.decode(mu)`, never `vae(x)`).
+
+## 19. A model on an iPLS selection: heights, then rings (22 November 2026, Ruben)
+
+**What** (notebook 13 sections 3 to 5; `pearlatent.step0.cell_bins`). On the latent
+height-radius mean + SD row (`hugo_vae_hr_sd`, 320 features; an interval holds the means and
+the SDs of its bins):
+1. forward iPLS over the 20 height intervals (section 11); Ruben chooses how many to keep;
+2. inside the kept heights, one forward pass over the 8 rings; Ruben chooses how many;
+3. PLS-DA on the kept bins, design A folds, centring only, LVs by Ruben at the elbow; AUC,
+   paired difference against the saved all-feature row, recall and precision at 0.5 and at
+   the Youden cut-off, AUC per defect group, check C;
+4. one fit on all 315 fruit; its weights drawn on the 20 × 8 map and on the 32³ body cells of
+   one fruit, each cell taking the weight of its bin (`cell_bins`, the rule of the features).
+
+Example of a feature index: height bin 4, ring 3 → mean at 8 × 4 + 3 = 35, SD at 160 + 35 = 195.
+
+**Choice and result** (run `results/20261122T162303Z_ipls_selection_hugo_vae_hr_sd`). Heights
+1, 2, 4, 5, 7, 10, 11 (the lowest point of the height path, RMSECV 0.305 against 0.311 for all
+20), all 8 rings (the ring path falls to 0.303 with all 8), 3 LVs; 112 features.
+
+| | Selection | All 320 features (3 LVs) |
+|---|---|---|
+| AUC | 0.966 | 0.957 |
+| Paired difference | +0.010 (−0.001 to +0.024) | |
+| Recall / precision at 0.5 | 0.775 / 0.962 | 0.736 / 0.941 |
+| Youden cut-off; recall / precision | 0.373; 0.922 / 0.888 | 0.355; 0.915 / 0.868 |
+| Browning only 1 / 2 / 3 against grade 0 | 0.670 / 0.961 / 0.990 | 0.671 / 0.941 / 0.989 |
+| Cavity 2 or 3 against grade 0 | 0.967 | 0.954 |
+| Check C stalk / size | −0.29 / +0.33 | −0.29 / +0.30 |
+
+Weights of the final fit: positive for the SD of rings 2 to 5 at heights 2 to 7, negative for
+the mean of rings 1 to 4 at heights 4 to 7.
+
+**Reading.** Heights, rings and LVs are chosen on the same cross-validation, so the
+selection's AUC is optimistic. The kept region (5 to 60 % of the body height) carries all of
+the model; the stalk and size link stays; grade 1 is not rescued.
