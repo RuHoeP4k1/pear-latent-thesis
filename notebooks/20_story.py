@@ -4,9 +4,13 @@ __generated_with = "0.25.1"
 app = marimo.App(width="medium", app_title="20 Story for Hugo")
 
 with app.setup(hide_code=True):
+    import json
+
     import marimo as mo
+    import polars as pl
 
     from pearlatent.config import load_config
+    from pearlatent.runs import latest_run_dir
 
 
 @app.cell(hide_code=True)
@@ -47,10 +51,12 @@ def _():
         """
         path = _figures / name
         if not path.exists():
-            return mo.md(f"_Figure `{name}` not found; run the notebook that makes it._")
+            return mo.md(
+                f"_Figure `{name}` not found; run the notebook that makes it._"
+            )
         return mo.vstack([mo.image(src=path, width="100%"), mo.md(f"_{caption}_")])
 
-    return (show_figure,)
+    return cfg, show_figure
 
 
 @app.cell(hide_code=True)
@@ -333,6 +339,83 @@ def _():
 
 
 @app.cell(hide_code=True)
+def _(cfg):
+    # The selection Ruben saved in notebook 13 section 5 (heights, then rings, mean + SD).
+    _run = latest_run_dir(cfg.path("results_dir"), "ipls_selection_hugo_vae_hr_sd")
+    mo.stop(
+        _run is None,
+        mo.md("_No selection saved yet (notebook 13, section 5, save button)._"),
+    )
+    _record = json.loads((_run / "run.json").read_text())["params"]
+    _scores = json.loads((_run / "scores.json").read_text())
+    _paired = _scores["paired"]
+    _measures = "\n".join(
+        f"| {_name} | {_s['cutoff']:.3f} | {_s['recall']:.3f} | {_s['precision']:.3f} |"
+        for _name, _s in _scores.items()
+        if _name != "paired"
+    )
+    _groups = (
+        pl.read_parquet(_run / "auc_by_group.parquet")
+        .with_columns(pl.col("auc", "lower_95", "upper_95").round(3))
+        .select("group", "model", "n_group", "auc", "lower_95", "upper_95")
+    )
+    _check_c = pl.read_parquet(
+        _run / "check_c_healthy_correlations.parquet"
+    ).with_columns(pl.col("spearman", "lower_95", "upper_95").round(2))
+    mo.vstack(
+        [
+            mo.md(
+                f"""
+    ### 6b. A model on the selected region (latent mean + SD)
+
+    **What we did** (notebook 13 sections 3 to 5, run `{_run.name}`). Heights chosen along
+    the forward path, then rings inside them, then PLS-DA on the kept bins:
+    heights **{_record["heights"]}** (0 = calyx end), rings **{_record["rings"]}** (0 = axis),
+    {_record["n_lv_chosen"]} LVs. Against all 320 features ({_record["compared_n_lv"]} LVs):
+    AUC {_paired["auc_a"]:.3f} against {_paired["auc_b"]:.3f}, paired difference
+    **{_paired["difference"]:+.3f}** ({_paired["lower_95"]:+.3f} to {_paired["upper_95"]:+.3f}).
+
+    | model, cut-off | cut-off | recall | precision |
+    |---|---|---|---|
+    {_measures}
+    """
+            ),
+            _groups,
+            mo.md("Check C on the 145 healthy fruit (score minus box median):"),
+            _check_c,
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(show_figure):
+    show_figure(
+        "13_selection_hugo_vae_hr_sd.png",
+        "Weights of the final fit on the kept bins: on the height-radius map (grey = not "
+        "kept) and on the body cells of one fruit, for the bin means and the bin SDs "
+        "(red raises the score towards non-consumable; notebook 13 section 5).",
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    **Caveat.** Heights, rings and LVs are all chosen on the cross-validation that scores
+    them, so this AUC is optimistic; only the sealed boxes can test a selection.
+
+    **What it taught us** (test run with the default selection: heights 1, 2, 4, 5, 7, 10, 11,
+    all rings, 3 LVs). The lower half of the body carries the model: AUC 0.966 against 0.957
+    (paired +0.010, −0.001 to +0.024). The stalk and size link stays (stalk −0.29, size +0.33),
+    so it is not carried by the upper half or the neck either. The weights: a higher SD of the
+    middle rings at heights 2 to 7 raises the score (uneven tissue around the core), a higher
+    mean of rings 1 to 4 at heights 4 to 7 lowers it.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _():
     mo.md(r"""
     ## 7. Checks, and the two attempts to remove the stalk and size link
@@ -433,6 +516,10 @@ def _():
     - With and without EPO the same within 0.02 in t, and the same images: removing the main
       size axis does not take the stalk out of the direction. Mirrored: C23, N17 and A03 cross
       the boundary, K07 does not.
+    - Mirrored across the Youden cut-off of the same model (0.298, t 0.31; notebook 22 run
+      `20261122T152905Z_epo_cavity_free`): the two grade 3 fruit cross it (C23 t −0.02, N17
+      −0.08); the two grade 0 fruit do not (K07 0.04, A03 0.24), because the Youden mirror asks
+      them for a shorter step.
     - Check C (the score follows the stalk on healthy fruit) and the stalk in the counterfactual
       are one finding seen in two ways.
 
