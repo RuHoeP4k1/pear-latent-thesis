@@ -590,5 +590,90 @@ def _(STEP_NAMES, cfg, epo_steps, examples):
     return
 
 
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 6. The mirrored steps: original, mirrored fruit, and where the intensity changed
+
+    One column per fruit, EPO direction, mirrored step (the fruit's score reflected in the
+    decision boundary). Rows: the original CT; the decoded mirrored fruit; the original CT in
+    grey with the change painted on top (mirrored minus plain reconstruction; blue = brighter,
+    red = darker). The change is taken against the plain reconstruction, not against the CT,
+    so the smoothing of the decoder itself does not show as a change. Only changes of at least
+    `SHOW_FROM` are painted; one colour scale for all four fruit. Long section through the body
+    centre, calyx end at the bottom.
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(cfg, epo_steps, examples):
+    # Changes smaller than this are left unpainted: 0.02 is 2 % of the 0-1 intensity range,
+    # about a quarter of the darkening of browning-3 tissue against healthy tissue in the
+    # reconstruction (methods_step0_and_maps.md section 2); smaller changes are faint haze.
+    SHOW_FROM = 0.02
+    _colour_limit = (
+        0.2  # one scale for all fruit; the stalk patch of C23 (0.46) is clipped
+    )
+    _fruit_order = examples["fruit_id"].to_list()
+    _groups = dict(examples.select("fruit_id", "group").iter_rows())
+    mirror_figure, _axes = plt.subplots(
+        3, len(_fruit_order), figsize=(2.9 * len(_fruit_order), 9.2), squeeze=False
+    )
+    for _j, _fruit in enumerate(_fruit_order):
+        _step = epo_steps.filter(
+            (pl.col("fruit_id") == _fruit) & (pl.col("step_name") == "mirrored")
+        ).row(0, named=True)
+        _run = cfg.path("derived_dir") / "counterfactuals" / _step["run"]
+        _record = json.loads((_run / "run.json").read_text())["params"]
+        with np.load(cfg.root / _record["plain_reconstruction"] / "volumes.npz") as _f:
+            _k = list(_f["fruit_id"]).index(_fruit)
+            _ct = _f["ct"][_k].astype(np.float32)
+            _plain = _f["reconstruction"][_k].astype(np.float32)
+        with np.load(_run / f"step_t{_step['t_target']}.npz") as _f:
+            _mirrored = _f["reconstruction"].astype(np.float32)
+        _centre = body_centre(_ct > 0.1)
+        _ct_section = _ct[_centre[0]].T
+        _change = (_mirrored - _plain)[_centre[0]].T
+        _painted = np.ma.masked_where(np.abs(_change) < SHOW_FROM, _change)
+
+        _axes[0, _j].imshow(_ct_section, cmap="gray", vmin=0, vmax=1, origin="lower")
+        _axes[0, _j].set_title(f"{_fruit} ({_groups[_fruit]})", fontsize=10)
+        _axes[1, _j].imshow(
+            _mirrored[_centre[0]].T, cmap="gray", vmin=0, vmax=1, origin="lower"
+        )
+        _axes[1, _j].set_title(
+            f"t {_step['t_start']:.2f} → asked {_step['t_target']:.2f}, got {_step['t_got']:.2f}",
+            fontsize=8,
+        )
+        _axes[2, _j].imshow(_ct_section, cmap="gray", vmin=0, vmax=1, origin="lower")
+        _shown = _axes[2, _j].imshow(
+            _painted,
+            cmap="RdBu",
+            vmin=-_colour_limit,
+            vmax=_colour_limit,
+            origin="lower",
+        )
+    for _ax in _axes.ravel():
+        _ax.set_xticks([])
+        _ax.set_yticks([])
+    for _i, _label in enumerate(
+        ["original CT", "mirrored, decoded", "where it changed"]
+    ):
+        _axes[_i, 0].set_ylabel(_label, fontsize=10)
+    # Colour bar in its own axes to the right of the last row, so no panel is narrowed.
+    mirror_figure.tight_layout()
+    _last = _axes[2, -1].get_position()
+    _bar_axes = mirror_figure.add_axes((_last.x1 + 0.01, _last.y0, 0.012, _last.height))
+    mirror_figure.colorbar(
+        _shown, cax=_bar_axes, label=f"mirrored − plain (|change| ≥ {SHOW_FROM})"
+    )
+    _out = cfg.path("derived_dir") / "figures" / "17_mirrored_steps.png"
+    mirror_figure.savefig(_out, dpi=130, bbox_inches="tight")
+    print(f"saved {_out}")
+    mirror_figure
+    return
+
+
 if __name__ == "__main__":
     app.run()

@@ -405,6 +405,18 @@ def _(show_figure):
 
 
 @app.cell(hide_code=True)
+def _(show_figure):
+    show_figure(
+        "17_mirrored_steps.png",
+        "Mirrored step per fruit (notebook 17, section 6). Top: original CT. Middle: the "
+        "decoded mirrored fruit, with its t before, asked and got. Bottom: the original CT with "
+        "the change against the plain reconstruction painted on top where it is at least 0.02 "
+        "(blue brighter, red darker).",
+    )
+    return
+
+
+@app.cell(hide_code=True)
 def _():
     mo.md(r"""
     **Caveat.** 4 fruit, examples only. The decode-encode round trip alone moves t by −0.12 to
