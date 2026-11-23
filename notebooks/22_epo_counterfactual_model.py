@@ -477,5 +477,101 @@ def _(cfg, pca_fruit, pca_views):
     return
 
 
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 6. Check C before and after EPO, latent height-radius mean + SD (23 November 2026)
+
+    The row with the strongest size and stalk link (`hugo_vae_hr_sd`, 320 features, 3 LVs as
+    saved on 9 November), on the 315 `binary_23` fruit and the 20 × 4 box folds. Without EPO
+    and with EPO (healthy PC 1 removed in every fold, fitted in these 320 features). Each fruit's
+    score is the mean of its 20 out-of-fold predictions. The figure shows the 145 healthy fruit:
+    score minus its box median (as check C) against body size and stalk length. Repeats the
+    scratch numbers of methods section 17 as a figure.
+    """)
+    return
+
+
+@app.function(hide_code=True)
+@mo.persistent_cache
+def cross_validate_hr_sd(fruit_ids: tuple) -> dict:
+    """Out-of-fold predictions (repeats × fruit × LVs) of `hugo_vae_hr_sd`, without and with
+    EPO, on the same folds. In: the `binary_23` fruit in table order. Cached on disk.
+    """
+    cfg = load_config()
+    fruit = model_fruit(cfg, "general")
+    assert tuple(fruit["fruit_id"].to_list()) == fruit_ids, "fruit order changed"
+    x = load_features(cfg, "hugo_vae_hr_sd", list(fruit_ids))
+    y = fruit["y"].to_numpy()
+    boxes = fruit["box"].to_numpy()
+    folds = pl.read_csv(cfg.path("derived_dir") / "outer_folds_20" / "outer_folds.csv")
+    return {
+        "without EPO": cross_validated_predictions(x, y, boxes, folds, scale=False),
+        "with EPO": cross_validated_predictions(
+            x, y, boxes, folds, scale=False, epo_healthy=fruit["healthy"].to_numpy()
+        ),
+    }
+
+
+@app.cell(hide_code=True)
+def _(cfg):
+    # 3 LVs: the number Ruben chose for this row on 9 November (methods section 13).
+    HR_SD_LV = 3
+    _fruit = model_fruit(cfg, "general")
+    _cv = cross_validate_hr_sd(tuple(_fruit["fruit_id"].to_list()))
+    _y = _fruit["y"].to_numpy()
+    _base = _fruit.select("box", "defective", "stalk_length", "body_voxels", "stalk_present")
+    hr_sd_healthy = {}
+    _rows = []
+    for _model, _p in _cv.items():
+        _score = _p[:, :, HR_SD_LV - 1].mean(axis=0)
+        _table = _base.with_columns(score=_score)
+        _check = healthy_fruit_correlations(_table)
+        _rows.append(
+            {
+                "model": _model,
+                "auc": round(roc_auc_score(_y, _score), 3),
+                "stalk_length": round(_check["spearman_stalk_length"], 2),
+                "body_voxels": round(_check["spearman_body_voxels"], 2),
+            }
+        )
+        # The healthy fruit with the score minus its box median, as check C uses it.
+        hr_sd_healthy[_model] = _table.filter(pl.col("defective") == 0).with_columns(
+            score_in_box=pl.col("score") - pl.col("score").median().over("box")
+        )
+    hr_sd_check_c = pl.DataFrame(_rows)
+    hr_sd_check_c
+    return hr_sd_check_c, hr_sd_healthy
+
+
+@app.cell(hide_code=True)
+def _(cfg, hr_sd_check_c, hr_sd_healthy):
+    check_c_figure, _axes = plt.subplots(2, 2, figsize=(10, 8), sharey="row")
+    _measures = [
+        ("body_voxels", "body size (voxels in the 128³ volume)"),
+        ("stalk_length", "stalk length (voxels)"),
+    ]
+    for _c, (_model, _healthy) in enumerate(hr_sd_healthy.items()):
+        _row = hr_sd_check_c.filter(pl.col("model") == _model).row(0, named=True)
+        for _r, (_name, _label) in enumerate(_measures):
+            _ax = _axes[_r, _c]
+            _ax.scatter(_healthy[_name], _healthy["score_in_box"], s=12, color="#3b6ea5")
+            _ax.axhline(0, color="grey", linewidth=0.8)
+            _ax.set_xlabel(_label)
+            _ax.set_title(f"{_model} (AUC {_row['auc']:.3f}): r = {_row[_name]:+.2f}")
+        _axes[0, 0].set_ylabel("score − box median")
+        _axes[1, 0].set_ylabel("score − box median")
+    check_c_figure.suptitle(
+        "Latent height-radius mean + SD, 3 LVs: score of the 145 healthy fruit against size "
+        "and stalk, without and with EPO (Spearman r)"
+    )
+    check_c_figure.tight_layout()
+    _out = cfg.path("derived_dir") / "figures" / "22_check_c_before_after_epo.png"
+    check_c_figure.savefig(_out, dpi=130, bbox_inches="tight")
+    print(f"saved {_out}")
+    check_c_figure
+    return
+
+
 if __name__ == "__main__":
     app.run()

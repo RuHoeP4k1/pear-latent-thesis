@@ -506,6 +506,33 @@ def _():
 
 
 @app.cell(hide_code=True)
+def _(show_figure):
+    show_figure(
+        "22_check_c_before_after_epo.png",
+        "Check C as a figure: the score of the 145 healthy fruit (minus its box median) "
+        "against body size and stalk length, latent height-radius mean + SD, 3 LVs, without "
+        "and with EPO (notebook 22 section 6).",
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    **What the check C figure shows.** Without EPO, the healthy fruit's score rises with size
+    (+0.30) and falls with stalk length (−0.29). With EPO the trend is gone (−0.04, +0.07) at
+    nearly the same AUC (0.957 → 0.952). But the smallest fruit (below about 100,000 body
+    voxels) now score high, up to +0.4: one straight direction overshoots at the small end. The
+    rank correlation near 0 hides this. Same message as the PCA: the size effect is curved, and
+    one EPO component removes only its straight part. Candidates: GLSW (a soft weighting of
+    the nuisance directions), or the stretch factor per fruit as the external parameter
+    (question 18). Stalk length moves in steps of 4 voxels because the body-stalk boundary is
+    set on the 32³ grid (question 41).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _():
     mo.md(r"""
     ## 8. Counterfactual images
