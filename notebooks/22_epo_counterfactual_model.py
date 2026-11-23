@@ -11,6 +11,7 @@ with app.setup(hide_code=True):
 
     import altair as alt
     import marimo as mo
+    import matplotlib.pyplot as plt
     import numpy as np
     import polars as pl
     from scipy.stats import spearmanr
@@ -19,7 +20,7 @@ with app.setup(hide_code=True):
     from pearlatent.config import load_config
     from pearlatent.counterfactual import plsda_direction
     from pearlatent.counterfactual_run import DIRECTIONS
-    from pearlatent.epo import fit_epo_directions
+    from pearlatent.epo import fit_epo_directions, remove_directions
     from pearlatent.feature_sets import load_features
     from pearlatent.fruit_table import drop_faulty_volumes, open_fruit
     from pearlatent.nuisance import box_bootstrap, healthy_fruit_correlations
@@ -388,6 +389,91 @@ def _(
         root=cfg.root,
     )
     mo.md(f"Saved to `{_run_dir}`.")
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    ## 5. PCA of the latent before and after EPO (description, 23 November 2026)
+
+    All 315 open 2526 fruit (the `binary_23` fruit), latent full grid. Before: PCA of the
+    plain latent. After: the first principal component of the 145 healthy fruit is removed from
+    every fruit (the EPO step of the models), then PCA again. Here the direction is fitted once
+    on all healthy fruit, not per fold: this section describes the data, it scores no model.
+    Question: does the main structure stop being size and stalk, and does the grade show up?
+    """)
+    return
+
+
+@app.function(hide_code=True)
+def principal_scores(x: np.ndarray, n_components: int = 2) -> tuple[np.ndarray, np.ndarray]:
+    """PCA scores and explained variance shares of the first components.
+
+    In: features (fruit, features). Out: scores (fruit, n_components) and the share of the
+    total variance of each component. Centred, not scaled (CLAUDE.md section 7).
+    """
+    deviations = x - x.mean(axis=0)
+    u, s, _ = np.linalg.svd(deviations, full_matrices=False)
+    shares = s**2 / (s**2).sum()
+    return u[:, :n_components] * s[:n_components], shares[:n_components]
+
+
+@app.cell(hide_code=True)
+def _(cfg):
+    _fruit = model_fruit(cfg, "general")
+    _x = load_features(cfg, "hugo_vae", _fruit["fruit_id"].to_list()).astype(float)
+    _healthy = _fruit["healthy"].to_numpy()
+    # One direction, fitted on all 145 healthy fruit: the same rule as the models
+    # (N_DIRECTIONS = 1), without folds because nothing is scored here.
+    _removed = fit_epo_directions(_x, _healthy)
+    pca_views = {
+        "before EPO": principal_scores(_x),
+        "after EPO": principal_scores(remove_directions(_x, _removed)),
+    }
+    pca_fruit = _fruit
+    _rows = []
+    for _view, (_scores, _shares) in pca_views.items():
+        for _k in range(2):
+            _row = {"view": _view, "PC": _k + 1, "variance share": round(float(_shares[_k]), 3)}
+            # Spearman: the descriptors are counts with long tails.
+            for _name in ("body_voxels", "stalk_length", "defective"):
+                _row[f"r {_name}"] = round(
+                    float(spearmanr(_scores[:, _k], _fruit[_name].to_numpy()).statistic), 2
+                )
+            _rows.append(_row)
+    pca_correlations = pl.DataFrame(_rows)
+    print(f"{_fruit.height} fruit, {int(_healthy.sum())} healthy (EPO set)")
+    pca_correlations
+    return pca_correlations, pca_fruit, pca_views
+
+
+@app.cell(hide_code=True)
+def _(cfg, pca_fruit, pca_views):
+    pca_figure, _axes = plt.subplots(2, 2, figsize=(10, 9))
+    _colourings = [
+        ("body_voxels", "viridis", "body size (voxels in the 128³ volume)"),
+        ("defective", "plasma", "defective grade"),
+    ]
+    for _r, (_view, (_scores, _shares)) in enumerate(pca_views.items()):
+        for _c, (_name, _map, _label) in enumerate(_colourings):
+            _ax = _axes[_r, _c]
+            _shown = _ax.scatter(
+                _scores[:, 0], _scores[:, 1], c=pca_fruit[_name].to_numpy(), cmap=_map, s=12
+            )
+            _ax.set_xlabel(f"PC 1 ({_shares[0]:.0%})")
+            _ax.set_ylabel(f"PC 2 ({_shares[1]:.0%})")
+            _ax.set_title(f"{_view}, coloured by {_name}")
+            pca_figure.colorbar(_shown, ax=_ax, label=_label)
+    pca_figure.suptitle(
+        f"Latent full grid, {pca_fruit.height} open 2526 fruit: PCA before and after removing "
+        "the healthy PC 1"
+    )
+    pca_figure.tight_layout()
+    _out = cfg.path("derived_dir") / "figures" / "22_pca_before_after_epo.png"
+    pca_figure.savefig(_out, dpi=130, bbox_inches="tight")
+    print(f"saved {_out}")
+    pca_figure
     return
 
 

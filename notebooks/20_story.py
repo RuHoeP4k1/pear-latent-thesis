@@ -280,6 +280,11 @@ def _():
     return
 
 
+@app.cell
+def _():
+    return
+
+
 @app.cell(hide_code=True)
 def _(show_figure):
     show_figure(
@@ -454,7 +459,8 @@ def _():
       PC 1 is not size). EPO must be fitted in the model's own features: EPO on the grid and
       then binning removes nothing.
 
-    **Caveat.** The core-only and EPO numbers are scratch runs, not saved runs yet. Stalk alone
+    **Caveat.** The core-only and the height-radius EPO numbers are scratch runs; the EPO runs
+    on the latent grid are saved (22 November, `EPO_RUN_DIRS`). Stalk alone
     separates every defect group from grade 0 at AUC 0.58 to 0.65; larger fruit brown more
     (Ho et al. 2008), so part of the link may be real biology.
 
@@ -463,6 +469,38 @@ def _():
 
     **Next.** For Hugo: artefact or biology (question 59)? For Wouter Saeys: EPO with healthy
     fruit as the nuisance set (question 60).
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(show_figure):
+    show_figure(
+        "22_pca_before_after_epo.png",
+        "PCA of the latent full grid, 315 open 2526 fruit, before and after removing the "
+        "healthy PC 1 (notebook 22 section 5; direction fitted once on the 145 healthy fruit).",
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _():
+    mo.md(r"""
+    **What the PCA shows** (notebook 22 section 5, Spearman r with each PC):
+
+    | | variance | body size | stalk | grade |
+    |---|---|---|---|---|
+    | Before EPO, PC 1 | 22 % | +0.97 | −0.78 | +0.18 |
+    | Before EPO, PC 2 | 8 % | +0.10 | +0.07 | −0.05 |
+    | After EPO, PC 1 | 11 % | +0.12 | −0.25 | +0.09 |
+    | After EPO, PC 2 | 6 % | +0.16 | +0.06 | +0.13 |
+
+    - Before: PC 1 is size, and PC 1 against PC 2 is a horseshoe. That shape is what PCA makes
+      of one strong gradient: PC 2 bends with PC 1 and carries no new information.
+    - After: the horseshoe is gone and PC 1 no longer follows size overall (0.12). But the
+      largest fruit (about 250,000 body voxels and more) still sit together at the right. One
+      straight direction removes the main size trend, not its curved part at the large end.
+    - The grade does not show in the first two components, before or after.
     """)
     return
 
@@ -526,9 +564,10 @@ def _():
     - Only part of each step comes back: 43 % (K07) to 73 % (A03) of the asked score change,
       the same share for every step of one fruit. Whether the decoder ignores part of the
       change or the encoder does not return to it is not known (question 61).
-    - The images change mostly at the outline (a change of shape), then a stalk patch at the
-      neck (C23 towards healthy, K07 towards defective); the core change is the smallest
-      (A03 darker around the core towards defective, C23 slightly brighter inside).
+    - The outline covers the largest area (a change of shape), then a stalk patch at the neck
+      (C23 towards healthy, K07 towards defective). Painted on the CT (last figure), the core
+      also changes clearly: C23 brighter inside towards healthy, K07 and A03 darker around
+      the seed cavity towards defective; N17 hardly at all.
     - With and without EPO the same within 0.02 in t, and the same images: removing the main
       size axis does not take the stalk out of the direction. Mirrored: C23, N17 and A03 cross
       the boundary, K07 does not.
@@ -563,13 +602,23 @@ def _():
     | 8 | ResNet-18 on the lab workstation | Charter baseline; needs the workstation (question 9). |
     | 9 | Sealed test (F, J, M) | Once the rows stop changing. |
 
-    **Questions for Hugo** (numbers as in `HANDOFF.md`):
+    **Questions for Hugo** (full list with what each answer decides:
+    `docs/meeting_2026-11-24.md`, section 4):
 
-    - 53. Grade 0 against 1 and 2 against 3: graded on one or two cuts, so part label noise?
-    - 59. A short stalk (a relatively large body) goes with defects: artefact of the stretching
-      or real risk factor? Before removing all stalk information.
-    - 18 and 33. The length of each fruit before rescaling to 128 voxels.
-    - 9 and 16. Lab workstation and ResNet-18 settings. 17. Extra labels.
+    - Q1. Height-radius rows as model rows beside the full grid? On 29 October he said
+      exploration only; they now carry the best latent result.
+    - Q2 (59). A short stalk (a relatively large body) goes with defects: artefact of the
+      stretching or real risk factor? Decides EPO on the final latent rows.
+    - Q4 (9). Lab workstation access for the ResNet-18 baseline.
+    - Q5 (18). Per fruit, the scale factor of the rescaling to 128 voxels, and was it the
+      same along all axes? Used as a measurement, not to reprocess: check C with real size
+      against the stretch factor (decides Q2 from the data), and EPO on the stretch factor
+      for every row.
+
+    Answered by Ruben (23 November): grading by Hugo's decision table, not every region cut,
+    so label noise at 0/1 and 2/3 exists (53); Ruben asks Wouter Saeys directly about the EPO
+    variant (60). Answered on 29 October, not asked again: 33 (no reprocessing), 17 (no extra
+    labels), 16 (ResNet settings are Ruben's choice).
     """)
     return
 
