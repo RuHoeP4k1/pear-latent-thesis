@@ -599,6 +599,22 @@ size), so EPO does not suit them and makes the link worse.
 features the model uses. Ruben: this is a result, not a failure; the goal of EPO here is a
 cleaner direction for the counterfactuals.
 
+**Figures (23 November 2026, notebook 22 sections 5 and 6).**
+- PCA of the latent grid, 315 fruit, the healthy PC 1 fitted once on all 145 healthy fruit
+  (description only, no model): before, PC 1 holds 22 % (size r +0.97, stalk −0.78, grade
+  +0.18) and PC 1 against PC 2 is a horseshoe, the shape PCA gives one strong gradient; after,
+  PC 1 holds 11 % (size +0.12, stalk −0.25, grade +0.09), the horseshoe is gone, but the
+  largest fruit (about 250,000 body voxels and more) still group together
+  (`derived/figures/22_pca_before_after_epo.png`).
+- Check C for the latent height-radius mean + SD row, 3 LVs, recomputed in the notebook: AUC
+  0.957 → 0.952, size +0.30 → −0.04, stalk −0.29 → +0.07 (the scratch numbers above). In the
+  figure, with EPO the smallest healthy fruit (below about 100,000 body voxels) score up to
+  +0.4 (`derived/figures/22_check_c_before_after_epo.png`).
+- Reading: the size effect is curved; one EPO component removes its straight part only.
+  Example: if the score of healthy fruit followed (size − mean)², a straight direction along
+  size would remove nothing of it, and a rank correlation could be near 0 while the smallest
+  and the largest fruit both score high. Options in `HANDOFF.md` question 62.
+
 ## 18. Counterfactual steps along the EPO direction, and the mirrored step (20 November 2026, Ruben)
 
 **What.** Same procedure as section 14 (same 4 fruit, same decode), with the direction

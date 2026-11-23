@@ -5,38 +5,49 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-22 (Mac)
-- **Phase:** ready for the meeting with Hugo on **Tuesday 24 November** (Ruben is comfortable
-  presenting). Story notebook `notebooks/20_story.py` is the meeting material. After the
-  meeting the work turns to the final results for the thesis: Hugo's answers, then the
-  preprocessing choice, final models, ResNet-18 on the workstation, more counterfactuals.
-- **Done on 22 November (commits defcbee to 0439154):**
-  - Story notebook 20, sections 0 to 9 from saved figures and runs, wording from Ruben's
-    walkthrough answers; section 6b reads the saved iPLS selection.
-  - Mirrored-step figure (`derived/figures/17_mirrored_steps.png`): CT, mirrored fruit, the
-    change painted on the CT. Painted, the core changes are clearer than first written: C23
-    brighter inside towards healthy, K07 and A03 darker around the seed cavity towards
-    defective, N17 hardly any; the outline still covers the largest area. Methods section 18
-    and story section 8 still say "core change is the smallest": refine the wording.
-  - EPO runs saved with out-of-fold predictions and Youden cut-off (`EPO_RUN_DIRS`):
-    cavity-free 4 LVs, AUC 0.855, Youden 0.298; `binary_23` 3 LVs (Ruben), AUC 0.886,
-    Youden 0.384. `counterfactual_run --flip-at` mirrors across a chosen cut-off; the four
-    Youden mirrors: grade 3 fruit cross it (C23 t −0.02, N17 −0.08), grade 0 fruit do not
-    (K07 0.04, A03 0.24).
-  - Notebook 13 sections 3 to 5: model on chosen heights then rings (mean + SD rows), extra
-    measures, weights drawn on the height-radius map and on a fruit's cells
-    (`pearlatent.step0.cell_bins`). Saved selection `20261122T162303Z_ipls_selection_hugo_vae_hr_sd`
-    (methods section 19): heights 1, 2, 4, 5, 7, 10, 11, all rings, 3 LVs; AUC 0.966 against
-    0.957, paired +0.010 (−0.001 to +0.024); check C unchanged; grade 1 not rescued.
-  - Checked: the 940 open encoded fruit (346 + 594) and the 153 sealed (87 F/J/M + 66 Hugo
-    test) do not overlap; fold file holds only the 12 open boxes.
-- **Next step:** Ruben reads notebook 20 and prepares the meeting (Monday). On request: refine
-  the core-change wording in methods section 18 and story section 8; tighten story section 5
-  to its three messages (Ruben agreed it reads thin). After the meeting: record Hugo's
-  answers (questions 53, 55, 59, 60 for Wouter Saeys, 18 and 33, 9 and 16, 17), then decide
-  the preprocessing for the final rows (EPO on the latent rows or not, stalk measure).
-- **Still scratch, not saved as runs:** the core-only numbers (notebook 21 can save them) and
-  EPO on the height-radius rows (no notebook yet).
+- **Date:** 2026-11-23 (Mac)
+- **Phase:** meeting with Hugo on **Tuesday 24 November**. Material: `notebooks/20_story.py`
+  (open with `uv run marimo run notebooks/20_story.py`); notes and questions:
+  `docs/meeting_2026-11-24.md` (results R1 to R11 with caveats, questions Q1 to Q6, plan).
+  After the meeting the work turns to the final rows: preprocessing choice, final runs,
+  ResNet-18 on the workstation, counterfactuals again, sealed test.
+- **Done on 23 November (commits 9b8cffd to 040b54f, pushed):**
+  - Meeting brief `docs/meeting_2026-11-24.md`; `docs/meeting_2026-11-17.md` marked superseded.
+  - Open questions pruned: 13 questions Hugo answered on 29 October had never been removed
+    (2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38). Conflict found and put to Hugo as Q5:
+    13 Oct "dimensions computable from the original scans" against 29 Oct "not measured".
+  - Ruben's answers: 53 (grading by Hugo's decision table, not every region cut, label noise
+    at 0/1 and 2/3 exists, not quantifiable); 60 (Ruben asks Wouter Saeys directly); 18
+    (Ruben has access to the original files; ask Hugo for the scale factor per fruit, uses
+    in the brief section 4b: check C with real size against the stretch factor, EPO on the
+    stretch factor for every row, sizes in mm).
+  - Notebook 22 section 5: PCA of the latent grid before and after removing the healthy PC 1
+    (`derived/figures/22_pca_before_after_epo.png`). Before: PC 1 22 %, size r +0.97, PC 1
+    against PC 2 a horseshoe. After: PC 1 11 %, size +0.12, but the largest fruit still group
+    together. Grade not visible in PC 1 or 2 either way.
+  - Notebook 22 section 6: check C as a figure for the latent height-radius mean + SD row,
+    3 LVs (`derived/figures/22_check_c_before_after_epo.png`). Reproduces methods section 17:
+    AUC 0.957 → 0.952, size +0.30 → −0.04, stalk −0.29 → +0.07. Seen in the figure: with EPO
+    the smallest healthy fruit (below about 100,000 body voxels) score high, up to +0.4.
+    Reading: one EPO component removes only the straight part of a curved size effect.
+  - Story: section 7 shows both figures; section 8 core-change wording corrected; section 9
+    question list replaced.
+- **Next step:** after the meeting, write an "Outcome" section in `docs/meeting_2026-11-24.md`
+  with Hugo's answers to Q1 (height-radius rows as model rows), Q2 (question 59, size and
+  stalk: artefact or biology), Q4 (question 9, workstation) and Q5 (question 18, scale
+  factors), then update the open questions. Then Ruben mails Wouter Saeys (question 60).
+- **Blocked on:** the preprocessing of the final rows waits for Q1, Q2 and Q5; ResNet-18
+  waits for workstation access (Q4).
+- **Still scratch, not saved as runs:** the core-only numbers (notebook 21 can save them);
+  EPO on the height-radius rows is computed in notebook 22 section 6 but not saved as a run.
+- **Still to fix:** methods section 18 says "the core change is the smallest" (the story is
+  corrected); an empty cell at line 284 of `notebooks/20_story.py` (Ruben's, `marimo check`
+  warning).
+- **Done on 22 November (commits defcbee to 0439154):** story notebook 20; mirrored-step
+  figure; EPO runs with Youden cut-off (`EPO_RUN_DIRS`: cavity-free 4 LVs AUC 0.855, Youden
+  0.298; `binary_23` 3 LVs AUC 0.886, Youden 0.384); Youden mirrors (grade 3 fruit cross,
+  grade 0 do not); iPLS selection `20261122T162303Z_ipls_selection_hugo_vae_hr_sd` (methods
+  section 19, AUC 0.966 against 0.957); sealed and open fruit checked for overlap.
 - **Done on 20 and 21 November (commits fbf7174 to 0d057e0; methods sections 16 to 18):**
   - Core-only rows (`pearlatent.core_region`, fill fitted per fold in
     `cross_validated_predictions(..., regions=...)`, notebook 21). Region: height over the body
@@ -284,6 +295,13 @@ For Wouter Saeys, added 21 Nov:
     cost AUC)? Could D be built by simulating the rescaling to 128 voxels (depends on
     question 18)?
 
+For Ruben, added 23 Nov:
+62. EPO with one component removes only the straight part of the size effect: with EPO the
+    smallest healthy fruit score high (up to +0.4), and in the PCA the largest fruit still
+    group together (notebook 22 sections 5 and 6). Options: GLSW (soft weighting of the
+    nuisance directions, in SOLO), or EPO on the stretch factor per fruit (question 18). One
+    rule for every final row. Decide after Hugo's answers to Q2 and Q5.
+
 For Ruben, added 21 Nov:
 61. Only 43 to 73 % of a counterfactual step comes back after decode and encode. Does the
     decoder ignore part of the change of `mu`, or does the encoder not return to the moved
@@ -429,6 +447,13 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 
 Newest first. One entry per session, three to six lines.
 
+### 2026-11-23 — meeting brief, open questions pruned, EPO figures
+- Decided (Ruben): grading label noise accepted as is (53); Ruben contacts Wouter Saeys
+  directly (60); ask Hugo for the scale factor per fruit, used as a measurement, not to
+  reprocess (18). Figure for check C before and after EPO added; iPLS curve figure not wanted.
+- Built: `docs/meeting_2026-11-24.md`; notebook 22 sections 5 (PCA) and 6 (check C figure).
+- Found: 13 answered questions had stayed open since 29 October; EPO removes only the
+  straight part of the size effect (smallest fruit overshoot, largest still grouped).
 ### 2026-11-22 — story notebook, Youden mirrors, iPLS selection
 - Decided (Ruben): `binary_23` EPO model at 3 LVs; mirror also across the Youden cut-off;
   iPLS selection heights 1, 2, 4, 5, 7, 10, 11, all rings, 3 LVs; ready to present Tuesday.
