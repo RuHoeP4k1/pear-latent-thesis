@@ -207,7 +207,7 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
-Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
+Answered and removed on 23 Nov (from the outcome of 29 Oct, `docs/meeting_2026-10-29.md`, never removed then): 2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38. Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
 confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
 `docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
@@ -220,20 +220,14 @@ real odd shape, kept), 25 (season split on PC1 is mostly the stalk; PC panels in
 charter rule 3), 10 (item 2 dropped with the self-supervised extension). Numbers are kept so
 earlier references stay valid.
 
-2. Whether the data may be uploaded to cloud services. Ruben (3 Oct): Claude may read notebook
-   outputs. molab and other uploads: no until Hugo confirms in writing.
-4. Are 2024 and 2526 orchards with the same letter different orchards?
 5. Ruben's position on the grade 2 non-consumable threshold (Hugo asked).
 9. Lab workstation (only for the ResNet-18 baseline now): GPU model, NVIDIA driver version,
    operating system, `uv`, tmux.
 11. Cavity-label issues: grades that disagree with visible voids (to back with the cavity
     cross-check, if built).
-12. The month0 to month4 repeat scans: which fruit, and are they available?
-13. Overlap with Hugo's own classification and synthetic-data work.
-16. ResNet-18: "full" means 16 base channels (his default) or 64? Epochs, batch size and memory
-    on the lab GPU. Can we see his own ResNet results, and with which split?
-17. Which extra labels he can provide, and in what form.
-18. Fruit dimensions: the length of each fruit before rescaling to 128 voxels (from his MATLAB
+18. (29 Oct, Hugo: not measured, no sizes in millimetres; conflicts with 13 Oct "computable from the
+    original scans". 23 Nov: Ruben has access to the original files; ask Hugo for the scale
+    factor per fruit; uses in `docs/meeting_2026-11-24.md` section 4b.) Fruit dimensions: the length of each fruit before rescaling to 128 voxels (from his MATLAB
     preprocessing), and whether that rescaling was the same along all three axes. If both, every
     dimension in millimetres follows from our volumes. Otherwise the original scans.
 21. The preprint reports MAE 0.0022 on the test set (section 3.1.1) and MAE 0.0025 on the
@@ -246,38 +240,6 @@ For Ruben, added 21 Oct:
 27. Bootstrap on the test set: the 3 test boxes are too few for a bootstrap over boxes, so the
     test interval resamples fruit (`docs/cv_explained.md` section 8). Hugo's mail speaks of
     paired bootstrap intervals in general; state this difference at the meeting.
-
-For Hugo (meeting 29 Oct), added 23 Oct:
-30. Volumes with a straight, often oblique cut through the fruit (2526 boxes I and L most;
-    2425_I44, I45, C59): field of view of the scanner, made oblique by the alignment rotation?
-    Known to him? Dark volumes (2425_A36; 2526_C03, I03, L03, all three number 03 of their box):
-    a scanning-position effect or a bright object setting the min-max scaling?
-31. Stray objects above the intensity threshold beside the fruit (2526_K13: 607 voxels): holder
-    or label in the scan?
-33. Reprocessing the 2526 volumes without the stalk before the rescaling to 128 voxels (his
-    MATLAB pipeline, from the original scans), so the body fills the grid as in his 2425
-    training data; then re-encode (about 1.5 hours) and re-decode what Step 0 needs. Possible?
-    And the original length of every fruit (open question 18), because size is a known cause of
-    browning (Ho et al. 2008) and is not in the rescaled volumes.
-
-For Hugo (meeting 29 Oct), added 26 Oct:
-34. The cut volumes are uneven over the grades (2526 grade 1 18 %, grade 3 14 %, grade 0 5 %,
-    grade 2 4 % excluded; p = 0.006 within box). Larger fruit sticking out of the field of
-    view? Needs question 18.
-35. Contrast retention uses only the two central long sections per fruit. Does he think the
-    full 3D core is needed (all 2526 fruit decoded again, about 5.5 hours)?
-
-For Hugo (meeting 29 Oct), added 26 Oct (second session):
-37. May Ruben work forward from his 3D ResNet design as the reference classifier, with his own
-    training objective (binary_23, one output), box splits, augmentation and no pseudo-labels?
-    Full list in `docs/meeting_2026-10-29.md`, Part 2 item 4.
-
-For Hugo (meeting 29 Oct), added 27 Oct:
-38. The height-radius map groups differ in stalk and body size, not only in grade (27 Oct,
-    315 open 2526 fruit: median stalk 20, 19, 13.5, 12 voxels and median body 142,600,
-    150,900, 174,300, 182,500 voxels for grade 0 and browning only 1, 2, 3; browning 3 mostly
-    in boxes O and A). Ruben discusses with Hugo how to separate browning from size and stalk
-    in the maps (linked to questions 18 and 33).
 
 For Ruben, added 2 Nov:
 45. Tissue features: the partial-volume rim under the skin is always classed as low-density
@@ -341,6 +303,9 @@ For Hugo (meeting 24 Nov), added 7 Nov, updated 20 Nov:
     uncertain? Can the cut-open photographs show it? 20 Nov (Ruben): there are no cut surfaces or
    photographs for 2526; grading was on one or two cuts, so part of a lesion is not seen. Ask
    Hugo how the 2526 fruit were graded (which cuts, how many).
+   23 Nov (Ruben, answered): Hugo's grading decision table; not every region cut, lesions can
+   be missed; label noise at 0/1 and 2/3 exists, not quantifiable. Thesis: grade 1 failure is
+   partly label noise, partly the encoder.
 
 For Ruben and Hugo, added 28 Oct:
 41. Stalk length and body size are measured on the 128³ volumes, but the body-stalk
