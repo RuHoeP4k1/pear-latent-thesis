@@ -820,3 +820,39 @@ partial Spearman with `binary_23` is −0.15 (real volume given stalk +0.48).
 **Reading.** The model scores stay high among fruit of similar size: the latent score is not a
 size measure. The stretch the latent score follows is mostly the stalk, which is independent of
 fruit size. A weak link of real stalk length with defects exists on its own (AUC 0.60).
+
+## 23. EPO on the measured stretch factor, latent rows (27 November 2026, Ruben)
+
+**Rule** (Ruben, 27 November, after sections 21 and 22). The stretch to 128 voxels is an
+artefact of the preprocessing and is removed; real fruit size is biology and stays. Only the
+latent rows get it: the other rows' scores do not follow the stretch (section 21).
+
+**What** (`pearlatent.epo.fit_stretch_direction`, `cross_validated_predictions(...,
+epo_stretch=...)`, `pearlatent.epo_stretch_run`). In every fold, on the healthy fruit of the
+training boxes: each feature regressed on the standardised stretch factor and the standardised
+real body volume together (with an intercept). The stretch coefficients, one per feature, form
+one vector: the change of the feature per SD of stretch at equal real size. Scaled to length 1,
+it is removed from the training and held-out fruit of that fold, X* = X − (X p) pᵀ. Healthy
+fruit only, because real size goes with the defect. Same fruit (315), folds, centring and LVs
+as the rows without EPO. Example: if features 1 to 10 rise with s and features 6 to 20 with
+real volume, p points along features 1 to 10; the volume pattern loses only its part along p
+(features 6 to 10), about 9 % of its length in the test example (`tests/test_epo.py`).
+Difference with section 17 (variant B, healthy PC 1): that direction was the size axis
+(real size and stretch mixed); this one is the stretch only, from a measured value.
+
+**Found** (runs in `EPO_STRETCH_RUN_DIRS`; healthy 145, partial Spearman, box-bootstrap
+intervals; before → after):
+
+| Row (LVs) | AUC | Paired | Stretch given volume | Real volume given stretch | Stalk given volume |
+|---|---|---|---|---|---|
+| Latent grid (4) | 0.887 → 0.888 | +0.001 (−0.019 to +0.026) | +0.08 → +0.05 | +0.21 → +0.26 | −0.17 → −0.12 |
+| Latent height-radius (3) | 0.927 → 0.921 | −0.006 (−0.021 to +0.007) | +0.23 → +0.08 | +0.40 → +0.38 | −0.28 → −0.10 |
+| Latent height-radius mean + SD (3) | 0.957 → 0.957 | +0.001 (−0.012 to +0.010) | +0.18 → +0.01 (−0.15 to +0.18) | +0.39 → +0.34 (+0.18 to +0.52) | −0.26 → −0.02 (−0.19 to +0.12) |
+
+RMSECV with EPO is lowest at 2 LVs for both height-radius rows (mean + SD: 0.349, 0.313, 0.318,
+0.332 for 1 to 4 LVs), at 3 for the grid. The LVs were kept from the rows without EPO; the
+choice for the final rows is Ruben's (by eye, before the test boxes).
+
+**Reading.** The stretch and stalk link of the latent scores is gone (intervals include 0),
+the real-size link stays, the AUC does not change. Proposed: this replaces variant B (section
+17) for the final latent rows and the counterfactual direction; to be confirmed by Ruben.

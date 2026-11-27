@@ -56,3 +56,43 @@ def remove_directions(x: np.ndarray, directions: np.ndarray) -> np.ndarray:
     """
     x = np.asarray(x, dtype=float)
     return x - (x @ directions) @ directions.T
+
+
+def fit_stretch_direction(
+    x_train: np.ndarray,
+    healthy_train: np.ndarray,
+    stretch_train: np.ndarray,
+    volume_train: np.ndarray,
+) -> np.ndarray:
+    """EPO direction from the measured stretch factor, at equal real size (27 November 2026).
+
+    In: features (fruit, features) of a fold's training fruit, a boolean per fruit (True =
+    grade 0), the stretch factor s = 128 / original length and the real body volume (cm³) of
+    each fruit (`pearlatent.real_size`). Out: an array (features, 1) with a unit column.
+
+    On the healthy training fruit, every feature is regressed on the standardised stretch
+    factor and the standardised real volume together (with an intercept). The coefficients of
+    the stretch factor form one vector: the change of each feature per standard deviation of
+    stretch when real size is held equal. That vector, scaled to length 1, is the direction
+    removed. Why both: s and real volume correlate (−0.52 on the healthy 2526 fruit,
+    `docs/methods_plsda.md` section 20); regressing on s alone would also remove part of the
+    real-size pattern, which is biology (section 21) and stays in. Why healthy fruit only:
+    real size goes with the defect, so on all fruit the stretch coefficients could absorb
+    defect signal through the correlations.
+    """
+    x_train = np.asarray(x_train, dtype=float)
+    healthy_train = np.asarray(healthy_train, dtype=bool)
+    if healthy_train.sum() < 4:
+        raise ValueError(
+            "the stretch direction needs at least four healthy training fruit"
+        )
+    x_h = x_train[healthy_train]
+    s = np.asarray(stretch_train, dtype=float)[healthy_train]
+    v = np.asarray(volume_train, dtype=float)[healthy_train]
+    design = np.column_stack(
+        [np.ones_like(s), (s - s.mean()) / s.std(), (v - v.mean()) / v.std()]
+    )
+    # One least-squares fit for all features at once: coefficients has shape (3, features).
+    coefficients, *_ = np.linalg.lstsq(design, x_h, rcond=None)
+    direction = coefficients[1]
+    return (direction / np.linalg.norm(direction))[:, None]

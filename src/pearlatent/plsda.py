@@ -37,7 +37,11 @@ from sklearn.cross_decomposition import PLSRegression
 from sklearn.metrics import roc_auc_score, roc_curve
 
 from pearlatent.core_region import apply_fill, fit_fill
-from pearlatent.epo import fit_epo_directions, remove_directions
+from pearlatent.epo import (
+    fit_epo_directions,
+    fit_stretch_direction,
+    remove_directions,
+)
 from pearlatent.splits import assert_no_group_leakage
 
 # Fixed in advance (`docs/cv_explained.md`, section 4).
@@ -72,6 +76,7 @@ def cross_validated_predictions(
     fit_on: np.ndarray | None = None,
     regions: np.ndarray | None = None,
     epo_healthy: np.ndarray | None = None,
+    epo_stretch: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Out-of-fold predictions for every repeat, fruit and number of latent variables.
 
@@ -86,10 +91,16 @@ def cross_validated_predictions(
     `epo_healthy`: optional boolean per fruit (True = grade 0); external parameter
     orthogonalisation (`pearlatent.epo`) is then fitted on the healthy fruit among those a
     fold's model is fitted on, and removed from the training and held-out fruit of that fold.
+    `epo_stretch`: optional (healthy, stretch factor, real body volume), one value per fruit;
+    the stretch direction (`pearlatent.epo.fit_stretch_direction`) is then fitted on the
+    healthy fruit among those a fold's model is fitted on and removed from both sides. Not
+    together with `epo_healthy`.
     Out: an array (repeats, fruit, max_components). Raises if a fruit's box is missing from a repeat, if a box sits in two
     folds of one repeat, or if a box is on both sides of a fit.
     """
     boxes = np.asarray(boxes)
+    if epo_healthy is not None and epo_stretch is not None:
+        raise ValueError("choose one EPO variant: epo_healthy or epo_stretch")
     fit_on = (
         np.ones(len(y), dtype=bool)
         if fit_on is None
@@ -125,6 +136,14 @@ def cross_validated_predictions(
             if epo_healthy is not None:
                 # Fitted step: the directions come from this fold's healthy training fruit.
                 directions = fit_epo_directions(x_fit, epo_healthy[fitted])
+                x_fit = remove_directions(x_fit, directions)
+                x_held_out = remove_directions(x_held_out, directions)
+            if epo_stretch is not None:
+                # Fitted step: the direction comes from this fold's healthy training fruit.
+                healthy, stretch, volume = (np.asarray(a) for a in epo_stretch)
+                directions = fit_stretch_direction(
+                    x_fit, healthy[fitted], stretch[fitted], volume[fitted]
+                )
                 x_fit = remove_directions(x_fit, directions)
                 x_held_out = remove_directions(x_held_out, directions)
             model.fit(x_fit, y[fitted].astype(float))

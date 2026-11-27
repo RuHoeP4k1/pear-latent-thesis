@@ -2,7 +2,11 @@ import numpy as np
 import pytest
 from sklearn.cross_decomposition import PLSRegression
 
-from pearlatent.epo import fit_epo_directions, remove_directions
+from pearlatent.epo import (
+    fit_epo_directions,
+    fit_stretch_direction,
+    remove_directions,
+)
 
 
 def _healthy_with_size_axis(seed: int = 0):
@@ -62,3 +66,55 @@ def test_too_few_healthy_fruit_is_refused():
     x, _, _, _ = _healthy_with_size_axis()
     with pytest.raises(ValueError):
         fit_epo_directions(x, np.eye(60, dtype=bool)[0])
+
+
+def _stretch_and_size(seed: int = 0):
+    """200 healthy fruit, 30 features. A stretch pattern follows s, a different size pattern
+    follows real volume; s and volume correlate about −0.5, as on the 2526 fruit."""
+    rng = np.random.default_rng(seed)
+    volume = rng.normal(size=200)
+    stretch = -0.5 * volume + rng.normal(scale=0.87, size=200)
+    stretch_pattern = np.zeros(30)
+    stretch_pattern[:10] = 1.0
+    size_pattern = np.zeros(30)
+    size_pattern[5:20] = 1.0  # overlaps the stretch pattern on features 5 to 9
+    x = (
+        np.outer(stretch, stretch_pattern)
+        + np.outer(volume, size_pattern)
+        + rng.normal(scale=0.2, size=(200, 30))
+    )
+    return x, stretch, volume, stretch_pattern, size_pattern
+
+
+def test_stretch_direction_finds_the_stretch_pattern_not_size():
+    x, stretch, volume, stretch_pattern, size_pattern = _stretch_and_size()
+    healthy = np.ones(200, dtype=bool)
+    direction = fit_stretch_direction(
+        x, healthy, 0.6 + 0.08 * stretch, 160 + 30 * volume
+    )
+    assert direction.shape == (30, 1)
+    assert np.linalg.norm(direction) == pytest.approx(1.0)
+    cosine = abs(direction[:, 0] @ stretch_pattern) / np.linalg.norm(stretch_pattern)
+    assert cosine > 0.99
+    cleaned = remove_directions(x, direction)
+    # Regress the features on s and volume together, before and after the removal: the
+    # stretch coefficients vanish; the volume coefficients lose only their part along the
+    # removed direction (the overlap on features 5 to 9), here about 9 % of their length.
+    design = np.column_stack([np.ones(200), stretch, volume])
+    before, *_ = np.linalg.lstsq(design, x, rcond=None)
+    after, *_ = np.linalg.lstsq(design, cleaned, rcond=None)
+    assert np.linalg.norm(after[1]) < 0.05 * np.linalg.norm(before[1])
+    assert np.linalg.norm(after[2]) > 0.85 * np.linalg.norm(before[2])
+
+
+def test_stretch_direction_uses_healthy_fruit_only():
+    x, stretch, volume, *_ = _stretch_and_size()
+    healthy = np.zeros(200, dtype=bool)
+    healthy[:100] = True
+    x_changed = x.copy()
+    x_changed[100:] += 50.0  # the unhealthy fruit must not matter
+    a = fit_stretch_direction(x, healthy, stretch, volume)
+    b = fit_stretch_direction(x_changed, healthy, stretch, volume)
+    assert np.allclose(a, b)
+    with pytest.raises(ValueError):
+        fit_stretch_direction(x, np.zeros(200, dtype=bool), stretch, volume)
