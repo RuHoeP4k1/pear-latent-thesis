@@ -5,48 +5,53 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-27 (Mac)
-- **Phase:** final rows on the open boxes. Meeting with Hugo held on 24 November (Ruben: it
-  went well; Hugo gave the 2526 volumes before the rescaling to 128 voxels; he will arrange the
-  lab workstation). Next meeting: about **8 December** (24 November + 14 days). Ruben promised:
-  the preprocessing settled (done today, see below) and the deep learning (ResNet-18) close to
-  running. Material for Hugo: `notebooks/23_stretch_and_size.py` (7 figures,
-  `derived/figures/23_*.png`).
-- **Done on 27 November (commits 4881db1 to 162e701, not pushed):**
-  - Originals: 15 tar files, one per box, 434 volumes (our 433 plus 2526_F28, excluded) in
-    `~/data/pear-thesis/ct_original/2526/`, config key `ct_orig_dir_2526`. Cropped, aligned,
-    segmented uint16; header has no voxel size. Rescaling verified uniform (short-to-long axis
-    factor ratio 0.993 ± 0.005); Hugo's 128³ volume reproduced at voxel correlation 0.985 to 0.992.
-  - `pearlatent.real_size` (run `derived/real_size/20261127T125309Z_real_size`): stretch factor
-    s = 128 / original length for all 433 (header only), sizes in mm and cm³ for the 346 open.
-    Found: the old check C "size" (128³ body voxels) is mostly the stretch (r +0.76), hardly real
-    size (+0.13); the stalk sets most of the stretch (r −0.77) and is unrelated to real size.
-  - `pearlatent.stretch_check` (run `STRETCH_CHECK_RUN_DIR`): partial Spearman per row on the
-    healthy fruit. Only the latent rows follow the stretch; latent and CT height-radius rows
-    follow real size. Real size alone: AUC 0.79 (within box 0.75); volume rises with grade
-    (158 / 181 / 203 / 213 cm³). AUC within thirds of real size stays 0.90 to 0.98.
-  - EPO on the measured stretch factor (`epo.fit_stretch_direction`, `epo_stretch_run`): one
-    direction per fold, from healthy training fruit, stretch at equal real volume. Latent rows
-    keep their AUC, lose the stretch and stalk link, keep the real-size link. The direction is
-    almost healthy PC 1 (cosine 0.98) and shifts all bin means about equally.
-  - Methods sections 20 to 23 of `docs/methods_plsda.md`, including the reasoning for the
-    thesis, its limits, and the table of final rows (latent height-radius mean + SD with EPO,
-    2 LVs: AUC 0.958, 0.946 to 0.968; Med3D 0.958).
-- **Next step:** ResNet-18 baseline (Ruben's promise for about 8 December), in a new session:
-  `git pull`, `uv run pytest`, load the `workstation-run` skill, read Hugo's
-  `train_clf_3d.py` at 183112f in `../Synthetic_CT_pear`, write a training module on our box
-  folds and `binary_23`, and a CPU smoke run on 2 boxes and 1 epoch on the Mac.
+- **Date:** 2026-11-27 (Mac), second session of the day
+- **Phase:** ResNet-18 baseline: code written and smoke-run on the Mac; the full run waits for
+  the lab workstation. Next meeting with Hugo: about **8 December**. Ruben promised: the
+  preprocessing settled (done, first session of 27 November) and the ResNet-18 close to running
+  (code ready; full run blocked on the workstation). Material for Hugo: `notebooks/23_stretch_and_size.py`
+  (7 figures, `derived/figures/23_*.png`); the ResNet has no results to add to it.
+- **Done this session (commits 91ccd0d to 60cb023, pushed):**
+  - `src/pearlatent/resnet_baseline.py`: Hugo's `ResNet3D` (`train_clf_3d.py` at 183112f,
+    blocks 2-2-2-2) imported from his clone, not copied; `tqdm` added with `uv add` because that
+    file imports it. Open 2526 fruit without faulty volumes (315); repeat 1 of
+    `outer_folds.csv` (4 folds of 3 boxes); per fold 2 of the 9 training boxes drawn with seed
+    369 for early stopping (about 185 train, 50 validation, 77 test fruit); Hugo's defaults
+    (AdamW, learning rate 1e-4, cosine, at most 100 epochs, patience 20, best model only after
+    epoch 10, batch 16); no augmentation, no pseudo-labels. Output per run in
+    `results/<stamp>_resnet18_binary23/`: `oof_predictions.parquet`, `log_fold<k>.csv`,
+    `best_fold<k>.pth`, `fold_plan.csv`, `run.json`.
+  - Ordinal step of notebook 12 on the run 1 out-of-fold score (Ruben): `ordinal_step`,
+    `ordinal_for_run`, on the probability and on its log-odds; writes
+    `ordinal_predictions.parquet` and `ordinal_summary.csv` (all fruit and by cause). Rerun on a
+    copied run: `--ordinal-for results/<run>`. `grade_summary` moved into `pearlatent.ordinal`.
+    The network itself trains on `binary_23` only.
+  - Charter updated (Ruben): width 16; 2526 fruit only, no 2425; two runs: run 1 `binary_23`,
+    run 2 a network trained on the `defective` grades with an ordinal output.
+  - Tests: 8 new in `tests/test_resnet_baseline.py`; 190 pass. Smoke runs (CPU, 1 epoch):
+    `results/20261127T150858Z_resnet18_binary23_smoke` (fold 1, 3 fruit per box, 18 s) and
+    `results/20261127T152800Z_resnet18_binary23_smoke` (4 folds, 6 per box, 2 min, ordinal step
+    ran). Their numbers mean nothing (1 epoch). Rough estimate: full run on the Mac CPU about
+    10 hours.
+- **Next step:** when Hugo gives workstation access: on the workstation `git pull`, `uv sync`,
+  `nvidia-smi` (GPU free? driver supports CUDA 12.8 wheels?), fill `config/local.toml`, then in
+  tmux a short check `uv run python -m pearlatent.resnet_baseline --folds 1 --epochs 2 --amp`,
+  then the full run `uv run python -m pearlatent.resnet_baseline --amp 2>&1 | tee resnet_run1.log`.
+  Copy the run folder to the Mac (weights stay out of git). Until then: run 2 (ordinal network,
+  question 68) can be written and smoke-run on the Mac.
 - **Blocked on:** the workstation (Hugo arranges it) for the full ResNet-18 run.
-- **Meeting of 24 November, outcome** (`docs/meeting_2026-11-24.md` section 8): height-radius
-  rows agreed as model rows; size link real but correct the preprocessing (done); threshold is
-  a market decision; counterfactuals to be redone on the workstation (threshold to cross and
-  reporting for all fruit still open; random synthetic fruit from the learned latent regions
-  is a later idea).
+- **Done in the first session of 27 November (commits 4881db1 to c532094):** Hugo's 2526
+  originals unpacked (`ct_orig_dir_2526`), uniform rescaling verified; `pearlatent.real_size`
+  (stretch factor and real size), `pearlatent.stretch_check`; EPO on the measured stretch factor
+  for the latent rows (final latent height-radius mean + SD, 2 LVs: AUC 0.958, 0.946 to 0.968;
+  Med3D 0.958); methods sections 20 to 23; notebook 23; outcome of the 24 November meeting in
+  `docs/meeting_2026-11-24.md` section 8.
 - **Still to do after the ResNet:** N-way PLS (charter row); counterfactuals again with the
   stretch-EPO direction (question 55); sealed test F, J, M once, all final rows.
 - **Still to fix:** methods section 18 says "the core change is the smallest" (the story is
   corrected); an empty cell at line 284 of `notebooks/20_story.py`; the variant-B results of
-  section 17 were read with the old 128³ size measure.
+  section 17 were read with the old 128³ size measure; no methods record for the ResNet yet
+  (write `docs/methods_resnet.md` with the choices above when the first full run is in).
 - **Reference, still valid:**
   - Encoding run `20261013T171306Z_hugo_vae`: open part 940 fruit (346 2526, 594 2425);
     sealed part `derived/sealed/latents/...`, 153 fruit. CT at 32³ run `20261005T142026Z`.
@@ -324,8 +329,25 @@ For Ruben, added 27 Nov:
     +0.39 after EPO). Either the model uses size, or larger grade 0 fruit hide browning that the
     grading missed; the labels cannot tell. State both in the thesis (methods section 23).
 
+For Ruben, added 27 Nov (ResNet-18):
+66. Validation group for early stopping: 2 of the 9 training boxes per fold, drawn with seed
+    369 (Claude's choice, not objected to). 3 boxes would leave about 157 training fruit,
+    1 box gives a noisy validation loss. Confirm before the full run.
+67. Ordinal step on the run 1 output: on the probability or on its log-odds? Both are computed
+    (`ordinal_summary.csv`); choose after the full run, before reading the grade results as final.
+68. Run 2 (network trained on the `defective` grades): cumulative head (three outputs for
+    grade >= 1, >= 2, >= 3) or 4-class output (Hugo's default `output_size=4`)? Claude proposed
+    the cumulative head; not decided.
+69. The ResNet sees the 128³ volumes with the stretch built in; no EPO applies to it. Run the
+    partial Spearman of `pearlatent.stretch_check` on its healthy-fruit out-of-fold scores after
+    the full run?
+
 ## Decided
 
+- 27 Nov, second session (Ruben): ResNet-18 width 16 (Hugo's default); open 2526 fruit only, no
+  2425 fruit in its training; run 1 trained on `binary_23` (same task as the PLS-DA rows), with
+  the ordinal step of notebook 12 on its out-of-fold score; run 2 a separate network trained on
+  the `defective` grades with an ordinal output. Charter, Methods, updated.
 - 27 Nov (Ruben): the stretch to 128 voxels is an artefact and is removed; real fruit size is
   biology (larger fruit brown more) and stays. EPO on the measured stretch factor (one
   direction, at equal real volume, healthy training fruit, per fold) for the latent rows only;
@@ -417,6 +439,14 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-11-27 (second session) — ResNet-18 baseline written and smoke-run
+- Decided (Ruben): width 16; 2526 fruit only (no 2425); run 1 on `binary_23`, run 2 a network
+  trained on the grades with an ordinal output; the ordinal step of notebook 12 also on run 1.
+- `pearlatent.resnet_baseline`: Hugo's ResNet3D imported from his clone, repeat 1 of the outer
+  folds, 2 validation boxes per fold, Hugo's training defaults, out-of-fold probabilities.
+- CPU smoke runs on the Mac ran end to end (numbers meaningless); 190 tests pass; pushed.
+- Full run waits for the workstation.
 
 ### 2026-11-27 — originals, stretch against real size, EPO on the stretch factor
 - Hugo (24 Nov): height-radius rows agreed; size real, correct the preprocessing; threshold is a market decision.
