@@ -190,6 +190,32 @@ def healthy_stretch_correlations(table: pl.DataFrame) -> dict:
     }
 
 
+def size_thirds(volume: np.ndarray) -> tuple[np.ndarray, tuple[float, float]]:
+    """Group 0, 1, 2 per fruit by thirds of real body volume, and the two cut-offs.
+
+    The cut-offs are the 1/3 and 2/3 quantiles of `volume` over all fruit given, fixed
+    before any score is looked at (Ruben, 27 November 2026). A fruit exactly on a cut-off goes
+    to the lower group.
+    """
+    volume = np.asarray(volume, dtype=float)
+    low, high = np.quantile(volume, [1 / 3, 2 / 3])
+    groups = np.where(volume <= low, 0, np.where(volume <= high, 1, 2))
+    return groups, (float(low), float(high))
+
+
+def auc_in_group(table: pl.DataFrame, group: int, column: str = "score") -> float:
+    """AUC of `column` for `binary_23` among the fruit of one size group (`size_group`).
+
+    NaN when the group holds only one class (possible in a bootstrap draw).
+    """
+    from sklearn.metrics import roc_auc_score
+
+    part = table.filter(pl.col("size_group") == group)
+    if part["binary_23"].n_unique() < 2:
+        return np.nan
+    return float(roc_auc_score(part["binary_23"], part[column]))
+
+
 def healthy_fruit_correlations(table: pl.DataFrame) -> dict:
     """Check C. In: all fruit with `score`, `box`, `defective`, `stalk_length`,
     `body_voxels`, `stalk_present`. Out: the statistics on the grade 0 fruit.

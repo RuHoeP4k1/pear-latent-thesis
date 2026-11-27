@@ -11,7 +11,12 @@ factor. This run answers it per row from the saved out-of-fold scores; no model 
 2. Without any model, on all open fruit: the AUC of real body volume alone and of the
    stretch factor alone for `binary_23` (is a larger fruit more often non-consumable?).
 
-Run (writes `results/<run_id>/stretch_check.parquet`, `size_auc.parquet`, a figure and
+3. Per row, the AUC inside each third of real body volume (`size_thirds`, cut-offs over all
+   open fruit, fixed before looking; Ruben, 27 November 2026), with the AUC of size alone in
+   the same group as control. A score that only measured size would fall to the control.
+
+Run (writes `results/<run_id>/stretch_check.parquet`, `size_auc.parquet`,
+`auc_by_size_third.parquet`, a figure and
 `run.json`):
 
     uv run python -m pearlatent.stretch_check
@@ -73,7 +78,12 @@ def draw_figure(table: pl.DataFrame, row: str, path) -> None:
 def main() -> None:
     """Check per row and the model-free size AUC; write the run."""
     from pearlatent.config import load_config
-    from pearlatent.nuisance import box_bootstrap, healthy_stretch_correlations
+    from pearlatent.nuisance import (
+        auc_in_group,
+        box_bootstrap,
+        healthy_stretch_correlations,
+        size_thirds,
+    )
     from pearlatent.runs import (
         PLSDA_BINARY23_RUN_DIRS,
         REAL_SIZE_RUN_DIR,
@@ -136,9 +146,40 @@ def main() -> None:
         )
     auc_table = pl.DataFrame(auc_rows)
 
+    # AUC inside thirds of real size. Same fruit and cut-offs for every row.
+    groups, cutoffs = size_thirds(fruit["body_volume_cm3"].to_numpy())
+    group_of = pl.DataFrame({"fruit_id": fruit["fruit_id"], "size_group": groups})
+    print(f"size thirds: cut-offs {cutoffs[0]:.0f} and {cutoffs[1]:.0f} cm³")
+    third_rows = []
+    for row, table in [("size alone", fruit), *tables.items()]:
+        table = table.join(group_of, on="fruit_id", how="inner")
+        column = "body_volume_cm3" if row == "size alone" else "score"
+        for group in range(3):
+            part = table.filter(pl.col("size_group") == group)
+            low, high = box_bootstrap(
+                lambda t, g=group, c=column: auc_in_group(t, g, c), table
+            )
+            third_rows.append(
+                {
+                    "row": row,
+                    "size_group": group,
+                    "fruit": part.height,
+                    "non_consumable": int(part["binary_23"].sum()),
+                    "volume_min": float(part["body_volume_cm3"].min()),
+                    "volume_max": float(part["body_volume_cm3"].max()),
+                    "auc": auc_in_group(table, group, column),
+                    "low": low,
+                    "high": high,
+                }
+            )
+        aucs = [r["auc"] for r in third_rows[-3:]]
+        print(f"  {row:16s} AUC per third: " + ", ".join(f"{a:.3f}" for a in aucs))
+    thirds = pl.DataFrame(third_rows)
+
     out_dir = new_run_dir(results, "stretch_check")
     check.write_parquet(out_dir / "stretch_check.parquet")
     auc_table.write_parquet(out_dir / "size_auc.parquet")
+    thirds.write_parquet(out_dir / "auc_by_size_third.parquet")
     draw_figure(
         tables[FIGURE_ROW], FIGURE_ROW, out_dir / f"{FIGURE_ROW}_healthy_stretch.png"
     )
@@ -149,6 +190,7 @@ def main() -> None:
             "rows": PLSDA_BINARY23_RUN_DIRS,
             "fruit": fruit.height,
             "figure_row": FIGURE_ROW,
+            "size_third_cutoffs_cm3": cutoffs,
         },
     )
     print(f"written: {out_dir}")

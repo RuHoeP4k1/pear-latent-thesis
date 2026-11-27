@@ -1,12 +1,15 @@
 import numpy as np
 import polars as pl
+import pytest
 
 from pearlatent.nuisance import (
+    auc_in_group,
     box_bootstrap,
     healthy_fruit_correlations,
     healthy_stretch_correlations,
     partial_spearman,
     score_icc,
+    size_thirds,
     within_between_logit,
     within_box_auc,
 )
@@ -119,3 +122,27 @@ def test_healthy_stretch_correlations_tell_stretch_from_volume():
     follows_volume = healthy_stretch_correlations(_stretch_table("volume"))
     assert follows_volume["partial_volume_given_stretch"] > 0.6
     assert abs(follows_volume["partial_stretch_given_volume"]) < 0.15
+
+
+def test_size_thirds_equal_counts_and_cutoffs():
+    groups, (low, high) = size_thirds(np.arange(1, 10, dtype=float))
+    assert list(groups) == [0, 0, 0, 1, 1, 1, 2, 2, 2]
+    assert low == pytest.approx(11 / 3) and high == pytest.approx(19 / 3)
+
+
+def test_auc_in_group_ignores_size_between_groups():
+    """Within each group the score separates perfectly, size does not: the score's AUC is 1
+    in every group, while size alone is 0.5 inside a group (constant there)."""
+    table = pl.DataFrame(
+        {
+            "size_group": [0, 0, 0, 0, 1, 1, 1, 1],
+            "binary_23": [0, 0, 1, 1, 0, 0, 1, 1],
+            "score": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8],
+            "body_volume_cm3": [100.0] * 4 + [200.0] * 4,
+        }
+    )
+    assert auc_in_group(table, 0) == 1.0
+    assert auc_in_group(table, 1) == 1.0
+    assert auc_in_group(table, 0, "body_volume_cm3") == 0.5
+    one_class = table.with_columns(binary_23=pl.lit(1))
+    assert np.isnan(auc_in_group(one_class, 0))

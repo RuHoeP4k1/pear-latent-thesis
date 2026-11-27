@@ -789,3 +789,34 @@ follow neither. The stretch reaches only the latent rows, and less than real siz
 earlier check C "size" (128³ body voxels) was mostly the stretch factor (section 20), so check C
 had mixed the two. How a score sees real size when the 128³ body hardly shows it (r +0.13) is
 open. Decision for the preprocessing still open (Ruben).
+
+## 22. AUC within thirds of real size; the stalk (27 November 2026, Ruben)
+
+**What.** Run `results/20261127T133436Z_stretch_check` (supersedes 20261127T131002Z, same
+numbers for sections 21 plus this table). All 315 open fruit split into thirds of real body
+volume, cut-offs 160 and 203 cm³ (fixed before looking, `nuisance.size_thirds`); AUC of each
+row's out-of-fold score inside each third, size alone as control. 105 fruit per third, 17 / 39 /
+73 non-consumable.
+
+| Row | Third 1 (≤ 160 cm³) | Third 2 (160 to 203) | Third 3 (> 203) |
+|---|---|---|---|
+| Size alone (control) | 0.58 (0.41 to 0.78) | 0.66 (0.55 to 0.76) | 0.71 (0.58 to 0.81) |
+| Latent height-radius mean + SD | 0.98 (0.94 to 1.00) | 0.91 (0.85 to 0.95) | 0.96 (0.93 to 0.99) |
+| Med3D | 0.96 (0.88 to 1.00) | 0.93 (0.87 to 0.97) | 0.96 (0.93 to 0.98) |
+| Latent full grid | 0.87 | 0.84 | 0.89 |
+| CT 32³ full grid | 0.79 | 0.77 | 0.86 |
+| CT height-radius mean + SD | 0.91 | 0.90 | 0.92 |
+
+The control does not fall to 0.5 (the top third spans 203 to 380 cm³), so some size is left
+inside each third; every row stays far above it.
+
+**Stalk** (scratch, saved scores and the real-size run; healthy 145 unless stated). Stalk length
+in mm against stretch factor −0.77, against real body volume −0.00: the stalk is the part of the
+stretch that is not fruit size. Latent height-radius mean + SD score: with stalk length −0.24,
+given real volume −0.26; with the stretch factor given real volume +0.18. Without a model, all
+315: shorter stalk goes with non-consumable, AUC 0.604, within box 0.605; given real volume the
+partial Spearman with `binary_23` is −0.15 (real volume given stalk +0.48).
+
+**Reading.** The model scores stay high among fruit of similar size: the latent score is not a
+size measure. The stretch the latent score follows is mostly the stalk, which is independent of
+fruit size. A weak link of real stalk length with defects exists on its own (AUC 0.60).
