@@ -88,3 +88,34 @@ def cross_validated_ordinal(
     if np.isnan(out).any():
         raise AssertionError("some fruit were not predicted in some repeat")
     return out.mean(axis=0)
+
+
+def grade_summary(
+    true: np.ndarray, probabilities: np.ndarray, classes: tuple = (0, 1, 2, 3)
+) -> dict:
+    """The grade metrics of notebook 12 for one set of ordinal predictions.
+
+    In: the true grade per fruit and the class probabilities (fruit, classes). The assigned
+    grade is the most probable one; the expected grade is the probability-weighted mean.
+    Out: n, error rate, error of always choosing the largest class, quadratic weighted kappa,
+    Spearman correlation of the expected grade with the true grade, share within one grade,
+    and the recall of every grade.
+    """
+    from scipy.stats import spearmanr
+    from sklearn.metrics import cohen_kappa_score
+
+    true = np.asarray(true)
+    class_values = np.array(classes)
+    assigned = class_values[probabilities.argmax(axis=1)]
+    expected = probabilities @ class_values.astype(float)
+    row = {
+        "n": int(true.size),
+        "error_rate": float(np.mean(assigned != true)),
+        "largest_class_error": 1 - float(np.bincount(true).max() / true.size),
+        "weighted_kappa": float(cohen_kappa_score(true, assigned, weights="quadratic")),
+        "spearman_expected": float(spearmanr(expected, true)[0]),
+        "within_one_grade": float(np.mean(np.abs(assigned - true) <= 1)),
+    }
+    for k in classes:
+        row[f"recall_grade_{k}"] = float(np.mean(assigned[true == k] == k))
+    return row

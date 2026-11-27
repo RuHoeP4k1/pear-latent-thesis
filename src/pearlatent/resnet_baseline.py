@@ -18,6 +18,10 @@ Design (charter, Methods; `docs/cv_explained.md` section 5):
    (the number of epochs found on one validation group would not transfer to more data).
 4. Output: for every fruit, the probability of binary_23 = 1 from the model of the fold in which
    its box was held out (out-of-fold), for the paired comparison with the PLS-DA rows.
+5. Grades: the ordinal step of notebook 12 (`pearlatent.ordinal`) on that out-of-fold score,
+   as for the PLS-DA rows (Ruben, 27 November 2026), on the probability and on its log-odds.
+   Rerun on a copied run folder: `--ordinal-for results/<run>`. A network trained on the grades
+   is a separate second run (charter, Methods).
 
 Input: each volume min-max scaled to [0, 1], as Hugo's `utils/volumes.py` (`scale_minmax`).
 No augmentation (Hugo's `--augment` needs torchio and is off by default) and no pseudo-labels
@@ -351,8 +355,107 @@ def train_one_fold(
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Ordinal step on the out-of-fold score (as notebook 12 for the PLS-DA rows)
+# ---------------------------------------------------------------------------
+
+GRADES = (0, 1, 2, 3)
+# The ordinal model gets the score on two scales, to compare before one is chosen (Ruben):
+# "probability" as saved, and "log_odds" = log(p / (1 - p)). The PLS-DA prediction that
+# notebook 12 uses is roughly linear in the grade; a network probability is squeezed towards 0
+# and 1, and the cumulative logit model is linear in its score, so log-odds may fit better.
+SCORE_SCALES = ("probability", "log_odds")
+# Probabilities are clipped to [EPS, 1 - EPS] before the log-odds, so 0 or 1 gives no infinity.
+EPS = 1e-6
+
+
+def score_on_scale(probability: np.ndarray, scale: str) -> np.ndarray:
+    """The out-of-fold probability as the ordinal model's score: as it is, or its log-odds."""
+    p = np.asarray(probability, dtype=float)
+    if scale == "probability":
+        return p
+    if scale == "log_odds":
+        p = np.clip(p, EPS, 1 - EPS)
+        return np.log(p / (1 - p))
+    raise ValueError(f"unknown scale {scale}")
+
+
+def ordinal_step(oof: pl.DataFrame, plan: pl.DataFrame, scale: str) -> pl.DataFrame:
+    """Grade probabilities from the ResNet's out-of-fold score, by the method of notebook 12.
+
+    In: the out-of-fold table (`fruit_id`, `box`, `defective`, `probability`), the fold plan
+    (`outer_fold`, `box`, `role`) and the score scale. For every outer fold the cumulative
+    logit model (`pearlatent.ordinal`) is fitted on the out-of-fold scores of the other three
+    folds and predicts this fold. One partition, so there is no average over repeats.
+    Out: `oof` with `scale`, `p_grade_0` .. `p_grade_3`, `assigned` and `expected_grade`.
+
+    Same limit as notebook 12: the score of a training fruit comes from a network fitted
+    partly on the held-out boxes; the ordinal step has four parameters, so the effect is small.
+    """
+    from pearlatent.ordinal import cross_validated_ordinal
+
+    folds = plan.filter(pl.col("role") == "test").select(
+        pl.lit(FOLD_REPEAT).alias("repeat"), pl.col("outer_fold").alias("fold"), "box"
+    )
+    p = cross_validated_ordinal(
+        score_on_scale(oof["probability"].to_numpy(), scale),
+        oof["defective"].to_numpy(),
+        oof["box"].to_numpy(),
+        folds,
+        GRADES,
+    )
+    return oof.with_columns(
+        scale=pl.lit(scale),
+        **{f"p_grade_{k}": pl.Series(p[:, i]) for i, k in enumerate(GRADES)},
+        assigned=pl.Series(np.array(GRADES)[p.argmax(axis=1)]),
+        expected_grade=pl.Series(p @ np.array(GRADES, dtype=float)),
+    )
+
+
+def ordinal_for_run(run_dir: Path) -> pl.DataFrame:
+    """The ordinal step on both scales for a finished run folder; writes two files there.
+
+    `ordinal_predictions.parquet`: one row per fruit and scale. `ordinal_summary.csv`: the grade
+    metrics of notebook 12 (`pearlatent.ordinal.grade_summary`) per scale, all fruit and split by
+    cause (charter rule 5). Out: the summary table.
+    """
+    from pearlatent.ordinal import grade_summary
+
+    run_dir = Path(run_dir)
+    oof = pl.read_parquet(run_dir / "oof_predictions.parquet")
+    plan = pl.read_csv(run_dir / "fold_plan.csv")
+    tables = [ordinal_step(oof, plan, scale) for scale in SCORE_SCALES]
+    predictions = pl.concat(tables)
+    predictions.write_parquet(run_dir / "ordinal_predictions.parquet")
+
+    rows = []
+    for table in tables:
+        # Grade 0 fruit have cause "none"; every defect cause is reported with them beside it.
+        groups = [("all", table)] + [
+            (c, table.filter(pl.col("cause").is_in(["none", c])))
+            for c in ("browning only", "cavity only", "both")
+        ]
+        for name, part in groups:
+            probabilities = part.select([f"p_grade_{k}" for k in GRADES]).to_numpy()
+            # A group may lack a grade (cavity only has almost no grade 3): recall is then NaN.
+            with np.errstate(invalid="ignore", divide="ignore"):
+                row = grade_summary(part["defective"].to_numpy(), probabilities, GRADES)
+            rows.append({"scale": table["scale"][0], "cause": name, **row})
+    summary = pl.DataFrame(rows)
+    summary.write_csv(run_dir / "ordinal_summary.csv")
+    with pl.Config(tbl_cols=-1, tbl_width_chars=200, float_precision=3):
+        print(summary.filter(pl.col("cause") == "all"))
+    return summary
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--ordinal-for",
+        type=str,
+        default="",
+        help="only run the ordinal step on this finished run folder",
+    )
     parser.add_argument(
         "--folds",
         type=str,
@@ -384,6 +487,9 @@ def main(argv: list[str] | None = None) -> None:
     from pearlatent.runs import new_run_dir, write_run_record
 
     args = parse_args(argv)
+    if args.ordinal_for:
+        ordinal_for_run(Path(args.ordinal_for))
+        return
     settings = {name: getattr(args, name) for name in HUGO_DEFAULTS} | {"amp": args.amp}
     cfg = load_config()
     device = get_device(args.device or cfg.compute("device", "auto"))
@@ -489,6 +595,10 @@ def main(argv: list[str] | None = None) -> None:
         f"out-of-fold predictions for {out.height} fruit; pooled AUC "
         f"{safe_auc(out['binary_23'].to_numpy(), out['probability'].to_numpy()):.3f}"
     )
+    if sorted(folds) == sorted(plan["outer_fold"].unique().to_list()):
+        ordinal_for_run(run_dir)
+    else:
+        print("ordinal step skipped: it needs the out-of-fold score of every fold")
     print(f"wrote {run_dir}")
 
 

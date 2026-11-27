@@ -112,3 +112,43 @@ def test_train_one_fold_on_small_random_volumes(tmp_path):
     out = run_epoch(model, loader, torch.nn.CrossEntropyLoss(), "cpu")
     assert out["probability"].shape == (6,)
     assert ((out["probability"] >= 0) & (out["probability"] <= 1)).all()
+
+
+def _synthetic_oof(seed: int = 0) -> pl.DataFrame:
+    """12 boxes of 20 fruit, grades 0 to 3, a probability that rises with the grade."""
+    rng = np.random.default_rng(seed)
+    box = np.repeat(BOXES, 20)
+    grade = rng.integers(0, 4, box.size)
+    log_odds = 1.5 * (grade - 1.5) + rng.normal(0, 1, box.size)
+    return pl.DataFrame(
+        {
+            "fruit_id": [f"f{i}" for i in range(box.size)],
+            "box": box,
+            "defective": grade,
+            "cause": np.where(grade == 0, "none", "browning only"),
+            "probability": 1 / (1 + np.exp(-log_odds)),
+        }
+    )
+
+
+def test_score_on_scale_log_odds_is_finite_at_0_and_1():
+    from pearlatent.resnet_baseline import score_on_scale
+
+    out = score_on_scale(np.array([0.0, 0.5, 1.0]), "log_odds")
+    assert np.isfinite(out).all()
+    assert out[1] == 0.0
+
+
+def test_ordinal_step_gives_grade_probabilities_that_follow_the_grade():
+    from pearlatent.ordinal import grade_summary
+    from pearlatent.resnet_baseline import ordinal_step
+
+    oof = _synthetic_oof()
+    plan = fold_plan(_folds(), seed=369)
+    for scale in ("probability", "log_odds"):
+        out = ordinal_step(oof, plan, scale)
+        p = out.select([f"p_grade_{k}" for k in range(4)]).to_numpy()
+        assert np.allclose(p.sum(axis=1), 1.0)
+        summary = grade_summary(out["defective"].to_numpy(), p)
+        # The score was built to rise with the grade, so agreement must be clearly positive.
+        assert summary["weighted_kappa"] > 0.5
