@@ -868,3 +868,15 @@ choice for the final rows is Ruben's (by eye, before the test boxes).
 **Reading.** The stretch and stalk link of the latent scores is gone (intervals include 0),
 the real-size link stays, the AUC does not change. Proposed: this replaces variant B (section
 17) for the final latent rows and the counterfactual direction; to be confirmed by Ruben.
+
+**LVs of the final latent rows with EPO** (Ruben, 27 November 2026, by eye at the elbow of the
+mean RMSECV curves with EPO, notebook 23 figure 7, before any test box is opened): grid 3,
+height-radius 2, height-radius mean + SD 2 (`epo_stretch_run.FINAL_N_LV`). Runs in
+`EPO_STRETCH_RUN_DIRS` (the runs at the old LVs, 134101Z to 134132Z, are kept for the record).
+Healthy 145, partial Spearman, before (rows without EPO, their own LVs) → after:
+
+| Row (LVs) | AUC | Paired | Stretch given volume | Real volume given stretch | Stalk given volume |
+|---|---|---|---|---|---|
+| Latent grid (3) | 0.887 → 0.889 | +0.002 (−0.005 to +0.009) | +0.08 → +0.03 (−0.24 to +0.28) | +0.21 → +0.17 (+0.00 to +0.29) | −0.17 → −0.11 (−0.37 to +0.12) |
+| Latent height-radius (2) | 0.927 → 0.924 | −0.002 (−0.015 to +0.008) | +0.23 → −0.01 (−0.17 to +0.21) | +0.40 → +0.30 (+0.17 to +0.45) | −0.28 → −0.09 (−0.29 to +0.08) |
+| Latent height-radius mean + SD (2) | 0.957 → 0.958 | +0.001 (−0.007 to +0.011) | +0.18 → −0.02 (−0.21 to +0.21) | +0.39 → +0.34 (+0.21 to +0.50) | −0.26 → −0.10 (−0.33 to +0.09) |

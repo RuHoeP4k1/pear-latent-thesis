@@ -34,12 +34,12 @@ EPO_RUN_DIRS = {
     "general": "20261122T152916Z_epo_general",
 }
 
-# PLS-DA on binary_23 with EPO on the measured stretch factor, latent rows only, LVs of the
-# rows without EPO (27 November 2026, `pearlatent.epo_stretch_run`; methods section 23).
+# PLS-DA on binary_23 with EPO on the measured stretch factor, latent rows only, LVs 3 / 2 / 2
+# chosen by Ruben (27 November 2026, `pearlatent.epo_stretch_run`; methods section 23).
 EPO_STRETCH_RUN_DIRS = {
-    "hugo_vae": "20261127T134101Z_plsda_binary23_hugo_vae_epo_stretch",
-    "hugo_vae_hr": "20261127T134116Z_plsda_binary23_hugo_vae_hr_epo_stretch",
-    "hugo_vae_hr_sd": "20261127T134132Z_plsda_binary23_hugo_vae_hr_sd_epo_stretch",
+    "hugo_vae": "20261127T142922Z_plsda_binary23_hugo_vae_epo_stretch",
+    "hugo_vae_hr": "20261127T142938Z_plsda_binary23_hugo_vae_hr_epo_stretch",
+    "hugo_vae_hr_sd": "20261127T142953Z_plsda_binary23_hugo_vae_hr_sd_epo_stretch",
 }
 
 # The PLS-DA runs on binary_23 in use (folders under `results_dir`, saved 3 November 2026 by

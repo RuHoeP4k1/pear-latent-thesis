@@ -5,8 +5,8 @@ Ruben, 27 November 2026: the latent scores follow the stalk / stretch at equal r
 artefact of Hugo's rescaling to 128 voxels, real size is biology and stays. So the stretch
 direction (`pearlatent.epo.fit_stretch_direction`) is removed from the three latent rows,
 inside every fold, and nothing else changes: the same fruit (315), folds (20 repeats of the
-4-fold box cross-validation), centring only, and the number of LVs chosen for the row without
-EPO (saved runs in `PLSDA_BINARY23_RUN_DIRS`). The full error curve is saved, so a shift of
+4-fold box cross-validation) and centring only. LVs: `FINAL_N_LV` (Ruben, 27 November 2026,
+from the curves with EPO); the first runs of 27 November used the LVs of the rows without EPO. The full error curve is saved, so a shift of
 the elbow can be seen.
 
 Per row, written to `results/<run_id>_plsda_binary23_<row>_epo_stretch/`:
@@ -26,6 +26,10 @@ import numpy as np
 import polars as pl
 
 LATENT_ROWS = ("hugo_vae", "hugo_vae_hr", "hugo_vae_hr_sd")
+# LVs of the final latent rows with EPO: Ruben, 27 November 2026, by eye at the elbow of the
+# mean RMSECV curves with EPO (notebook 23, figure 7), before any test box is opened.
+# None = the LVs chosen for the row without EPO (the first runs of 27 November).
+FINAL_N_LV = {"hugo_vae": 3, "hugo_vae_hr": 2, "hugo_vae_hr_sd": 2}
 
 
 def model_fruit(cfg) -> pl.DataFrame:
@@ -106,7 +110,8 @@ def main() -> None:
 
     for row in LATENT_ROWS:
         base_dir = results / PLSDA_BINARY23_RUN_DIRS[row]
-        n_lv = json.loads((base_dir / "scores.json").read_text())["n_lv"]
+        base_n_lv = json.loads((base_dir / "scores.json").read_text())["n_lv"]
+        n_lv = FINAL_N_LV.get(row) or base_n_lv
         base = pl.read_parquet(base_dir / "predictions.parquet")
         if base["fruit_id"].to_list() != fruit_ids:
             raise ValueError(f"{row}: fruit order differs from the saved run")
@@ -171,7 +176,8 @@ def main() -> None:
                 "base_run": PLSDA_BINARY23_RUN_DIRS[row],
                 "n_fruit": table.height,
                 "n_lv": n_lv,
-                "n_lv_rule": "the LVs chosen for the row without EPO",
+                "n_lv_rule": "Ruben, 27 November 2026, elbow of the RMSECV curve with EPO",
+                "base_n_lv": base_n_lv,
                 "epo": "stretch direction at equal real volume, healthy training fruit, per fold",
                 "scale": False,
                 "cutoff": CUTOFF,
