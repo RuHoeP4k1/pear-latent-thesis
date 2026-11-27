@@ -5,90 +5,63 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
 
 ## Current state
 
-- **Date:** 2026-11-23 (Mac)
-- **Phase:** meeting with Hugo on **Tuesday 24 November**. Material: `notebooks/20_story.py`
-  (open with `uv run marimo run notebooks/20_story.py`); notes and questions:
-  `docs/meeting_2026-11-24.md` (results R1 to R11 with caveats, questions Q1 to Q6, plan).
-  After the meeting the work turns to the final rows: preprocessing choice, final runs,
-  ResNet-18 on the workstation, counterfactuals again, sealed test.
-- **Done on 23 November (commits 9b8cffd to 040b54f, pushed):**
-  - Meeting brief `docs/meeting_2026-11-24.md`; `docs/meeting_2026-11-17.md` marked superseded.
-  - Open questions pruned: 13 questions Hugo answered on 29 October had never been removed
-    (2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38). Conflict found and put to Hugo as Q5:
-    13 Oct "dimensions computable from the original scans" against 29 Oct "not measured".
-  - Ruben's answers: 53 (grading by Hugo's decision table, not every region cut, label noise
-    at 0/1 and 2/3 exists, not quantifiable); 60 (Ruben asks Wouter Saeys directly); 18
-    (Ruben has access to the original files; ask Hugo for the scale factor per fruit, uses
-    in the brief section 4b: check C with real size against the stretch factor, EPO on the
-    stretch factor for every row, sizes in mm).
-  - Notebook 22 section 5: PCA of the latent grid before and after removing the healthy PC 1
-    (`derived/figures/22_pca_before_after_epo.png`). Before: PC 1 22 %, size r +0.97, PC 1
-    against PC 2 a horseshoe. After: PC 1 11 %, size +0.12, but the largest fruit still group
-    together. Grade not visible in PC 1 or 2 either way.
-  - Notebook 22 section 6: check C as a figure for the latent height-radius mean + SD row,
-    3 LVs (`derived/figures/22_check_c_before_after_epo.png`). Reproduces methods section 17:
-    AUC 0.957 → 0.952, size +0.30 → −0.04, stalk −0.29 → +0.07. Seen in the figure: with EPO
-    the smallest healthy fruit (below about 100,000 body voxels) score high, up to +0.4.
-    Reading: one EPO component removes only the straight part of a curved size effect.
-  - Story: section 7 shows both figures; section 8 core-change wording corrected; section 9
-    question list replaced.
-- **Next step:** after the meeting, write an "Outcome" section in `docs/meeting_2026-11-24.md`
-  with Hugo's answers to Q1 (height-radius rows as model rows), Q2 (question 59, size and
-  stalk: artefact or biology), Q4 (question 9, workstation) and Q5 (question 18, scale
-  factors), then update the open questions. Then Ruben mails Wouter Saeys (question 60).
-- **Blocked on:** the preprocessing of the final rows waits for Q1, Q2 and Q5; ResNet-18
-  waits for workstation access (Q4).
-- **Still scratch, not saved as runs:** the core-only numbers (notebook 21 can save them);
-  EPO on the height-radius rows is computed in notebook 22 section 6 but not saved as a run.
+- **Date:** 2026-11-27 (Mac)
+- **Phase:** final rows on the open boxes. Meeting with Hugo held on 24 November (Ruben: it
+  went well; Hugo gave the 2526 volumes before the rescaling to 128 voxels; he will arrange the
+  lab workstation). Next meeting: about **8 December** (24 November + 14 days). Ruben promised:
+  the preprocessing settled (done today, see below) and the deep learning (ResNet-18) close to
+  running. Material for Hugo: `notebooks/23_stretch_and_size.py` (7 figures,
+  `derived/figures/23_*.png`).
+- **Done on 27 November (commits 4881db1 to 162e701, not pushed):**
+  - Originals: 15 tar files, one per box, 434 volumes (our 433 plus 2526_F28, excluded) in
+    `~/data/pear-thesis/ct_original/2526/`, config key `ct_orig_dir_2526`. Cropped, aligned,
+    segmented uint16; header has no voxel size. Rescaling verified uniform (short-to-long axis
+    factor ratio 0.993 ± 0.005); Hugo's 128³ volume reproduced at voxel correlation 0.985 to 0.992.
+  - `pearlatent.real_size` (run `derived/real_size/20261127T125309Z_real_size`): stretch factor
+    s = 128 / original length for all 433 (header only), sizes in mm and cm³ for the 346 open.
+    Found: the old check C "size" (128³ body voxels) is mostly the stretch (r +0.76), hardly real
+    size (+0.13); the stalk sets most of the stretch (r −0.77) and is unrelated to real size.
+  - `pearlatent.stretch_check` (run `STRETCH_CHECK_RUN_DIR`): partial Spearman per row on the
+    healthy fruit. Only the latent rows follow the stretch; latent and CT height-radius rows
+    follow real size. Real size alone: AUC 0.79 (within box 0.75); volume rises with grade
+    (158 / 181 / 203 / 213 cm³). AUC within thirds of real size stays 0.90 to 0.98.
+  - EPO on the measured stretch factor (`epo.fit_stretch_direction`, `epo_stretch_run`): one
+    direction per fold, from healthy training fruit, stretch at equal real volume. Latent rows
+    keep their AUC, lose the stretch and stalk link, keep the real-size link. The direction is
+    almost healthy PC 1 (cosine 0.98) and shifts all bin means about equally.
+  - Methods sections 20 to 23 of `docs/methods_plsda.md`, including the reasoning for the
+    thesis, its limits, and the table of final rows (latent height-radius mean + SD with EPO,
+    2 LVs: AUC 0.958, 0.946 to 0.968; Med3D 0.958).
+- **Next step:** ResNet-18 baseline (Ruben's promise for about 8 December), in a new session:
+  `git pull`, `uv run pytest`, load the `workstation-run` skill, read Hugo's
+  `train_clf_3d.py` at 183112f in `../Synthetic_CT_pear`, write a training module on our box
+  folds and `binary_23`, and a CPU smoke run on 2 boxes and 1 epoch on the Mac.
+- **Blocked on:** the workstation (Hugo arranges it) for the full ResNet-18 run.
+- **Meeting of 24 November, outcome** (`docs/meeting_2026-11-24.md` section 8): height-radius
+  rows agreed as model rows; size link real but correct the preprocessing (done); threshold is
+  a market decision; counterfactuals to be redone on the workstation (threshold to cross and
+  reporting for all fruit still open; random synthetic fruit from the learned latent regions
+  is a later idea).
+- **Still to do after the ResNet:** N-way PLS (charter row); counterfactuals again with the
+  stretch-EPO direction (question 55); sealed test F, J, M once, all final rows.
 - **Still to fix:** methods section 18 says "the core change is the smallest" (the story is
-  corrected); an empty cell at line 284 of `notebooks/20_story.py` (Ruben's, `marimo check`
-  warning).
-- **Done on 22 November (commits defcbee to 0439154):** story notebook 20; mirrored-step
-  figure; EPO runs with Youden cut-off (`EPO_RUN_DIRS`: cavity-free 4 LVs AUC 0.855, Youden
-  0.298; `binary_23` 3 LVs AUC 0.886, Youden 0.384); Youden mirrors (grade 3 fruit cross,
-  grade 0 do not); iPLS selection `20261122T162303Z_ipls_selection_hugo_vae_hr_sd` (methods
-  section 19, AUC 0.966 against 0.957); sealed and open fruit checked for overlap.
-- **Done on 20 and 21 November (commits fbf7174 to 0d057e0; methods sections 16 to 18):**
-  - Core-only rows (`pearlatent.core_region`, fill fitted per fold in
-    `cross_validated_predictions(..., regions=...)`, notebook 21). Region: height over the body
-    0.05 to 0.60, all radii. Scratch: latent AUC 0.869 against 0.887, stalk link unchanged
-    (−0.19 against −0.20), size link worse (+0.27 against +0.12). **Dropped (Ruben).**
-  - EPO with the healthy training fruit as nuisance matrix, PC 1 removed per fold
-    (`pearlatent.epo`, `cross_validated_predictions(..., epo_healthy=...)`, notebook 22).
-    Healthy PC 1 = the size axis (r 0.97 with body size, −0.83 with stalk). Scratch: latent
-    rows keep their AUC and lose the check C link (height-radius stalk −0.31 → +0.02, size
-    +0.34 → −0.01); CT height-radius rows not suited (their PC 1 is not size). EPO on the grid
-    and then binning does nothing: EPO must be fitted in the model's own features.
-  - Counterfactuals along the EPO direction (`cavity_free_epo`, 4 LVs) for C23, N17, K07, A03,
-    plus a mirrored step across the boundary (`counterfactual_run --flip`). Notebook 17
-    sections 4 and 5 compare all runs; figures `derived/figures/17_asked_against_got.png` and
-    `17_all_runs_images.png` (EPO only, the old direction gives the same within 0.02 in t).
-    Found: only 43 to 73 % of the asked score change comes back after decode and encode
-    (constant within a fruit); the images change mostly at the outline, then a stalk patch
-    (C23, K07), the core change is smallest. EPO did not remove the stalk patch. Mirrored:
-    C23, N17, A03 cross the boundary, K07 does not.
-- **Decided (Ruben, 20 to 21 November):** core-only route closed; EPO variant B (healthy PC 1)
-  kept for the latent rows and the counterfactuals; no improvement on the height-radius rows
-  after grid-EPO counts as a result; reconstruction stays `vae.decode(mu)`, no sampled
-  reconstruction (noise SD about 0.001 per cell against a step of 0.2 to 0.75 per cell).
-- **Blocked on:** nothing. ResNet-18 needs the lab workstation (question 9).
-- **Working note:** with `marimo edit --watch` open, quick file edits in a row can be
-  overwritten; make notebook edits in one write. A notebook can be saved headless with
-  `app.run(defs={"save_button": <object with value True>})` (done for notebook 19). Close the
-  editor before saving a run. After code changes run `graphify update .` (CLAUDE.md).
+  corrected); an empty cell at line 284 of `notebooks/20_story.py`; the variant-B results of
+  section 17 were read with the old 128³ size measure.
 - **Reference, still valid:**
   - Encoding run `20261013T171306Z_hugo_vae`: open part 940 fruit (346 2526, 594 2425);
     sealed part `derived/sealed/latents/...`, 153 fruit. CT at 32³ run `20261005T142026Z`.
-    Tissue features `20261102T151947Z`, Med3D `20261102T185107Z`. All runs in use are listed
-    in `pearlatent.runs` (`PLSDA_BINARY23_RUN_DIRS` holds the six rows).
+    Tissue features `20261102T151947Z`, Med3D `20261102T185107Z`. Runs in use:
+    `pearlatent.runs` (`PLSDA_BINARY23_RUN_DIRS`, `EPO_STRETCH_RUN_DIRS`, `REAL_SIZE_RUN_DIR`,
+    `STRETCH_CHECK_RUN_DIR`).
   - Test boxes **F, J, M** (87 fruit), never opened. Fold partitions in
     `derived/outer_folds_20/outer_folds.csv`.
   - Faulty volumes: `derived/volume_decisions.csv` through `drop_faulty_volumes`; 346 → 315
     open 2526 fruit.
   - Mac: `/Users/rubenhoeven/code/pear-latent-thesis`, Python 3.12.15, torch 2.14.1 (CPU),
     marimo 0.25.1; Hugo's repository `../Synthetic_CT_pear` at 183112f; MedicalNet
-    `../MedicalNet` at 20f76aa. A decode took about 6 minutes on the Mac (handoff of 23
-    October); time it again before the counterfactuals.
+    `../MedicalNet` at 20f76aa.
+  - Working note: with `marimo edit --watch` open, quick edits in a row can be overwritten;
+    after code changes run `graphify update .`.
 
 ## Setting up the Mac (written 17 Oct, on the Windows laptop)
 
@@ -218,7 +191,7 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
-Answered and removed on 23 Nov (from the outcome of 29 Oct, `docs/meeting_2026-10-29.md`, never removed then): 2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38. Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
+Answered and removed on 27 Nov: 5 (threshold is a market decision, Hugo and Ruben, 24 Nov), 64 (outcome written in `docs/meeting_2026-11-24.md` section 8), 18 (originals received, uniform rescaling verified, `pearlatent.real_size`), 52 (cause: the stretch to 128 voxels plus real size, methods sections 20 to 22), 59 (stretch part is an artefact, real size is a real risk factor; Ruben), 62 (replaced by EPO on the measured stretch factor, methods section 23). Answered and removed on 23 Nov (from the outcome of 29 Oct, `docs/meeting_2026-10-29.md`, never removed then): 2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38. Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
 confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
 `docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
@@ -231,16 +204,10 @@ real odd shape, kept), 25 (season split on PC1 is mostly the stalk; PC panels in
 charter rule 3), 10 (item 2 dropped with the self-supervised extension). Numbers are kept so
 earlier references stay valid.
 
-5. Ruben's position on the grade 2 non-consumable threshold (Hugo asked).
 9. Lab workstation (only for the ResNet-18 baseline now): GPU model, NVIDIA driver version,
    operating system, `uv`, tmux.
 11. Cavity-label issues: grades that disagree with visible voids (to back with the cavity
     cross-check, if built).
-18. (29 Oct, Hugo: not measured, no sizes in millimetres; conflicts with 13 Oct "computable from the
-    original scans". 23 Nov: Ruben has access to the original files; ask Hugo for the scale
-    factor per fruit; uses in `docs/meeting_2026-11-24.md` section 4b.) Fruit dimensions: the length of each fruit before rescaling to 128 voxels (from his MATLAB
-    preprocessing), and whether that rescaling was the same along all three axes. If both, every
-    dimension in millimetres follows from our volumes. Otherwise the original scans.
 21. The preprint reports MAE 0.0022 on the test set (section 3.1.1) and MAE 0.0025 on the
     validation set (Table D.1), with the same SSIM and PSNR. Which numbers belong to which set?
 
@@ -260,13 +227,6 @@ For Ruben, added 2 Nov:
 47. Optional extra row: the density-distribution-model residual of Van De Looverbosch et al.
     (2022, anomaly detection, Youden threshold). Wanted?
 
-For Ruben, added 7 Nov:
-52. The latent height-radius score follows fruit size and stalk length on healthy fruit
-    (check C). 9 Nov, scratch (`docs/methods_plsda.md` section 12): removing each fruit's own mean
-    keeps the AUC (0.927 to 0.923) but only shrinks the link (stalk −0.23, size +0.28, intervals
-    still exclude 0), so the fruit-wide level is not the main route. Cause still open. Covariates
-    conflict with the decision of 2 November (check D: measures not accurate enough).
-
 For Ruben, added 9 Nov (audit session):
 55. The counterfactual direction (cavity-free, latent grid, 5 LVs) adds a stalk when a fruit is
     moved towards healthy (2526_C23). Remove the stalk part? Options (`docs/methods_plsda.md`
@@ -279,28 +239,21 @@ For Ruben, added 9 Nov (audit session):
     21 Nov: EPO (healthy PC 1) tried; the stalk patch still appears (C23, K07) and the outline
     change dominates (`docs/methods_plsda.md` section 18). Projection on a stalk direction not
     tried. Open: more EPO components, or accept and report.
+    27 Nov: the stalk link is the stretch artefact; EPO on the measured stretch factor removes
+    it from the score (methods section 23). Counterfactuals to be redone with that direction.
 56. 2526_I09 and 2526_N17 end in a flat, slanted neck in the CT, like the neck cuts excluded on
     26 October, but were kept then. Were some small neck cuts missed? Changes no result now.
 
 For Ruben, added 20 Nov:
 58. The SVM score shows no stalk or size link on healthy fruit. Check that this is not because
     the RBF score is nearly constant among healthy fruit (spread of their scores).
-59. Short stalk (relatively large body) separates defective fruit at AUC 0.58 to 0.65; larger
-    fruit brown more (Ho et al. 2008). Artefact of the rescaling or real risk factor? For Hugo,
-    before removing all stalk information by EPO or projection.
-
 For Wouter Saeys, added 21 Nov:
 60. EPO with the healthy fruit as the nuisance matrix D (no paired measurements under a varying
     external parameter): an accepted variant? How many components (we use 1; more began to
     cost AUC)? Could D be built by simulating the rescaling to 128 voxels (depends on
-    question 18)?
-
-For Ruben, added 23 Nov:
-62. EPO with one component removes only the straight part of the size effect: with EPO the
-    smallest healthy fruit score high (up to +0.4), and in the PCA the largest fruit still
-    group together (notebook 22 sections 5 and 6). Options: GLSW (soft weighting of the
-    nuisance directions, in SOLO), or EPO on the stretch factor per fruit (question 18). One
-    rule for every final row. Decide after Hugo's answers to Q2 and Q5.
+    question 18)? 27 Nov: now replaced by EPO on a measured external parameter (stretch factor,
+    regression at equal real volume, healthy fruit, methods section 23); ask Wouter Saeys
+    whether this form is accepted.
 
 For Ruben, added 21 Nov:
 61. Only 43 to 73 % of a counterfactual step comes back after decode and encode. Does the
@@ -361,8 +314,25 @@ For Ruben, added 13 Oct:
     from `src/pearlatent/pooling.py`, with their tests? Notebook 03 no longer uses them (1e5d1f1).
     7 Nov: the height-radius rows use `pearlatent.step0.latent_map_sums`, not this code.
 
+For Hugo, added 27 Nov:
+63. Voxel size of the 2526 originals: the headers say 1 mm; the preprint gives 0.6267 mm (for
+    2425). Ruben says the same procedure was followed; a written confirmation from Hugo would
+    close the `# UNVERIFIED` in `pearlatent.real_size`. Only the mm values depend on it.
+
+For Ruben, added 27 Nov:
+65. On healthy fruit the latent and CT height-radius scores rise with real size (+0.30 to
+    +0.39 after EPO). Either the model uses size, or larger grade 0 fruit hide browning that the
+    grading missed; the labels cannot tell. State both in the thesis (methods section 23).
+
 ## Decided
 
+- 27 Nov (Ruben): the stretch to 128 voxels is an artefact and is removed; real fruit size is
+  biology (larger fruit brown more) and stays. EPO on the measured stretch factor (one
+  direction, at equal real volume, healthy training fruit, per fold) for the latent rows only;
+  the other rows' scores do not follow the stretch. Variant B (healthy PC 1) not used further.
+  LVs with EPO: grid 3, height-radius 2, height-radius mean + SD 2 (by eye, before the test
+  boxes). The 2425 originals are not needed (primary design is 2526). AUC within thirds of real
+  size (cut-offs fixed before looking) reported beside the AUC.
 - 2 Nov (Ruben): LVs chosen by eye at the elbow of the mean RMSECV curve; Youden cut-off
   reported beside 0.5; tissue-feature row (Van De Looverbosch et al. 2020); Med3D ResNet-18
   with z-score on the fruit tissue and 0 outside the fruit; iPLS selection stops at the layers,
@@ -437,6 +407,7 @@ For Ruben, added 13 Oct:
 | `src/pearlatent/labels.py` `_STORAGE` | 2526 storage condition unknown; recorded as `after_storage` | Hugo |
 | `src/pearlatent/encoding.py` `load_encoder` | default checkpoint `checkpoint.pth` is the encoder of the preprint (not `best.pth`). Hugo sent only `best.pth` (epoch 430, seed 369) and `vae_hyperparameter.json`; the loader now defaults to `best.pth` | Hugo: is `best.pth` the model of the preprint? |
 | `src/pearlatent/tissue_features.py` `tissue_masks` | the paper's MATLAB adaptive threshold (no sensitivity given) means "below the plain local mean of the tissue in a 31³ window" | Van De Looverbosch et al. 2020 authors, or MATLAB `adaptthresh` defaults |
+| `src/pearlatent/real_size.py` `VOXEL_SIZE_MM` | the 2526 originals have 0.6267 mm voxels (headers say 1 mm; preprint procedure, Ruben 27 Nov) | Hugo (question 63) |
 | `pyproject.toml` | workstation driver supports CUDA 12.8 wheels (only matters for the ResNet-18 baseline) | `nvidia-smi` on the workstation |
 
 Note on names: in 2425 the `box` column holds the orchard letter (60 to 90 fruit). Per the
@@ -446,6 +417,16 @@ stricter than grouping by box, so the splits stay valid; only the name is loose.
 ## Session log
 
 Newest first. One entry per session, three to six lines.
+
+### 2026-11-27 — originals, stretch against real size, EPO on the stretch factor
+- Hugo (24 Nov): height-radius rows agreed; size real, correct the preprocessing; threshold is a market decision.
+- Decided (Ruben): stretch removed by EPO on the measured stretch factor, latent rows only;
+  real size kept; LVs 3 / 2 / 2; 2425 originals not needed.
+- Hugo's 2526 originals unpacked; uniform rescaling verified; stretch factor and real sizes saved.
+- Found: old check C "size" was the stretch; real size predicts defects (AUC 0.79); only latent
+  scores follow the stretch; models stay at AUC 0.90 to 0.98 within size thirds.
+- Final latent rows with EPO saved (height-radius mean + SD 0.958); notebook 23 with 7 figures
+  for Hugo; methods sections 20 to 23 with the reasoning and its limits.
 
 ### 2026-11-23 — meeting brief, open questions pruned, EPO figures
 - Decided (Ruben): grading label noise accepted as is (53); Ruben contacts Wouter Saeys
