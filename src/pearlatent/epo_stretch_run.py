@@ -40,7 +40,13 @@ def model_fruit(cfg) -> pl.DataFrame:
     print(f"open 2526 fruit {open_2526.height}, after faulty volumes {fruit.height}")
     sizes = pl.read_parquet(
         cfg.path("derived_dir") / REAL_SIZE_RUN_DIR / "real_size.parquet"
-    ).select("fruit_id", "stretch_factor", "body_volume_cm3", "stalk_length_mm")
+    ).select(
+        "fruit_id",
+        "stretch_factor",
+        "fruit_length_mm",
+        "body_volume_cm3",
+        "stalk_length_mm",
+    )
     joined = fruit.join(sizes, on="fruit_id", how="left")
     if joined["stretch_factor"].null_count():
         raise ValueError("some fruit have no stretch factor")
