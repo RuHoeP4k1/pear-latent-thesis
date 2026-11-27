@@ -56,7 +56,12 @@ mild cavity easier than mild browning; non-consumable detected well, mostly thro
 
 128³ input features · CT averaged to 32³ · Hugo's latent · Med3D (frozen) ·
 ResNet-18 from scratch on 128³ CT: the 3D ResNet of Hugo's `train_clf_3d.py` (basic blocks 2-2-2-2), trained on our box
-folds on the lab GPU; width *(to settle with Hugo: his default of 16 base channels, or 64)*.
+folds on the lab GPU; width 16 base channels, Hugo's default (Ruben, 27 November 2026: 2.1 million
+parameters against 33 million at 64, for about 185 training fruit per fold). Open 2526 fruit only,
+no 2425 fruit in the training (Ruben, 27 November 2026: the row stays paired with the PLS-DA rows).
+Output `binary_23`, as the PLS-DA rows; grades from the same ordinal step on its out-of-fold
+score (`pearlatent.ordinal`, `docs/methods_plsda.md` section 9). A network trained on the grades
+is possible later as an extra row.
 Dropped on 13 October: the own self-supervised extension (GPU too small for 3D self-supervised
 training). Dropped on 29 October (Hugo): the random frozen encoder.
 
