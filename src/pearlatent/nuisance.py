@@ -141,6 +141,55 @@ def score_icc(table: pl.DataFrame) -> float:
     return box_variance / (box_variance + float(fit.scale))
 
 
+def _ranks(values: np.ndarray) -> np.ndarray:
+    """Ranks 1..n (ties get their mean rank), so a correlation of ranks is Spearman's."""
+    from scipy.stats import rankdata
+
+    return rankdata(values)
+
+
+def partial_spearman(y: np.ndarray, x: np.ndarray, control: np.ndarray) -> float:
+    """Spearman correlation of `y` with `x` after removing what `control` explains of both.
+
+    On ranks: regress the ranks of `y` on the ranks of `control` (a straight line), likewise
+    the ranks of `x`, and correlate the two sets of residuals. Why: when `x` and `control`
+    are correlated, a plain correlation of `y` with `control` also picks up `x`.
+    """
+    ry, rx, rc = _ranks(y), _ranks(x), _ranks(control)
+    design = np.column_stack([np.ones_like(rc), rc])
+
+    def residual(values: np.ndarray) -> np.ndarray:
+        coefficients, *_ = np.linalg.lstsq(design, values, rcond=None)
+        return values - design @ coefficients
+
+    return float(np.corrcoef(residual(ry), residual(rx))[0, 1])
+
+
+def healthy_stretch_correlations(table: pl.DataFrame) -> dict:
+    """Check C with the measures from Hugo's originals (27 November 2026).
+
+    In: all fruit with `score`, `box`, `defective`, `stretch_factor`, `body_volume_cm3`.
+    Out, on the grade 0 fruit, the score taken minus its box median (as in check C):
+    Spearman of the score with the stretch factor and with the real body volume, each plain
+    and with the other one removed (`partial_spearman`). A score that follows only the
+    stretch factor has a partial with the stretch factor away from 0 and a partial with real
+    volume near 0.
+    """
+    healthy = table.filter(pl.col("defective") == 0).with_columns(
+        score_in_box=pl.col("score") - pl.col("score").median().over("box")
+    )
+    score = healthy["score_in_box"].to_numpy()
+    stretch = healthy["stretch_factor"].to_numpy()
+    volume = healthy["body_volume_cm3"].to_numpy()
+    return {
+        "n_healthy": healthy.height,
+        "spearman_stretch": float(spearmanr(score, stretch).statistic),
+        "spearman_real_volume": float(spearmanr(score, volume).statistic),
+        "partial_stretch_given_volume": partial_spearman(score, stretch, volume),
+        "partial_volume_given_stretch": partial_spearman(score, volume, stretch),
+    }
+
+
 def healthy_fruit_correlations(table: pl.DataFrame) -> dict:
     """Check C. In: all fruit with `score`, `box`, `defective`, `stalk_length`,
     `body_voxels`, `stalk_present`. Out: the statistics on the grade 0 fruit.

@@ -751,3 +751,41 @@ is 0.6267 / s mm. Example: 2526_A01, length 243 voxels (152 mm), s = 0.527, 128�
 factor (r +0.76 on healthy fruit) and hardly real size (+0.13). Real body volume and the
 stretch factor share about a quarter of their variance (r −0.52), so their effects on a score
 can be separated by a regression on both (step 4 of the plan of 27 November).
+
+## 21. Which rows follow the stretch, which follow real size (27 November 2026, Ruben)
+
+**What** (`pearlatent.stretch_check`, `nuisance.healthy_stretch_correlations`, run
+`results/20261127T131002Z_stretch_check`). No model fitted: the saved out-of-fold scores of the
+eight `binary_23` PLS-DA rows. On the 145 healthy fruit, score minus box median (as check C),
+Spearman partial correlation with the stretch factor given real body volume, and with real body
+volume given the stretch factor (ranks; the straight-line part of the other measure removed
+from both). 95 % box-bootstrap intervals. Why partial: the two measures correlate −0.52
+(section 20), so a plain correlation with one also picks up the other.
+
+**Found:**
+
+| Row | Stretch, given volume | Real volume, given stretch |
+|---|---|---|
+| Latent full grid | +0.08 (−0.20 to +0.33) | +0.21 (+0.05 to +0.33) |
+| CT 32³ full grid | −0.00 (−0.15 to +0.26) | +0.07 (−0.03 to +0.19) |
+| Tissue features | −0.07 (−0.23 to +0.16) | +0.05 (−0.13 to +0.24) |
+| Med3D | −0.12 (−0.30 to +0.12) | +0.00 (−0.10 to +0.16) |
+| Latent height-radius | +0.23 (+0.07 to +0.45) | +0.40 (+0.26 to +0.57) |
+| CT height-radius | −0.04 (−0.18 to +0.14) | +0.25 (+0.15 to +0.37) |
+| Latent height-radius mean + SD | +0.18 (+0.00 to +0.42) | +0.39 (+0.23 to +0.56) |
+| CT height-radius mean + SD | −0.05 (−0.17 to +0.09) | +0.19 (+0.10 to +0.30) |
+
+Without a model, all 315 open fruit: real body volume alone separates `binary_23` with AUC
+0.787 (0.722 to 0.834), within-box AUC 0.752; the stretch factor alone 0.401 (0.311 to 0.510).
+Median real body volume per defective grade 0 / 1 / 2 / 3: 158 / 181 / 203 / 213 cm³ (145, 41,
+52, 77 fruit). Per box, median volume and share of non-consumable fruit: Spearman +0.84 over
+the 12 boxes.
+
+**Reading.** Larger fruit are more often non-consumable in 2526, within boxes as well as
+between them (Ho et al. 2008 report the same direction). On healthy fruit the latent
+height-radius scores follow real size more than the stretch (+0.39 against +0.18); the CT
+height-radius rows follow real size only; the full-grid CT row, tissue features and Med3D
+follow neither. The stretch reaches only the latent rows, and less than real size does. The
+earlier check C "size" (128³ body voxels) was mostly the stretch factor (section 20), so check C
+had mixed the two. How a score sees real size when the 128³ body hardly shows it (r +0.13) is
+open. Decision for the preprocessing still open (Ruben).

@@ -4,6 +4,8 @@ import polars as pl
 from pearlatent.nuisance import (
     box_bootstrap,
     healthy_fruit_correlations,
+    healthy_stretch_correlations,
+    partial_spearman,
     score_icc,
     within_between_logit,
     within_box_auc,
@@ -76,3 +78,44 @@ def test_healthy_correlations_use_grade_0_only():
     out = healthy_fruit_correlations(_table(box_effect=0.0, fruit_effect=1.0))
     assert out["n_healthy"] < 360
     assert abs(out["spearman_stalk_length"]) < 0.25
+
+
+def _stretch_table(score_follows: str, seed: int = 1) -> pl.DataFrame:
+    """300 healthy fruit in 10 boxes. Real volume and stretch factor correlate (about −0.5),
+    as on the 2526 fruit; the score follows one of them plus noise."""
+    rng = np.random.default_rng(seed)
+    n = 300
+    volume = rng.normal(0, 1, n)
+    stretch = -0.5 * volume + rng.normal(0, 0.87, n)
+    driver = stretch if score_follows == "stretch" else volume
+    return pl.DataFrame(
+        {
+            "box": np.repeat([f"B{k}" for k in range(10)], 30),
+            "defective": np.zeros(n, dtype=int),
+            "score": driver + rng.normal(0, 0.5, n),
+            "stretch_factor": 0.6 + 0.08 * stretch,
+            "body_volume_cm3": 160 + 30 * volume,
+        }
+    )
+
+
+def test_partial_spearman_removes_the_shared_part():
+    """y follows x only; control is correlated with x. Plain correlation of y with control
+    is clearly negative, the partial is near 0."""
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=500)
+    control = -0.6 * x + rng.normal(0, 0.8, 500)
+    y = x + rng.normal(0, 0.3, 500)
+    assert np.corrcoef(y, control)[0, 1] < -0.4
+    assert abs(partial_spearman(y, control, x)) < 0.1
+    assert partial_spearman(y, x, control) > 0.8
+
+
+def test_healthy_stretch_correlations_tell_stretch_from_volume():
+    follows_stretch = healthy_stretch_correlations(_stretch_table("stretch"))
+    assert follows_stretch["partial_stretch_given_volume"] > 0.6
+    assert abs(follows_stretch["partial_volume_given_stretch"]) < 0.15
+    assert follows_stretch["spearman_real_volume"] < -0.2  # the trap: plain correlation
+    follows_volume = healthy_stretch_correlations(_stretch_table("volume"))
+    assert follows_volume["partial_volume_given_stretch"] > 0.6
+    assert abs(follows_volume["partial_stretch_given_volume"]) < 0.15

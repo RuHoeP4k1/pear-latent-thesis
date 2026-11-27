@@ -17,6 +17,8 @@ ENCODING_RUN_DIR = f"latents/hugo_vae/{ENCODING_RUN}"
 RANDOM_INIT_RUN_DIR = "latents/random_init/20261020T120336Z_random_init"
 RAW_CT_32_RUN_DIR = "raw_ct_32/20261005T142026Z_raw_ct_32"
 DESCRIPTORS_RUN_DIR = "descriptors/20261023T155219Z_descriptors"
+# Stretch factor and real size from Hugo's 2526 originals (27 November 2026, `pearlatent.real_size`).
+REAL_SIZE_RUN_DIR = "real_size/20261127T125309Z_real_size"
 TISSUE_FEATURES_RUN_DIR = "tissue_features/20261102T151947Z_tissue_features"
 MED3D_RUN_DIR = "med3d/20261102T185107Z_med3d_resnet18"
 # logvar of the encoder for the open 2526 fruit and Hugo's 66 validation fruit (9 November
