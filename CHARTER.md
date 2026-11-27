@@ -59,9 +59,9 @@ ResNet-18 from scratch on 128³ CT: the 3D ResNet of Hugo's `train_clf_3d.py` (b
 folds on the lab GPU; width 16 base channels, Hugo's default (Ruben, 27 November 2026: 2.1 million
 parameters against 33 million at 64, for about 185 training fruit per fold). Open 2526 fruit only,
 no 2425 fruit in the training (Ruben, 27 November 2026: the row stays paired with the PLS-DA rows).
-Output `binary_23`, as the PLS-DA rows; grades from the same ordinal step on its out-of-fold
-score (`pearlatent.ordinal`, `docs/methods_plsda.md` section 9). A network trained on the grades
-is possible later as an extra row.
+Two runs (Ruben, 27 November 2026): first a network trained on `binary_23`, the same task as the
+PLS-DA rows, for the paired comparison; then a second network trained on the `defective` grades
+with an ordinal output, to check whether the network can grade at all.
 Dropped on 13 October: the own self-supervised extension (GPU too small for 3D self-supervised
 training). Dropped on 29 October (Hugo): the random frozen encoder.
 
