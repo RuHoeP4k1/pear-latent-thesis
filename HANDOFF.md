@@ -196,7 +196,7 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
-Answered and removed on 27 Nov: 5 (threshold is a market decision, Hugo and Ruben, 24 Nov), 64 (outcome written in `docs/meeting_2026-11-24.md` section 8), 18 (originals received, uniform rescaling verified, `pearlatent.real_size`), 52 (cause: the stretch to 128 voxels plus real size, methods sections 20 to 22), 59 (stretch part is an artefact, real size is a real risk factor; Ruben), 62 (replaced by EPO on the measured stretch factor, methods section 23). Answered and removed on 23 Nov (from the outcome of 29 Oct, `docs/meeting_2026-10-29.md`, never removed then): 2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38. Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
+Answered and removed on 27 Nov: 66 (validation group: 2 whole boxes per fold, fixed for the whole training of that fold, drawn with seed 369; clean nested version kept, Ruben), 5 (threshold is a market decision, Hugo and Ruben, 24 Nov), 64 (outcome written in `docs/meeting_2026-11-24.md` section 8), 18 (originals received, uniform rescaling verified, `pearlatent.real_size`), 52 (cause: the stretch to 128 voxels plus real size, methods sections 20 to 22), 59 (stretch part is an artefact, real size is a real risk factor; Ruben), 62 (replaced by EPO on the measured stretch factor, methods section 23). Answered and removed on 23 Nov (from the outcome of 29 Oct, `docs/meeting_2026-10-29.md`, never removed then): 2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38. Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
 confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
 `docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
@@ -330,9 +330,6 @@ For Ruben, added 27 Nov:
     grading missed; the labels cannot tell. State both in the thesis (methods section 23).
 
 For Ruben, added 27 Nov (ResNet-18):
-66. Validation group for early stopping: 2 of the 9 training boxes per fold, drawn with seed
-    369 (Claude's choice, not objected to). 3 boxes would leave about 157 training fruit,
-    1 box gives a noisy validation loss. Confirm before the full run.
 67. Ordinal step on the run 1 output: on the probability or on its log-odds? Both are computed
     (`ordinal_summary.csv`); choose after the full run, before reading the grade results as final.
 68. Run 2 (network trained on the `defective` grades): cumulative head (three outputs for
@@ -347,7 +344,10 @@ For Ruben, added 27 Nov (ResNet-18):
 - 27 Nov, second session (Ruben): ResNet-18 width 16 (Hugo's default); open 2526 fruit only, no
   2425 fruit in its training; run 1 trained on `binary_23` (same task as the PLS-DA rows), with
   the ordinal step of notebook 12 on its out-of-fold score; run 2 a separate network trained on
-  the `defective` grades with an ordinal output. Charter, Methods, updated.
+  the `defective` grades with an ordinal output. Charter, Methods, updated. Early stopping on 2
+  whole validation boxes per fold (the same 2 for every epoch of that fold), not on the held-out
+  fold: the stopping choice never sees the held-out boxes (nested), at the cost of about 50
+  training fruit per fold.
 - 27 Nov (Ruben): the stretch to 128 voxels is an artefact and is removed; real fruit size is
   biology (larger fruit brown more) and stays. EPO on the measured stretch factor (one
   direction, at equal real volume, healthy training fruit, per fold) for the latent rows only;
