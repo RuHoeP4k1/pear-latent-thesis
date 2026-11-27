@@ -25,6 +25,7 @@ dependencies = [
     "matplotlib>=3.9",
     "plotly>=7.1.0",
     "scikit-image>=0.26.0",
+    "tqdm>=4.70.1",
 ]
 
 [dependency-groups]
