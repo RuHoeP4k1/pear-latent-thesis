@@ -20,8 +20,13 @@ Design (charter, Methods; `docs/cv_explained.md` section 5):
    its box was held out (out-of-fold), for the paired comparison with the PLS-DA rows.
 5. Grades: the ordinal step of notebook 12 (`pearlatent.ordinal`) on that out-of-fold score,
    as for the PLS-DA rows (Ruben, 27 November 2026), on the probability and on its log-odds.
-   Rerun on a copied run folder: `--ordinal-for results/<run>`. A network trained on the grades
-   is a separate second run (charter, Methods).
+   Rerun on a copied run folder: `--ordinal-for results/<run>`.
+6. Run 2 (`--target grades`, Ruben, 27 November 2026): the same network, folds, validation
+   boxes and settings, trained on the `defective` grade 0 to 3. Hugo's last layer `fc` is
+   replaced by a cumulative head (`cumulative_head`): one score per fruit and three ordered
+   thresholds, giving P(grade >= 1), P(>= 2), P(>= 3). Loss: mean binary cross-entropy over
+   the three thresholds. Question: can the network grade at all? Reported with the same grade
+   metrics as the ordinal step, and the binary_23 AUC from P(>= 2) beside run 1.
 
 Input: each volume min-max scaled to [0, 1], as Hugo's `utils/volumes.py` (`scale_minmax`).
 No augmentation (Hugo's `--augment` needs torchio and is off by default) and no pseudo-labels
@@ -56,7 +61,7 @@ FOLD_REPEAT = 1  # the one partition the ResNet gets (docs/cv_explained.md secti
 
 # Hugo's defaults in train_clf_3d.py (183112f).
 HUGO_DEFAULTS = {
-    "base_channels": 16,  # charter: 16 or 64 still to settle; 16 is his default
+    "base_channels": 16,  # Hugo's default; chosen by Ruben, 27 November 2026 (charter)
     "dropout": 0.2,
     "epochs": 100,
     "batch_size": 16,
@@ -216,13 +221,116 @@ def import_hugo_resnet(repo: str | Path):
     return ResNet3D
 
 
+TARGETS = ("binary", "grades")
+# Run 1 (target "binary"): binary_23, Hugo's 2-class output. Run 2 (target "grades"): the
+# `defective` grade 0 to 3 with a cumulative head (Ruben, 27 November 2026).
+LABEL_COLUMN = {"binary": "binary_23", "grades": "defective"}
+
+
+def cumulative_head(in_features: int):
+    """The last layer of run 2: one score per fruit and three ordered thresholds.
+
+    Output: 3 log-odds per fruit, for grade >= 1, >= 2 and >= 3:
+    log-odds_k = score - threshold_k. The same score for all three, so a fruit with a higher
+    score is more likely above every threshold (the network form of the cumulative logit
+    model of notebook 12). The thresholds are stored as the first one plus two positive gaps
+    (softplus), so threshold_1 < threshold_2 < threshold_3 always holds and
+    P(>= 1) >= P(>= 2) >= P(>= 3): the grade probabilities can never be negative.
+    Start values: thresholds 0, 0.69, 1.39 (softplus(0) = 0.69); training moves them.
+    """
+    import torch
+
+    class CumulativeHead(torch.nn.Module):
+        def __init__(self, n: int):
+            super().__init__()
+            # No bias: the thresholds take its place (as "no constant" in notebook 12).
+            self.score = torch.nn.Linear(n, 1, bias=False)
+            self.first = torch.nn.Parameter(torch.zeros(1))
+            self.gaps = torch.nn.Parameter(torch.zeros(2))
+
+        def thresholds(self):
+            steps = torch.nn.functional.softplus(self.gaps)
+            return torch.cat([self.first, self.first + torch.cumsum(steps, dim=0)])
+
+        def forward(self, x):
+            return self.score(x) - self.thresholds()  # (fruit, 1) - (3,) -> (fruit, 3)
+
+    return CumulativeHead(in_features)
+
+
+def cumulative_loss(logits, grade):
+    """Mean binary cross-entropy over the three thresholds.
+
+    In: logits (fruit, 3) from `cumulative_head`, grade (fruit,) 0 to 3. The target of
+    threshold k is 1 when grade >= k (k = 1, 2, 3): a grade 2 fruit has targets (1, 1, 0).
+    """
+    import torch
+
+    ks = torch.arange(1, 4, device=grade.device)
+    targets = (grade[:, None] >= ks).float()
+    return torch.nn.functional.binary_cross_entropy_with_logits(logits.float(), targets)
+
+
+def build_model(ResNet3D, settings: dict, target: str):
+    """Hugo's ResNet3D; for target "grades" its last layer `fc` is replaced by the cumulative head.
+
+    Hugo's network is not changed otherwise: its forward pass ends in `self.fc(x)`, so a new
+    `fc` is all that run 2 needs.
+    """
+    model = ResNet3D(
+        output_size=2,
+        base_channels=settings["base_channels"],
+        dropout=settings["dropout"],
+    )
+    if target == "grades":
+        model.fc = cumulative_head(model.fc.in_features)
+    return model
+
+
+def criterion_for(target: str):
+    """Cross-entropy on 2 classes for run 1 (Hugo's loss); the cumulative loss for run 2."""
+    import torch
+
+    return torch.nn.CrossEntropyLoss() if target == "binary" else cumulative_loss
+
+
+def output_probabilities(logits, target: str):
+    """Run 1: P(binary_23 = 1), shape (fruit,). Run 2: P(>= 1), P(>= 2), P(>= 3), (fruit, 3)."""
+    import torch
+
+    logits = logits.float()
+    if target == "binary":
+        return torch.softmax(logits, dim=1)[:, 1]
+    return torch.sigmoid(logits)
+
+
+def binary23_view(probability: np.ndarray, label: np.ndarray, target: str):
+    """The binary_23 score and label of either run, for the AUC: run 2 uses P(>= 2)."""
+    if target == "binary":
+        return probability, label
+    return probability[:, 1], (label >= 2).astype(int)
+
+
+def grade_probabilities(at_least: np.ndarray) -> np.ndarray:
+    """P(grade = 0..3) from P(>= 1), P(>= 2), P(>= 3): differences of neighbouring columns."""
+    n = at_least.shape[0]
+    padded = np.column_stack([np.ones(n), at_least, np.zeros(n)])
+    return padded[:, :-1] - padded[:, 1:]
+
+
 def run_epoch(
-    model, loader, criterion, device: str, optimizer=None, amp: bool = False
+    model,
+    loader,
+    criterion,
+    device: str,
+    optimizer=None,
+    amp: bool = False,
+    target: str = "binary",
 ) -> dict:
     """One pass over `loader`; trains when `optimizer` is given, otherwise only evaluates.
 
-    Out: mean loss over the volumes, and the probability of class 1 and the label of every
-    volume in loader order (the loader of an evaluation pass must not shuffle).
+    Out: mean loss over the volumes, the output probabilities (`output_probabilities`) and the
+    label of every volume in loader order (the loader of an evaluation pass must not shuffle).
     """
     import torch
 
@@ -244,7 +352,7 @@ def run_epoch(
         total_loss += loss.item() * len(y)
         n += len(y)
         probabilities.append(
-            torch.softmax(logits.float(), dim=1)[:, 1].detach().cpu().numpy()
+            output_probabilities(logits, target).detach().cpu().numpy()
         )
         labels.append(y.cpu().numpy())
     return {
@@ -270,23 +378,20 @@ def train_one_fold(
     device: str,
     num_workers: int,
     log_path: Path,
+    target: str = "binary",
 ) -> tuple[object, int]:
     """Train on `data["train"]`, stop on the loss of `data["validation"]`; return the best model.
 
     Best model = lowest validation loss after `min_epochs`; training stops after
     `early_stop_patience` epochs without a lower validation loss (Hugo's rule). Every epoch is
-    written to `log_path` (CSV). Out: the model with the best weights loaded, and its epoch.
+    written to `log_path` (CSV); the validation AUC there is on binary_23 for both runs.
+    Out: the model with the best weights loaded, and its epoch.
     """
     import torch
     from torch.utils.data import DataLoader
 
-    model = ResNet3D(
-        output_size=2,
-        base_channels=settings["base_channels"],
-        dropout=settings["dropout"],
-    )
-    model = model.to(device)
-    criterion = torch.nn.CrossEntropyLoss()
+    model = build_model(ResNet3D, settings, target).to(device)
+    criterion = criterion_for(target)
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=settings["lr"], weight_decay=settings["weight_decay"]
     )
@@ -317,14 +422,17 @@ def train_one_fold(
         )
     for epoch in range(1, settings["epochs"] + 1):
         train = run_epoch(
-            model, train_loader, criterion, device, optimizer, settings["amp"]
+            model, train_loader, criterion, device, optimizer, settings["amp"], target
         )
         validation = run_epoch(
-            model, validation_loader, criterion, device, None, settings["amp"]
+            model, validation_loader, criterion, device, None, settings["amp"], target
         )
         lr = scheduler.get_last_lr()[0]
         scheduler.step()
-        auc = safe_auc(validation["label"], validation["probability"])
+        score, label = binary23_view(
+            validation["probability"], validation["label"], target
+        )
+        auc = safe_auc(label, score)
         with open(log_path, "a", newline="") as f:
             csv.writer(f).writerow([epoch, train["loss"], validation["loss"], auc, lr])
         print(
@@ -419,8 +527,6 @@ def ordinal_for_run(run_dir: Path) -> pl.DataFrame:
     metrics of notebook 12 (`pearlatent.ordinal.grade_summary`) per scale, all fruit and split by
     cause (charter rule 5). Out: the summary table.
     """
-    from pearlatent.ordinal import grade_summary
-
     run_dir = Path(run_dir)
     oof = pl.read_parquet(run_dir / "oof_predictions.parquet")
     plan = pl.read_csv(run_dir / "fold_plan.csv")
@@ -428,24 +534,39 @@ def ordinal_for_run(run_dir: Path) -> pl.DataFrame:
     predictions = pl.concat(tables)
     predictions.write_parquet(run_dir / "ordinal_predictions.parquet")
 
-    rows = []
-    for table in tables:
-        # Grade 0 fruit have cause "none"; every defect cause is reported with them beside it.
-        groups = [("all", table)] + [
-            (c, table.filter(pl.col("cause").is_in(["none", c])))
-            for c in ("browning only", "cavity only", "both")
+    summary = pl.concat(
+        [
+            summary_by_cause(table).with_columns(scale=pl.lit(table["scale"][0]))
+            for table in tables
         ]
-        for name, part in groups:
-            probabilities = part.select([f"p_grade_{k}" for k in GRADES]).to_numpy()
-            # A group may lack a grade (cavity only has almost no grade 3): recall is then NaN.
-            with np.errstate(invalid="ignore", divide="ignore"):
-                row = grade_summary(part["defective"].to_numpy(), probabilities, GRADES)
-            rows.append({"scale": table["scale"][0], "cause": name, **row})
-    summary = pl.DataFrame(rows)
+    ).select("scale", pl.exclude("scale"))
     summary.write_csv(run_dir / "ordinal_summary.csv")
     with pl.Config(tbl_cols=-1, tbl_width_chars=200, float_precision=3):
         print(summary.filter(pl.col("cause") == "all"))
     return summary
+
+
+def summary_by_cause(table: pl.DataFrame) -> pl.DataFrame:
+    """Grade metrics (`pearlatent.ordinal.grade_summary`) for all fruit and per cause.
+
+    In: one row per fruit with `defective`, `cause` and `p_grade_0` .. `p_grade_3`. Grade 0
+    fruit have cause "none"; each defect cause is reported with the grade 0 fruit beside it
+    (charter rule 5). Out: one row per group ("all", "browning only", "cavity only", "both").
+    """
+    from pearlatent.ordinal import grade_summary
+
+    groups = [("all", table)] + [
+        (c, table.filter(pl.col("cause").is_in(["none", c])))
+        for c in ("browning only", "cavity only", "both")
+    ]
+    rows = []
+    for name, part in groups:
+        probabilities = part.select([f"p_grade_{k}" for k in GRADES]).to_numpy()
+        # A group may lack a grade (cavity only has almost no grade 3): recall is then NaN.
+        with np.errstate(invalid="ignore", divide="ignore"):
+            row = grade_summary(part["defective"].to_numpy(), probabilities, GRADES)
+        rows.append({"cause": name, **row})
+    return pl.DataFrame(rows)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -455,6 +576,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         default="",
         help="only run the ordinal step on this finished run folder",
+    )
+    parser.add_argument(
+        "--target",
+        choices=TARGETS,
+        default="binary",
+        help="binary: run 1 on binary_23; grades: run 2 on the defective grade, cumulative head",
     )
     parser.add_argument(
         "--folds",
@@ -514,7 +641,9 @@ def main(argv: list[str] | None = None) -> None:
         else sorted(plan["outer_fold"].unique().to_list())
     )
 
-    run_name = "resnet18_binary23" + ("_smoke" if args.max_fruit_per_box else "")
+    target = args.target
+    run_name = {"binary": "resnet18_binary23", "grades": "resnet18_grades"}[target]
+    run_name += "_smoke" if args.max_fruit_per_box else ""
     run_dir = new_run_dir(cfg.path("results_dir"), run_name)
     write_run_record(
         run_dir,
@@ -528,7 +657,15 @@ def main(argv: list[str] | None = None) -> None:
             "device": device,
             "num_workers": num_workers,
             "hugo_commit": PINNED_COMMIT,
-            "architecture": "train_clf_3d.ResNet3D, blocks 2-2-2-2, output 2",
+            "target": target,
+            "label": LABEL_COLUMN[target],
+            "architecture": "train_clf_3d.ResNet3D, blocks 2-2-2-2, "
+            + (
+                "output 2, cross-entropy"
+                if target == "binary"
+                else "fc replaced by a cumulative head (3 ordered thresholds), "
+                "mean binary cross-entropy over the thresholds"
+            ),
             **settings,
         },
         root=cfg.root,
@@ -538,7 +675,7 @@ def main(argv: list[str] | None = None) -> None:
 
     def dataset(rows: pl.DataFrame) -> VolumeDataset:
         paths = [cfg.path("ct_dir_2526") / f"{stem}.nii" for stem in rows["file_stem"]]
-        return VolumeDataset(paths, rows["binary_23"].to_list())
+        return VolumeDataset(paths, rows[LABEL_COLUMN[target]].to_list())
 
     predictions = []
     for fold in folds:
@@ -566,6 +703,7 @@ def main(argv: list[str] | None = None) -> None:
             device,
             num_workers,
             run_dir / f"log_fold{fold}.csv",
+            target,
         )
         torch.save(model.state_dict(), run_dir / f"best_fold{fold}.pth")
 
@@ -576,30 +714,61 @@ def main(argv: list[str] | None = None) -> None:
             shuffle=False,
             num_workers=num_workers,
         )
-        test = run_epoch(model, loader, torch.nn.CrossEntropyLoss(), device)
-        predictions.append(
-            test_rows.with_columns(
-                outer_fold=pl.lit(fold),
-                best_epoch=pl.lit(best_epoch),
-                probability=pl.Series(test["probability"]),
-            ).drop("file_stem")
+        test = run_epoch(
+            model, loader, criterion_for(target), device, None, False, target
         )
+        predictions.append(
+            prediction_table(test_rows, test["probability"], target).with_columns(
+                outer_fold=pl.lit(fold), best_epoch=pl.lit(best_epoch)
+            )
+        )
+        score, label = binary23_view(test["probability"], test["label"], target)
         print(
-            f"outer fold {fold}: best epoch {best_epoch}, test AUC "
-            f"{safe_auc(test['label'], test['probability']):.3f} on {test_rows.height} fruit"
+            f"outer fold {fold}: best epoch {best_epoch}, test AUC (binary_23) "
+            f"{safe_auc(label, score):.3f} on {test_rows.height} fruit"
         )
 
     out = pl.concat(predictions)
     out.write_parquet(run_dir / "oof_predictions.parquet")
     print(
-        f"out-of-fold predictions for {out.height} fruit; pooled AUC "
+        f"out-of-fold predictions for {out.height} fruit; pooled AUC (binary_23) "
         f"{safe_auc(out['binary_23'].to_numpy(), out['probability'].to_numpy()):.3f}"
     )
-    if sorted(folds) == sorted(plan["outer_fold"].unique().to_list()):
+    all_folds = sorted(folds) == sorted(plan["outer_fold"].unique().to_list())
+    if target == "binary" and all_folds:
         ordinal_for_run(run_dir)
-    else:
+    elif target == "binary":
         print("ordinal step skipped: it needs the out-of-fold score of every fold")
+    else:
+        # Run 2 gives grade probabilities itself; the same metrics as the ordinal step.
+        summary = summary_by_cause(out)
+        summary.write_csv(run_dir / "grade_summary.csv")
+        with pl.Config(tbl_cols=-1, tbl_width_chars=200, float_precision=3):
+            print(summary.filter(pl.col("cause") == "all"))
     print(f"wrote {run_dir}")
+
+
+def prediction_table(
+    rows: pl.DataFrame, probability: np.ndarray, target: str
+) -> pl.DataFrame:
+    """The held-out fruit with their predictions, one row per fruit.
+
+    Run 1: `probability` = P(binary_23 = 1). Run 2: `p_at_least_1` .. `p_at_least_3`,
+    `p_grade_0` .. `p_grade_3`, the most probable grade `assigned`, the probability-weighted
+    `expected_grade`, and `probability` = P(>= 2), so the binary_23 AUC is read the same way
+    in both runs.
+    """
+    rows = rows.drop("file_stem")
+    if target == "binary":
+        return rows.with_columns(probability=pl.Series(probability))
+    grades = grade_probabilities(probability)
+    return rows.with_columns(
+        **{f"p_at_least_{k}": pl.Series(probability[:, k - 1]) for k in (1, 2, 3)},
+        **{f"p_grade_{k}": pl.Series(grades[:, k]) for k in GRADES},
+        assigned=pl.Series(np.array(GRADES)[grades.argmax(axis=1)]),
+        expected_grade=pl.Series(grades @ np.array(GRADES, dtype=float)),
+        probability=pl.Series(probability[:, 1]),
+    )
 
 
 if __name__ == "__main__":

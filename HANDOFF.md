@@ -26,9 +26,15 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     `ordinal_predictions.parquet` and `ordinal_summary.csv` (all fruit and by cause). Rerun on a
     copied run: `--ordinal-for results/<run>`. `grade_summary` moved into `pearlatent.ordinal`.
     The network itself trains on `binary_23` only.
+  - Run 2 built (`--target grades`, Ruben: cumulative head): Hugo's `fc` replaced by one score
+    and 3 ordered thresholds (P(>= 1) >= P(>= 2) >= P(>= 3) by construction), loss the mean
+    binary cross-entropy over the thresholds; same folds, validation boxes and settings as run
+    1; writes grade probabilities per fruit, `grade_summary.csv` (all fruit and by cause), and
+    `probability` = P(>= 2) for the binary_23 AUC. Smoke run (4 folds, 1 epoch, 6 per box):
+    `results/20261127T163132Z_resnet18_grades_smoke`, ran end to end.
   - Charter updated (Ruben): width 16; 2526 fruit only, no 2425; two runs: run 1 `binary_23`,
     run 2 a network trained on the `defective` grades with an ordinal output.
-  - Tests: 8 new in `tests/test_resnet_baseline.py`; 190 pass. Smoke runs (CPU, 1 epoch):
+  - Tests: 12 new in `tests/test_resnet_baseline.py`; 194 pass. Smoke runs (CPU, 1 epoch):
     `results/20261127T150858Z_resnet18_binary23_smoke` (fold 1, 3 fruit per box, 18 s) and
     `results/20261127T152800Z_resnet18_binary23_smoke` (4 folds, 6 per box, 2 min, ordinal step
     ran). Their numbers mean nothing (1 epoch). Rough estimate: full run on the Mac CPU about
@@ -37,8 +43,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   `nvidia-smi` (GPU free? driver supports CUDA 12.8 wheels?), fill `config/local.toml`, then in
   tmux a short check `uv run python -m pearlatent.resnet_baseline --folds 1 --epochs 2 --amp`,
   then the full run `uv run python -m pearlatent.resnet_baseline --amp 2>&1 | tee resnet_run1.log`.
-  Copy the run folder to the Mac (weights stay out of git). Until then: run 2 (ordinal network,
-  question 68) can be written and smoke-run on the Mac.
+  Then run 2 the same way with `--target grades`. Copy the run folders to the Mac (weights
+  stay out of git).
 - **Blocked on:** the workstation (Hugo arranges it) for the full ResNet-18 run.
 - **Done in the first session of 27 November (commits 4881db1 to c532094):** Hugo's 2526
   originals unpacked (`ct_orig_dir_2526`), uniform rescaling verified; `pearlatent.real_size`
@@ -196,7 +202,7 @@ Read on the laptop on 13 October 2026 (handoff B1), on CPU, with `torch.load(wei
 
 ## Open questions (must be answered from Tier 1 or by Hugo)
 
-Answered and removed on 27 Nov: 66 (validation group: 2 whole boxes per fold, fixed for the whole training of that fold, drawn with seed 369; clean nested version kept, Ruben), 5 (threshold is a market decision, Hugo and Ruben, 24 Nov), 64 (outcome written in `docs/meeting_2026-11-24.md` section 8), 18 (originals received, uniform rescaling verified, `pearlatent.real_size`), 52 (cause: the stretch to 128 voxels plus real size, methods sections 20 to 22), 59 (stretch part is an artefact, real size is a real risk factor; Ruben), 62 (replaced by EPO on the measured stretch factor, methods section 23). Answered and removed on 23 Nov (from the outcome of 29 Oct, `docs/meeting_2026-10-29.md`, never removed then): 2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38. Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
+Answered and removed on 27 Nov: 68 (run 2 uses a cumulative head, Ruben; built), 66 (validation group: 2 whole boxes per fold, fixed for the whole training of that fold, drawn with seed 369; clean nested version kept, Ruben), 5 (threshold is a market decision, Hugo and Ruben, 24 Nov), 64 (outcome written in `docs/meeting_2026-11-24.md` section 8), 18 (originals received, uniform rescaling verified, `pearlatent.real_size`), 52 (cause: the stretch to 128 voxels plus real size, methods sections 20 to 22), 59 (stretch part is an artefact, real size is a real risk factor; Ruben), 62 (replaced by EPO on the measured stretch factor, methods section 23). Answered and removed on 23 Nov (from the outcome of 29 Oct, `docs/meeting_2026-10-29.md`, never removed then): 2, 4, 12, 13, 16, 17, 30, 31, 33, 34, 35, 37, 38. Answered and removed on 21 Nov (Ruben): 57 (core region: height 0.05 to 0.60 over the body, all radii; route then dropped). Answered and removed on 7 Nov (Ruben): 39 (height-radius rows added beside the full grid, `docs/methods_plsda.md` section 10), 49 (notebook 10 built and saved), 50 (runs of 2 November deleted). Answered and removed on 2 Nov (Ruben): 40 (Med3D choices, see Current state and `pearlatent.med3d_features`). Removed on 3 Nov: 44 (`docs/med3d_open_points.md` updated), 48 (nnU-Net dropped, Ruben). Answered and removed on 5 Oct (Hugo, October 2026): the 17 unscanned 2526 fruit are excluded
 (poor scan setup); a 2526 box letter is an orchard ID. Answered and removed on 21 Oct (Hugo's mail): 19 (his VAE split
 confirmed). Answered and removed on 23 Oct (Ruben): 23 (outlier rule,
 `docs/outlier_rule.md`), 26 (van der Voet test per box, `docs/cv_explained.md` section 4),
@@ -332,9 +338,6 @@ For Ruben, added 27 Nov:
 For Ruben, added 27 Nov (ResNet-18):
 67. Ordinal step on the run 1 output: on the probability or on its log-odds? Both are computed
     (`ordinal_summary.csv`); choose after the full run, before reading the grade results as final.
-68. Run 2 (network trained on the `defective` grades): cumulative head (three outputs for
-    grade >= 1, >= 2, >= 3) or 4-class output (Hugo's default `output_size=4`)? Claude proposed
-    the cumulative head; not decided.
 69. The ResNet sees the 128³ volumes with the stretch built in; no EPO applies to it. Run the
     partial Spearman of `pearlatent.stretch_check` on its healthy-fruit out-of-fold scores after
     the full run?

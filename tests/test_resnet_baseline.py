@@ -152,3 +152,94 @@ def test_ordinal_step_gives_grade_probabilities_that_follow_the_grade():
         summary = grade_summary(out["defective"].to_numpy(), p)
         # The score was built to rise with the grade, so agreement must be clearly positive.
         assert summary["weighted_kappa"] > 0.5
+
+
+def test_cumulative_head_probabilities_are_ordered_even_with_extreme_gaps():
+    torch = pytest.importorskip("torch")
+    from pearlatent.resnet_baseline import cumulative_head
+
+    head = cumulative_head(8)
+    with torch.no_grad():
+        head.gaps.copy_(torch.tensor([-20.0, 5.0]))  # a near-zero gap must stay >= 0
+    p = torch.sigmoid(head(torch.randn(50, 8))).detach().numpy()
+    assert p.shape == (50, 3)
+    assert (np.diff(p, axis=1) <= 0).all()  # P(>=1) >= P(>=2) >= P(>=3)
+
+
+def test_cumulative_loss_targets_per_grade():
+    """A grade 2 fruit has targets (1, 1, 0): large logits (+, +, -) give a loss near 0."""
+    torch = pytest.importorskip("torch")
+    from pearlatent.resnet_baseline import cumulative_loss
+
+    good = torch.tensor([[10.0, 10.0, -10.0]])
+    bad = torch.tensor([[-10.0, -10.0, 10.0]])
+    grade = torch.tensor([2])
+    assert cumulative_loss(good, grade).item() < 1e-3
+    assert cumulative_loss(bad, grade).item() > 5
+
+
+def test_grade_probabilities_sum_to_one():
+    from pearlatent.resnet_baseline import grade_probabilities
+
+    at_least = np.array([[0.9, 0.6, 0.2], [0.1, 0.05, 0.0]])
+    p = grade_probabilities(at_least)
+    assert np.allclose(p, [[0.1, 0.3, 0.4, 0.2], [0.9, 0.05, 0.05, 0.0]])
+    assert np.allclose(p.sum(axis=1), 1.0)
+
+
+def test_train_one_fold_grades_target(tmp_path):
+    """Run 2: Hugo's network with the cumulative head trains on grades 0 to 3."""
+    torch = pytest.importorskip("torch")
+    from pearlatent.resnet_baseline import (
+        import_hugo_resnet,
+        prediction_table,
+        run_epoch,
+        train_one_fold,
+    )
+
+    ResNet3D = import_hugo_resnet(_hugo_repo())
+    torch.manual_seed(0)
+
+    class Tiny:
+        def __init__(self, n):
+            self.x = torch.rand(n, 1, 16, 16, 16)
+            self.y = torch.tensor([i % 4 for i in range(n)])
+
+        def __len__(self):
+            return len(self.y)
+
+        def __getitem__(self, i):
+            return self.x[i], self.y[i]
+
+    settings = {
+        "base_channels": 4,
+        "dropout": 0.0,
+        "epochs": 2,
+        "batch_size": 4,
+        "lr": 1e-3,
+        "weight_decay": 0.0,
+        "early_stop_patience": 5,
+        "min_epochs": 0,
+        "amp": False,
+    }
+    model, _ = train_one_fold(
+        ResNet3D,
+        {"train": Tiny(8), "validation": Tiny(8)},
+        settings,
+        "cpu",
+        0,
+        tmp_path / "log.csv",
+        target="grades",
+    )
+    from pearlatent.resnet_baseline import cumulative_loss
+
+    loader = torch.utils.data.DataLoader(Tiny(6), batch_size=4)
+    out = run_epoch(model, loader, cumulative_loss, "cpu", None, False, "grades")
+    assert out["probability"].shape == (6, 3)
+    rows = pl.DataFrame(
+        {"fruit_id": [f"f{i}" for i in range(6)], "file_stem": ["x"] * 6}
+    )
+    table = prediction_table(rows, out["probability"], "grades")
+    p = table.select([f"p_grade_{k}" for k in range(4)]).to_numpy()
+    assert np.allclose(p.sum(axis=1), 1.0) and (p >= -1e-7).all()
+    assert table["probability"].to_list() == table["p_at_least_2"].to_list()
