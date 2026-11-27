@@ -837,8 +837,20 @@ fruit only, because real size goes with the defect. Same fruit (315), folds, cen
 as the rows without EPO. Example: if features 1 to 10 rise with s and features 6 to 20 with
 real volume, p points along features 1 to 10; the volume pattern loses only its part along p
 (features 6 to 10), about 9 % of its length in the test example (`tests/test_epo.py`).
-Difference with section 17 (variant B, healthy PC 1): that direction was the size axis
-(real size and stretch mixed); this one is the stretch only, from a measured value.
+Difference with section 17 (variant B, healthy PC 1): there the direction is found by a PCA,
+here it is defined by a measured value. In the features they nearly coincide (next paragraph).
+
+**What it removes** (scratch, latent height-radius mean + SD, one fit on all 145 healthy fruit,
+27 November). One direction p out of 320 features, so one number per fruit, t = x · p, is set
+to the same value for every fruit. t follows the stretch (+0.55), the stalk (−0.72) and also
+real volume (+0.34) on the healthy fruit. That one direction holds 31.9 % of the variation of
+the healthy fruit; it is almost healthy PC 1 (32.7 %, cosine 0.98). 94 % of p lies on the 160
+mean features, spread about evenly over the 20 heights (4 to 8 % each): mostly the overall
+level of the latent of a fruit. Example, feature 0 (height bin 0, ring 0, mean): −2.67 per SD
+of stretch and −2.44 per SD of real volume. So the earlier check C "size" (128³ body voxels,
+mostly stretch, section 20) was already what variant B removed; the two variants are expected
+to behave alike, and variant B's results (section 17) should be read again with the measured
+sizes before any claim that one is better.
 
 **Found** (runs in `EPO_STRETCH_RUN_DIRS`; healthy 145, partial Spearman, box-bootstrap
 intervals; before → after):
