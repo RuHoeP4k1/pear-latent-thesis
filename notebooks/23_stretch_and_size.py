@@ -46,8 +46,8 @@ def _():
     **Outputs.** Figures in `derived/figures/23_*.png`. No model is fitted here except one
     illustration of the EPO direction on all healthy fruit (figure 5).
 
-    **Status.** draft. Open: the number of latent variables (LVs) of the final latent rows
-    with EPO (section 7, Ruben).
+    **Status.** in use (27 November 2026). Latent variables (LVs) of the final latent rows with
+    EPO chosen by Ruben in section 7.
 
     All numbers: the 315 open 2526 fruit (12 boxes, faulty volumes removed); healthy = defective
     grade 0 (145 fruit). Test boxes F, J, M are not used.
@@ -92,9 +92,13 @@ def _(cfg, figure_dir, fruit):
     rescaling_figure, _axes = plt.subplots(2, 2, figsize=(8, 8))
     for _c, _f in enumerate(_pair):
         _stem = _f["fruit_id"].split("_", 1)[1]
-        _orig = np.asarray(nib.load(cfg.path("ct_orig_dir_2526") / f"{_stem}.nii").dataobj)
+        _orig = np.asarray(
+            nib.load(cfg.path("ct_orig_dir_2526") / f"{_stem}.nii").dataobj
+        )
         _resc = np.asarray(nib.load(cfg.path("ct_dir_2526") / f"{_stem}.nii").dataobj)
-        _o = _orig[_orig.shape[0] // 2].T  # slice through the middle; stem–calyx axis upwards
+        _o = _orig[
+            _orig.shape[0] // 2
+        ].T  # slice through the middle; stem–calyx axis upwards
         _axes[0, _c].imshow(
             _o,
             origin="lower",
@@ -114,7 +118,9 @@ def _(cfg, figure_dir, fruit):
         _axes[1, _c].set_title(f"128³ volume: s = {_f['stretch_factor']:.2f}")
         _axes[1, _c].set_xlabel("voxel")
     rescaling_figure.tight_layout()
-    rescaling_figure.savefig(figure_dir / "23_1_rescaling.png", dpi=120, bbox_inches="tight")
+    rescaling_figure.savefig(
+        figure_dir / "23_1_rescaling.png", dpi=120, bbox_inches="tight"
+    )
     rescaling_figure
     return
 
@@ -192,13 +198,17 @@ def _(cfg, figure_dir, fruit):
     _shown_rows = {
         "size alone": "size alone",
         "hugo_vae_hr_sd": "latent height-radius mean + SD",
+        "hugo_vae_hr_sd_epo_stretch": "same, with EPO on the stretch (final)",
         "med3d": "Med3D",
         "ct_32_hr_sd": "CT 32³ height-radius mean + SD",
     }
     size_figure, _axes = plt.subplots(1, 2, figsize=(11, 4.2))
     _grades = [0, 1, 2, 3]
     _axes[0].boxplot(
-        [fruit.filter(pl.col("defective") == g)["body_volume_cm3"].to_numpy() for g in _grades],
+        [
+            fruit.filter(pl.col("defective") == g)["body_volume_cm3"].to_numpy()
+            for g in _grades
+        ],
         tick_labels=[
             f"{g}\n(n={fruit.filter(pl.col('defective') == g).height})" for g in _grades
         ],
@@ -211,7 +221,7 @@ def _(cfg, figure_dir, fruit):
     )
     for _k, (_row, _label) in enumerate(_shown_rows.items()):
         _part = thirds.filter(pl.col("row") == _row).sort("size_group")
-        _x = np.arange(3) + (_k - 1.5) * 0.2
+        _x = np.arange(3) + (_k - 2) * 0.15
         _axes[1].errorbar(
             _x,
             _part["auc"],
@@ -278,7 +288,10 @@ def _(cfg, figure_dir):
         _ax.errorbar(
             _check[_key],
             _y + _offset,
-            xerr=[_check[_key] - _check[f"{_key}_low"], _check[f"{_key}_high"] - _check[_key]],
+            xerr=[
+                _check[_key] - _check[f"{_key}_low"],
+                _check[f"{_key}_high"] - _check[_key],
+            ],
             fmt="o",
             capsize=3,
             label=_name,
@@ -321,7 +334,9 @@ def _():
 @app.cell(hide_code=True)
 def _(cfg, fruit):
     # Feature layout (methods section 11): mean of height h, ring r at 8 h + r; SD at 160 + 8 h + r.
-    features = load_features(cfg, "hugo_vae_hr_sd", fruit["fruit_id"].to_list()).astype(float)
+    features = load_features(cfg, "hugo_vae_hr_sd", fruit["fruit_id"].to_list()).astype(
+        float
+    )
     _healthy = (fruit["defective"] == 0).to_numpy()
     stretch_direction = fit_stretch_direction(
         features,
@@ -376,7 +391,9 @@ def _(defect_direction, epo_numbers, figure_dir, stretch_direction):
         f"{epo_numbers['share_on_means']:.0%} of it on the means; "
         f"cosine with the defect direction {epo_numbers['cosine_defect']:.2f}"
     )
-    direction_figure.savefig(figure_dir / "23_5_directions.png", dpi=120, bbox_inches="tight")
+    direction_figure.savefig(
+        figure_dir / "23_5_directions.png", dpi=120, bbox_inches="tight"
+    )
     direction_figure
     return
 
@@ -384,60 +401,68 @@ def _(defect_direction, epo_numbers, figure_dir, stretch_direction):
 @app.cell(hide_code=True)
 def _():
     mo.md(r"""
-    ## 6. Before and after EPO, latent height-radius mean + SD
+    ## 6. Before and after EPO, the three latent rows
 
-    The healthy fruit: score (minus its box median) against real volume, coloured by the
-    stretch factor. Before: at equal volume the colours sort the score (stretch link). After:
-    they no longer do, and the rise with real volume stays.
+    For each latent row: the three links of the healthy-fruit score (partial Spearman, as in
+    section 4, 95 % box bootstrap), without EPO (the saved row at its own LVs) and with EPO on
+    the stretch factor (the final LVs: grid 3, height-radius 2, height-radius mean + SD 2).
+    Expected if EPO does what it should: the stretch and stalk links go to 0, the real-volume
+    link stays, the AUC does not change.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(cfg, figure_dir, fruit):
+def _(cfg, figure_dir):
     _results = cfg.path("results_dir")
-    _sizes = fruit.select("fruit_id", "stretch_factor", "body_volume_cm3")
-    _runs = {
-        "without EPO": _results / PLSDA_BINARY23_RUN_DIRS["hugo_vae_hr_sd"],
-        "with EPO on the stretch factor": _results / EPO_STRETCH_RUN_DIRS["hugo_vae_hr_sd"],
+    _rows = {
+        "hugo_vae": "latent grid",
+        "hugo_vae_hr": "latent height-radius",
+        "hugo_vae_hr_sd": "latent height-radius mean + SD",
     }
-    _links = json.loads((_runs["with EPO on the stretch factor"] / "scores.json").read_text())[
-        "healthy_links"
-    ]
-    before_after_figure, _axes = plt.subplots(1, 2, figsize=(11, 4.2), sharey=True)
-    for _ax, (_name, _dir), _key in zip(
-        _axes, _runs.items(), ("without", "with"), strict=True
-    ):
-        _t = (
-            pl.read_parquet(_dir / "predictions.parquet")
-            .join(_sizes, on="fruit_id")
-            .filter(pl.col("defective") == 0)
-            .with_columns(
-                score_in_box=pl.col("prediction") - pl.col("prediction").median().over("box")
+    _links = {
+        "stretch_given_volume": "stretch,\nvolume equal",
+        "stalk_given_volume": "stalk length,\nvolume equal",
+        "volume_given_stretch": "real volume,\nstretch equal",
+    }
+    before_after_figure, _axes = plt.subplots(1, 3, figsize=(13, 3.8), sharex=True)
+    for _ax, (_row, _label) in zip(_axes, _rows.items(), strict=True):
+        _scores = json.loads(
+            (_results / EPO_STRETCH_RUN_DIRS[_row] / "scores.json").read_text()
+        )
+        _base_auc = json.loads(
+            (_results / PLSDA_BINARY23_RUN_DIRS[_row] / "scores.json").read_text()
+        )["auc"]
+        _y = np.arange(len(_links))
+        for _key, _offset, _name in (
+            ("without", 0.15, "without EPO"),
+            ("with", -0.15, "with EPO"),
+        ):
+            _l = _scores["healthy_links"][_key]
+            _v = np.array([_l[k] for k in _links])
+            _lo = np.array([_l[f"{k}_low"] for k in _links])
+            _hi = np.array([_l[f"{k}_high"] for k in _links])
+            _ax.errorbar(
+                _v,
+                _y + _offset,
+                xerr=[_v - _lo, _hi - _v],
+                fmt="o",
+                capsize=3,
+                label=_name,
             )
-        )
-        _auc = json.loads((_dir / "scores.json").read_text())["auc"]
-        _shown = _ax.scatter(
-            _t["body_volume_cm3"],
-            _t["score_in_box"],
-            c=_t["stretch_factor"],
-            cmap="viridis",
-            s=16,
-        )
-        _l = _links[_key]
+        _ax.axvline(0, color="grey", lw=0.8)
+        _ax.set_yticks(_y, list(_links.values()), fontsize=8)
+        _p = _scores["paired_minus_without_epo"]
         _ax.set_title(
-            f"{_name} (AUC {_auc:.3f})\n"
-            f"stretch, volume equal: {_l['stretch_given_volume']:+.2f}; "
-            f"stalk, volume equal: {_l['stalk_given_volume']:+.2f}\n"
-            f"real volume, stretch equal: {_l['volume_given_stretch']:+.2f}",
+            f"{_label} ({_scores['n_lv']} LVs with EPO)\nAUC {_base_auc:.3f} → {_scores['auc']:.3f},"
+            f" paired {_p['difference']:+.3f} ({_p['lower_95']:+.3f} to {_p['upper_95']:+.3f})",
             fontsize=9,
         )
-        _ax.set_xlabel("real body volume (cm³)")
-    _axes[0].set_ylabel("score minus box median (healthy fruit)")
-    before_after_figure.colorbar(_shown, ax=_axes, label="stretch factor s")
-    before_after_figure.savefig(
-        figure_dir / "23_6_before_after_epo.png", dpi=120, bbox_inches="tight"
-    )
+        _ax.set_xlabel("partial Spearman, 145 healthy fruit")
+    _handles, _names = _axes[0].get_legend_handles_labels()
+    before_after_figure.legend(_handles, _names, loc="lower center", ncol=2, fontsize=8)
+    before_after_figure.tight_layout(rect=(0, 0.07, 1, 1))
+    before_after_figure.savefig(figure_dir / "23_6_before_after_epo.png", dpi=120)
     before_after_figure
     return
 
@@ -449,9 +474,9 @@ def _():
 
     The mean RMSECV curve (20 repeats of the 4-fold box cross-validation) of each latent row,
     without and with EPO. The runs with EPO kept the LVs chosen without EPO (grid 4,
-    height-radius 3, height-radius mean + SD 3), so that before and after compare the same
-    model size. For the final rows the LVs are chosen again, by eye at the elbow, before the
-    test boxes are opened.
+    height-radius 3, height-radius mean + SD 3). Ruben, 27 November 2026, from these curves,
+    before the test boxes are opened: with EPO grid 3, height-radius 2, height-radius mean + SD
+    2 (`epo_stretch_run.FINAL_N_LV`).
     """)
     return
 

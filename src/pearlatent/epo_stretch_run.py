@@ -86,6 +86,7 @@ def main() -> None:
     from pearlatent.plsda import (
         CUTOFF,
         MAX_COMPONENTS,
+        box_bootstrap_auc,
         classification_scores,
         cross_validated_predictions,
         mean_squared_errors,
@@ -140,6 +141,8 @@ def main() -> None:
             **classification_scores(mean_prediction, y, grade, cutoff=cutoff),
         }
         scores["n_lv"] = n_lv
+        low, high, _ = box_bootstrap_auc(mean_prediction, y, boxes)
+        scores["auc_box_bootstrap_95"] = [low, high]
         paired = paired_box_bootstrap_auc_difference(
             mean_prediction, base["prediction"].to_numpy(), y, boxes
         )

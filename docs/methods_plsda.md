@@ -880,3 +880,64 @@ Healthy 145, partial Spearman, before (rows without EPO, their own LVs) → afte
 | Latent grid (3) | 0.887 → 0.889 | +0.002 (−0.005 to +0.009) | +0.08 → +0.03 (−0.24 to +0.28) | +0.21 → +0.17 (+0.00 to +0.29) | −0.17 → −0.11 (−0.37 to +0.12) |
 | Latent height-radius (2) | 0.927 → 0.924 | −0.002 (−0.015 to +0.008) | +0.23 → −0.01 (−0.17 to +0.21) | +0.40 → +0.30 (+0.17 to +0.45) | −0.28 → −0.09 (−0.29 to +0.08) |
 | Latent height-radius mean + SD (2) | 0.957 → 0.958 | +0.001 (−0.007 to +0.011) | +0.18 → −0.02 (−0.21 to +0.21) | +0.39 → +0.34 (+0.21 to +0.50) | −0.26 → −0.10 (−0.33 to +0.09) |
+
+Runs 142922Z to 142953Z were repeated as 144257Z to 144330Z to save the box-bootstrap
+interval of the AUC; the predictions are identical. Stretch check with the EPO rows included:
+`results/20261127T144545Z_stretch_check` (`STRETCH_CHECK_RUN_DIR`).
+
+**Reasoning for the thesis, and its limits** (27 November 2026, Ruben asked for it written out).
+
+1. *Why the check is valid.* The score is each row's out-of-fold PLS-DA output for `binary_23`
+   (about 0 consumable, 1 non-consumable), averaged over the 20 repeats, at the row's LVs. A
+   model that responds only to the defect gives healthy fruit scores that do not depend on
+   other fruit properties. A healthy-fruit score that rises or falls with a property shows that
+   the model uses that property. The score is taken minus its box median so that orchard
+   differences do not create a link; the partial Spearman (ranks, the other measure removed by
+   a straight line) separates two properties that correlate with each other.
+2. *Why the stretch is removed and real size is kept.* The stretch factor is set by the
+   preprocessing (fruit length with stalk → 128 voxels) and carries no information on the
+   tissue; the stalk, which sets most of it at equal size (r −0.77), cannot hold browning.
+   Real size goes with the defect without any model (AUC 0.79, within box 0.75; Ho et al. 2008).
+3. *Why EPO and how.* EPO (Roger et al. 2003) removes from the features a direction that
+   carries only the nuisance. Here the direction is defined by the measured stretch factor at
+   equal real size, fitted on healthy training fruit only (no defect, so the defect pattern
+   cannot enter it; fitted on all fruit the direction is the same, cosine 0.993), inside every
+   fold. One direction, no tuning.
+4. *What the direction is.* It shifts all bin means about equally (94 % of its weight on the
+   means, 4 to 8 % per height bin): the stretch acts on the whole fruit. The defect direction is
+   local (lower means, higher SDs at heights 5 to 11, inner rings). They share the global part
+   (cosine 0.46), which EPO removes; the AUC does not change, so the local part carries the
+   detection.
+
+*What the check cannot do* (to state in the thesis):
+- 145 healthy fruit in 12 boxes: the intervals are wide (about ±0.2).
+- Real volume depends on the body mask (stalk removed by `body_mask` on the 32³ grid) and on
+  the voxel size of 0.6267 mm from the preprint (not in the file headers; a constant voxel size
+  does not change any correlation).
+- Ranks: a rising or falling relation is detected, not every form of dependence.
+- "Healthy" means graded healthy. The grading cuts the fruit in one or two places and can miss
+  lesions (question 53). If larger grade 0 fruit hide more browning, a correct detector also
+  scores them higher. The real-size link of the healthy-fruit score is therefore either the
+  model using size, or hidden browning in large fruit; the labels cannot tell these apart.
+  This does not apply to the stretch and stalk links: a stalk cannot hide browning.
+- The rows are compared side by side without a correction for the eight comparisons; read the
+  table as a pattern.
+
+**Final rows on the open boxes** (27 November 2026; `binary_23`, 315 fruit, design A; AUC with
+95 % box-bootstrap interval; recall, precision and share of grade 1 called positive at the
+Youden cut-off). Latent rows with EPO on the stretch factor (`EPO_STRETCH_RUN_DIRS`), the others
+without (`PLSDA_BINARY23_RUN_DIRS`, their scores do not follow the stretch, section 21).
+
+| Row | EPO | LVs | AUC | Recall / precision | Grade 1 called |
+|---|---|---|---|---|---|
+| Latent grid | yes | 3 | 0.889 (0.833 to 0.928) | 0.83 / 0.75 | 0.29 |
+| Latent height-radius | yes | 2 | 0.924 (0.880 to 0.955) | 0.87 / 0.82 | 0.17 |
+| Latent height-radius mean + SD | yes | 2 | 0.958 (0.946 to 0.968) | 0.91 / 0.84 | 0.29 |
+| CT 32³ grid | no | 5 | 0.839 (0.781 to 0.888) | 0.75 / 0.72 | 0.27 |
+| CT 32³ height-radius | no | 3 | 0.884 (0.838 to 0.915) | 0.74 / 0.83 | 0.20 |
+| CT 32³ height-radius mean + SD | no | 3 | 0.931 (0.903 to 0.947) | 0.80 / 0.90 | 0.17 |
+| Tissue features | no | 7 | 0.938 (0.886 to 0.966) | 0.89 / 0.86 | 0.32 |
+| Med3D | no | 7 | 0.958 (0.934 to 0.973) | 0.87 / 0.88 | 0.24 |
+
+Still missing before the sealed test: ResNet-18 baseline, N-way PLS (charter rows); Hugo's
+agreement to the height-radius rows as model rows (Q1 of 24 November).

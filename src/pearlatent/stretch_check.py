@@ -3,7 +3,9 @@
 Every row gets the same rescaled volumes, but not every row's score need follow the stretch
 factor. This run answers it per row from the saved out-of-fold scores; no model is fitted.
 
-1. Per row (the `binary_23` PLS-DA rows of `PLSDA_BINARY23_RUN_DIRS`), on the healthy fruit:
+1. Per row (the `binary_23` PLS-DA rows of `PLSDA_BINARY23_RUN_DIRS`, and the latent rows with
+   EPO on the stretch factor of `EPO_STRETCH_RUN_DIRS`, named `<row>_epo_stretch`), on the
+   healthy fruit:
    `healthy_stretch_correlations`, with 95 % box-bootstrap intervals on the two partial
    correlations. A row whose partial with the stretch factor excludes 0 gets the correction
    (EPO on the stretch factor); a row whose partial with real volume excludes 0 follows the
@@ -85,6 +87,7 @@ def main() -> None:
         size_thirds,
     )
     from pearlatent.runs import (
+        EPO_STRETCH_RUN_DIRS,
         PLSDA_BINARY23_RUN_DIRS,
         REAL_SIZE_RUN_DIR,
         new_run_dir,
@@ -99,7 +102,11 @@ def main() -> None:
 
     rows = []
     tables = {}
-    for row, run in PLSDA_BINARY23_RUN_DIRS.items():
+    all_runs = {
+        **PLSDA_BINARY23_RUN_DIRS,
+        **{f"{k}_epo_stretch": v for k, v in EPO_STRETCH_RUN_DIRS.items()},
+    }
+    for row, run in all_runs.items():
         predictions = pl.read_parquet(results / run / "predictions.parquet")
         table = predictions.rename({"prediction": "score"}).join(
             sizes, on="fruit_id", how="inner"
@@ -187,7 +194,7 @@ def main() -> None:
         out_dir,
         {
             "real_size_run": REAL_SIZE_RUN_DIR,
-            "rows": PLSDA_BINARY23_RUN_DIRS,
+            "rows": all_runs,
             "fruit": fruit.height,
             "figure_row": FIGURE_ROW,
             "size_third_cutoffs_cm3": cutoffs,

@@ -21,7 +21,7 @@ DESCRIPTORS_RUN_DIR = "descriptors/20261023T155219Z_descriptors"
 REAL_SIZE_RUN_DIR = "real_size/20261127T125309Z_real_size"
 # Which rows follow the stretch or real size; AUC within size thirds (27 November 2026,
 # `pearlatent.stretch_check`, in results/; methods sections 21 and 22).
-STRETCH_CHECK_RUN_DIR = "20261127T133436Z_stretch_check"
+STRETCH_CHECK_RUN_DIR = "20261127T144545Z_stretch_check"
 TISSUE_FEATURES_RUN_DIR = "tissue_features/20261102T151947Z_tissue_features"
 MED3D_RUN_DIR = "med3d/20261102T185107Z_med3d_resnet18"
 # logvar of the encoder for the open 2526 fruit and Hugo's 66 validation fruit (9 November
@@ -37,9 +37,9 @@ EPO_RUN_DIRS = {
 # PLS-DA on binary_23 with EPO on the measured stretch factor, latent rows only, LVs 3 / 2 / 2
 # chosen by Ruben (27 November 2026, `pearlatent.epo_stretch_run`; methods section 23).
 EPO_STRETCH_RUN_DIRS = {
-    "hugo_vae": "20261127T142922Z_plsda_binary23_hugo_vae_epo_stretch",
-    "hugo_vae_hr": "20261127T142938Z_plsda_binary23_hugo_vae_hr_epo_stretch",
-    "hugo_vae_hr_sd": "20261127T142953Z_plsda_binary23_hugo_vae_hr_sd_epo_stretch",
+    "hugo_vae": "20261127T144257Z_plsda_binary23_hugo_vae_epo_stretch",
+    "hugo_vae_hr": "20261127T144314Z_plsda_binary23_hugo_vae_hr_epo_stretch",
+    "hugo_vae_hr_sd": "20261127T144330Z_plsda_binary23_hugo_vae_hr_sd_epo_stretch",
 }
 
 # The PLS-DA runs on binary_23 in use (folders under `results_dir`, saved 3 November 2026 by
