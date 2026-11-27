@@ -6,6 +6,9 @@
 # Folder with the CT volumes (read-only)
 ct_dir_2526 = "data/ct/2526"
 ct_dir_2425 = "data/ct/2425"
+# Hugo's 2526 volumes before the rescaling to 128 voxels: segmented, aligned, cropped,
+# uint16 (received 27 November 2026; voxel size not in the header, 0.6267 mm per the preprint)
+ct_orig_dir_2526 = "data/ct_original/2526"
 # The label CSV files (read-only)
 labels_2425 = "data/labels_conference_pear_2425.csv"
 labels_2526 = "data/labels_conference_pear_2526.csv"

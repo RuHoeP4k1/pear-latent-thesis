@@ -714,3 +714,40 @@ the mean of rings 1 to 4 at heights 4 to 7.
 **Reading.** Heights, rings and LVs are chosen on the same cross-validation, so the
 selection's AUC is optimistic. The kept region (5 to 60 % of the body height) carries all of
 the model; the stalk and size link stays; grade 1 is not rescued.
+
+## 20. Real size and stretch factor from Hugo's originals (27 November 2026, Ruben)
+
+**What** (`pearlatent.real_size`, run `derived/real_size/20261127T125309Z_real_size`). On 27
+November Hugo gave the 2526 volumes before the rescaling to 128 voxels (15 tar files, one per
+box, 434 files: our 433 plus 2526_F28, which has no 128³ volume and stays excluded). They are
+cropped, aligned (stem–calyx axis along the third array axis), segmented uint16 volumes; the
+header holds no voxel size. Ruben (27 November): the preprint procedure (section 2.1) was
+followed for 2526, so the voxels are 0.6267 mm cubes.
+
+**Checks** (all 433; the run repeats the per-axis check on the 346 open fruit):
+- The original array is the tight crop of the fruit on every axis.
+- The rescaling is uniform: factor of each short axis over factor of the long axis 0.993 ±
+  0.005 (range 0.980 to 1.012; one voxel of rounding on about 55 voxels is 0.018).
+- Shrinking the original by s and centring it reproduces Hugo's volume: voxel correlation
+  0.985 to 0.992 (2526_A01, C23, K07, O19; scratch figure, open boxes only).
+
+**Rule.** Stretch factor s = 128 / original length in voxels (stalk included). One 128³ voxel
+is 0.6267 / s mm. Example: 2526_A01, length 243 voxels (152 mm), s = 0.527, 128³ voxel 1.19 mm.
+
+**Found** (open 2526 fruit after the faulty volumes, 315; healthy = defective 0, 145):
+
+| | Healthy (145) | All (315) |
+|---|---|---|
+| Stretch factor s | 0.476 to 0.848 (median 0.601) | 0.457 to 0.848 |
+| Total length, stalk included | 95 to 169 mm | 95 to 175 mm |
+| Real body volume | 85 to 252 cm³ (median 158) | 85 to 380 cm³ (median 181) |
+| Stalk length | 0 to 55 mm | 0 to 55 mm |
+| log real body volume vs log s (Pearson) | −0.52 | −0.54 |
+| 128³ body voxels vs log real body volume | +0.13 | +0.20 |
+| 128³ body voxels vs log s | +0.76 | +0.71 |
+| Stalk length (mm) vs log s | −0.78 | −0.65 |
+
+**Reading.** The "size" of check C so far (body voxels in the 128³ grid) is mostly the stretch
+factor (r +0.76 on healthy fruit) and hardly real size (+0.13). Real body volume and the
+stretch factor share about a quarter of their variance (r −0.52), so their effects on a score
+can be separated by a regression on both (step 4 of the plan of 27 November).
