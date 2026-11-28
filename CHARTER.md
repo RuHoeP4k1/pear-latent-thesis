@@ -61,7 +61,8 @@ parameters against 33 million at 64, for about 185 training fruit per fold). Ope
 no 2425 fruit in the training (Ruben, 27 November 2026: the row stays paired with the PLS-DA rows).
 Two runs (Ruben, 27 November 2026): first a network trained on `binary_23`, the same task as the
 PLS-DA rows, for the paired comparison; then a second network trained on the `defective` grades
-with an ordinal output, to check whether the network can grade at all.
+with an ordinal output, to check whether the network can grade at all. Sealed test (Ruben, 28 November
+2026): one network trained on the 12 open boxes, 2 of them as validation boxes.
 Dropped on 13 October: the own self-supervised extension (GPU too small for 3D self-supervised
 training). Dropped on 29 October (Hugo): the random frozen encoder.
 

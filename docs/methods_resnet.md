@@ -271,9 +271,10 @@ full run on the Mac CPU.
   stretch EPO of the latent rows (`docs/methods_plsda.md` section 23) has no counterpart here.
   Check afterwards with `pearlatent.stretch_check` on its healthy-fruit scores (question 69).
 - Grade 1: 20 to 27 training fruit per fold (section 3).
-- Sealed test boxes F, J, M: how the ResNet predicts them is not decided (the 4 fold networks,
-  or one network trained on the 12 open boxes with validation boxes). To settle before the
-  test (question 70).
+- Sealed test boxes F, J, M (Ruben, 28 November 2026): one network, trained on the 12 open
+  boxes, with 2 of them as validation boxes for early stopping (drawn with seed 369, as in the
+  folds), predicts the test boxes once. Not the mean of the 4 fold networks. Same rule as the
+  PLS-DA rows (one fit on all 12 boxes). Not yet in the code; written before the test.
 - Ordinal step scale (probability or log-odds): question 67.
 
 ## Decision log
@@ -287,3 +288,4 @@ full run on the Mac CPU.
 | 27 Nov 2026 | Run 1 on `binary_23`; ordinal step of notebook 12 on its output | Ruben |
 | 27 Nov 2026 | Run 2 on the `defective` grades, cumulative head | Ruben |
 | 27 Nov 2026 | Early stopping on 2 whole validation boxes per fold (nested), not on the cross-validation curve | Ruben |
+| 28 Nov 2026 | Sealed test: one network trained on the 12 open boxes (2 as validation boxes), not the 4 fold networks | Ruben |
