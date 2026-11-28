@@ -32,6 +32,8 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
     1; writes grade probabilities per fruit, `grade_summary.csv` (all fruit and by cause), and
     `probability` = P(>= 2) for the binary_23 AUC. Smoke run (4 folds, 1 epoch, 6 per box):
     `results/20261127T163132Z_resnet18_grades_smoke`, ran end to end.
+  - Methods record `docs/methods_resnet.md` (28 Nov): design, network, training, both runs, with
+    worked examples; no results.
   - Charter updated (Ruben): width 16; 2526 fruit only, no 2425; two runs: run 1 `binary_23`,
     run 2 a network trained on the `defective` grades with an ordinal output.
   - Tests: 12 new in `tests/test_resnet_baseline.py`; 194 pass. Smoke runs (CPU, 1 epoch):
@@ -56,8 +58,7 @@ the "Current state" section) and updates it with `/handoff` at the end. Ruben ma
   stretch-EPO direction (question 55); sealed test F, J, M once, all final rows.
 - **Still to fix:** methods section 18 says "the core change is the smallest" (the story is
   corrected); an empty cell at line 284 of `notebooks/20_story.py`; the variant-B results of
-  section 17 were read with the old 128³ size measure; no methods record for the ResNet yet
-  (write `docs/methods_resnet.md` with the choices above when the first full run is in).
+  section 17 were read with the old 128³ size measure.
 - **Reference, still valid:**
   - Encoding run `20261013T171306Z_hugo_vae`: open part 940 fruit (346 2526, 594 2425);
     sealed part `derived/sealed/latents/...`, 153 fruit. CT at 32³ run `20261005T142026Z`.
@@ -341,6 +342,10 @@ For Ruben, added 27 Nov (ResNet-18):
 69. The ResNet sees the 128³ volumes with the stretch built in; no EPO applies to it. Run the
     partial Spearman of `pearlatent.stretch_check` on its healthy-fruit out-of-fold scores after
     the full run?
+
+70. Sealed test boxes F, J, M for the ResNet: predict them with the 4 fold networks (mean of
+    their probabilities), or train one network on the 12 open boxes with 2 validation boxes?
+    To settle before the test (`docs/methods_resnet.md` section 12).
 
 ## Decided
 
